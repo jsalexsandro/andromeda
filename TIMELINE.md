@@ -10,6 +10,8 @@
 - [x] 2026-04-10 - Operadores Unários (-X, +X, !X)
 - [x] 2026-04-10 - VariableDeclaration (var, val, const)
 - [x] 2026-04-11 - Semantic Analyzer (Type Checker, Scope, Errors)
+- [x] 2026-04-11 - BlockStatement (escopos aninhados)
+- [x] 2026-04-11 - IfStatement (if/else/else if)
 
 #### Funcionalidades testadas:
 - Unário negativo: `-5`, `-x`
@@ -25,6 +27,18 @@ Erros Semânticos Implementados:
 - ALREADY_DECLARED: Nome já usado
 - TYPE_MISMATCH: Tipos incompatíveis
 - VAL_REQUIRES_TYPE: val sem tipo
+- INVALID_OPERATION: Operação inválida
+
+Escopos Aninhados 테스트:
+- Outer scope visível no inner: ✅
+- Inner não visível outside: ✅
+- Redeclaração no mesmo escopo: ✅ Erro
+- Multiple vars mesmo escopo: ✅
+
+IfStatement 테스트:
+- if/else: ✅
+- else if: ✅
+- Expressões como condições: ✅
 
 ### Planejados
 - [ ] Incremento/Decremento (++, --)

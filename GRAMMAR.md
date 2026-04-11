@@ -116,9 +116,62 @@ BlockStmt  → "{" Statement* "}"
 Program    → Statement*
 ```
 
+### 8.1 Block Statement
+```
+BlockStmt  → "{" Statement* "}"
+```
+Abre novo escopo léxico para variáveis.
+
+### 8.2 If Statement
+```
+IfStmt     → "if" "(" Expression ")" Statement ("else" Statement)?
+```
+- Suporta `if (condição) { ... }`
+- Suporta `if ... else { ... }`
+- Suporta `else if` (aninhado)
+
+### Exemplos:
+```andromeda
+if (true) { x = 1 }
+if (x > 0) { ... } else { ... }
+if (a > 10) { ... } else if (a > 5) { ... } else { ... }
+```
+
 ---
 
-## 9. Recuperação de Erros
+## 9. Semantic Analyzer
+
+O Semantic Analyzer é executado após o Parser e valida o significado do código.
+
+### 9.1 Escopos (Scope)
+
+Sistema de escopos léxicos aninhados:
+- **Escopo Global**: escopo principal
+- **Escopo Local**: criado por BlockStmt, if, while, for, função
+
+Cada símbolo é pesquisado primeiro no escopo atual, depois nos pais.
+
+### 9.2 Type Inference
+
+O type checker infere tipos ausente:
+```andromeda
+var x = 10      // infere: int
+var y: int = 20 // explícito: int
+```
+
+### 9.3 Erros Semânticos Detectados
+
+| Código | Descrição |
+|--------|----------|
+| UNDEFINED_VARIABLE | Variável referenciada mas não declarada |
+| ALREADY_DECLARED | Nome já usado no mesmo escopo |
+| TYPE_MISMATCH | Tipos incompatíveis em operação |
+| VAL_REQUIRES_TYPE | `val` sem type annotation |
+| INVALID_OPERATION | Operação inválida (ex: logical com não-boolean) |
+
+---
+
+## 10. Recuperação de Erros
 
 - O parser reporta erros com linha, coluna e ponteiro (^)
 - Error deduplication evita mensagens duplicadas
@@ -130,7 +183,7 @@ Program    → Statement*
 
 | Tipo | Valor | Descrição |
 |------|-------|-----------|
-| KEYWORD | var, val, const, func, if, etc | Palavras reservadas |
+| KEYWORD | var, val, const, func, if, else | Palavras reservadas |
 | IDENTIFIER | nomes | Identificadores |
 | NUMBER | 42, 3.14 | Números |
 | STRING | "texto" | Strings |
@@ -149,11 +202,22 @@ Program    → Statement*
 
 ---
 
+## Histórico de Implementações
+
+| Versão | Data | Features |
+|--------|------|-----------|
+| 1.0.0 | 2026-04-10 | Lexer, Parser, AST, Literals, Binários, Unários |
+| 1.0.1 | 2026-04-11 | Semantic Analyzer, Type Checker, Escopos |
+| 1.0.2 | 2026-04-11 | Block Statement, IfStatement |
+
+---
+
 ## Em Desenvolvimento (Planejado)
 
-- [ ] Androx (sintaxe JSX nativa)
+- [ ] WhileStatement
+- [ ] ForStatement
 - [ ] Funções (func, arrow functions)
-- [ ] Controle de fluxo (if, while, for)
+- [ ] Androx (sintaxe JSX nativa)
 - [ ] Classes
 - [ ] Import/Export
 - [ ] Template Literals

@@ -266,7 +266,8 @@ export class TypeChecker {
           node: expr
         })
       }
-      return operator === "/" ? "float" : leftType
+      // For arithmetic, return int if both operands are int, float otherwise
+      return (leftType === "int" && rightType === "int") ? "int" : "float"
     }
 
     if (["==", "!=", ">", "<", ">=", "<="].includes(operator)) {

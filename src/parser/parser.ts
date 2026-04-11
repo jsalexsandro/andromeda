@@ -146,12 +146,21 @@ export class Parser {
   }
 
   private parseStatement(): Stmt | null {
-    // Check for variable declarations
     const token = this.peek()
+
+    // Block statement: {
+    if (token?.type === TokenType.LBRACE) {
+      return this.parseBlockStatement()
+    }
+
+    // Variable declarations: var, val, const
     if (token?.type === TokenType.KEYWORD) {
       const keyword = token.value as string
       if (keyword === 'var' || keyword === 'val' || keyword === 'const') {
         return this.parseVariableDeclaration()
+      }
+      if (keyword === 'if') {
+        return this.parseIfStatement()
       }
     }
 
@@ -164,6 +173,24 @@ export class Parser {
     }
     // We will consume semi-colons here eventually, but now just pass through
     return { kind: "ExpressionStmt", expression: expr }
+  }
+
+  private parseBlockStatement(): Stmt {
+    this.advance() // consume {
+    const statements: Stmt[] = []
+
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const stmt = this.parseStatement()
+      if (stmt) statements.push(stmt)
+    }
+
+    if (this.check(TokenType.RBRACE)) {
+      this.advance() // consume }
+    } else {
+      this.error("Expected '}' to close block", this.peek())
+    }
+
+    return { kind: "BlockStmt", statements }
   }
 
   private parseVariableDeclaration(): Stmt | null {
@@ -208,12 +235,58 @@ export class Parser {
       initializer = this.parseExpression(Precedence.LOWEST)
     }
     
-    return {
+return {
       kind: "VariableStmt",
       declarationType: keyword as "var" | "val" | "const",
       name: nameToken,
       typeAnnotation,
       initializer
+    }
+  }
+
+  private parseIfStatement(): Stmt {
+    this.advance() // consume if
+
+    // Parse condition: if (condition)
+    if (this.peek().type !== TokenType.LPAREN) {
+      this.error("Expected '(' after 'if'", this.peek())
+    }
+    this.advance() // consume (
+    const condition = this.parseExpression(Precedence.LOWEST)
+    if (this.check(TokenType.RPAREN)) {
+      this.advance() // consume )
+    } else {
+      this.error("Expected ')' after condition", this.peek())
+    }
+
+    // Parse then branch
+    let thenBranch: Stmt
+    if (this.peek().type === TokenType.LBRACE) {
+      thenBranch = this.parseBlockStatement()
+    } else {
+      thenBranch = this.parseStatement() || { kind: "ExpressionStmt", expression: { kind: "Literal", value: null } }
+    }
+
+    // Check for else
+    let elseBranch: Stmt | undefined
+    if (this.peek().type === TokenType.KEYWORD && this.peek().value === 'else') {
+      this.advance() // consume else
+
+      if (this.peek().type === TokenType.KEYWORD && this.peek().value === 'if') {
+        // else if - recursive
+        elseBranch = this.parseIfStatement()
+      } else if (this.peek().type === TokenType.LBRACE) {
+        elseBranch = this.parseBlockStatement()
+      } else {
+        elseBranch = this.parseStatement() || { kind: "ExpressionStmt", expression: { kind: "Literal", value: null } }
+      }
+    }
+
+    return {
+      kind: "IfStmt",
+      condition,
+      thenBranch,
+      elseBranch
     }
   }
 
