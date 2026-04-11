@@ -8,6 +8,7 @@ export enum SemanticErrorType {
   VAL_REQUIRES_TYPE = "VAL_REQUIRES_TYPE",
   READ_ONLY = "READ_ONLY",
   CANNOT_ASSIGN = "CANNOT_ASSIGN",
+  INVALID_BREAK = "INVALID_BREAK",
 }
 
 export interface SemanticError {

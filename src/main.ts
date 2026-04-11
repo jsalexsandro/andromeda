@@ -61,13 +61,19 @@ export function main() {
   }
 
   const input = fs.readFileSync(filename, 'utf-8')
+
+  console.time("lexer")
   const lexer = new Lexer(input)
   const tokens = lexer.tokenize ? lexer.tokenize() : []
+  console.timeEnd("lexer")
 
   if (isRun) {
     console.log(`[Andromeda] Executing ${filename}...`)
+
+    console.time("parser")
     const parser = new Parser(tokens, input)
     const ast = parser.parse()
+    console.timeEnd("parser")
 
     if (parser.errors.hasErrors()) {
       parser.errors.renderAll()
@@ -77,8 +83,10 @@ export function main() {
     console.log(`> Syntax pass completed: AST generated with ${ast.length} statements.`)
 
     // Run semantic analysis
+    console.time("semantic")
     const semanticAnalyzer = new SemanticAnalyzer()
     const semanticResult = semanticAnalyzer.analyze(ast)
+    console.timeEnd("semantic")
 
     if (semanticResult.hasErrors) {
       console.log(`\n> Semantic errors found:`)

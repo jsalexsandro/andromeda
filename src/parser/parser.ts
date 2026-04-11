@@ -162,6 +162,17 @@ export class Parser {
       if (keyword === 'if') {
         return this.parseIfStatement()
       }
+      if (keyword === 'while') {
+        return this.parseWhileStatement()
+      }
+      if (keyword === 'break') {
+        this.advance()
+        return { kind: "BreakStmt" }
+      }
+      if (keyword === 'continue') {
+        this.advance()
+        return { kind: "ContinueStmt" }
+      }
     }
 
     // For now everything acts as an expression statement until we implement `func`, `val`, etc.
@@ -287,6 +298,36 @@ return {
       condition,
       thenBranch,
       elseBranch
+    }
+  }
+
+  private parseWhileStatement(): Stmt {
+    this.advance() // consume while
+
+    // Parse condition: while (condition)
+    if (this.peek().type !== TokenType.LPAREN) {
+      this.error("Expected '(' after 'while'", this.peek())
+    }
+    this.advance() // consume (
+    const condition = this.parseExpression(Precedence.LOWEST)
+    if (this.check(TokenType.RPAREN)) {
+      this.advance() // consume )
+    } else {
+      this.error("Expected ')' after condition", this.peek())
+    }
+
+    // Parse body
+    let body: Stmt
+    if (this.peek().type === TokenType.LBRACE) {
+      body = this.parseBlockStatement()
+    } else {
+      body = this.parseStatement() || { kind: "ExpressionStmt", expression: { kind: "Literal", value: null } }
+    }
+
+    return {
+      kind: "WhileStmt",
+      condition,
+      body
     }
   }
 

@@ -1,6 +1,31 @@
 import { TokenType, Token } from './types'
 import { KEYWORDS } from '../keywords'
 
+// ============ OTIMIZAÇÕES: charCode constants ============
+const CC_a = 97,  CC_z = 122
+const CC_A = 65,  CC_Z = 90
+const CC_0 = 48,  CC_9 = 57
+const CC_UNDER = 95, CC_DOLLAR = 36
+const CC_LT = 60,  CC_GT = 62
+const CC_LBRACE = 123, CC_RBRACE = 125
+const CC_QUOTE_D = 34, CC_QUOTE_S = 39
+const CC_SLASH = 47, CC_NEWLINE = 10
+const CC_DOT = 46
+const CC_PLUS = 43, CC_MINUS = 45
+const CC_STAR = 42, CC_SLASH_CHAR = 47
+const CC_PERCENT = 37
+const CC_EQUAL = 61
+const CC_EXCL = 33
+const CC_PIPE = 124
+const CC_AMP = 38
+const CC_QUESTION = 63
+const CC_OPENPAREN = 40, CC_CLOSEPAREN = 41
+const CC_COMMA = 44
+const CC_LBRACKET = 91, CC_RBRACKET = 93
+
+// ============ OTIMIZAÇÕES: Set for O(1) lookup ============
+const KEYWORDS_SET = new Set(KEYWORDS)
+
 type LexerMode = 'NORMAL' | 'ANDROX_TAG' | 'ANDROX_CHILDREN' | 'ANDROX_EXPR'
 
 export class Lexer {
@@ -102,36 +127,36 @@ export class Lexer {
     return null
   }
 
-  readNumber(): Token {
-    let numStr = ''
+readNumber(): Token {
     const startColumn = this.column
+    const start = this.position  // OTIMIZAÇÃO: guarda posição inicial
 
-    while (this.ch >= '0' && this.ch <= '9') {
-      numStr += this.ch
+    while (this.isDigit()) {
       this.readChar()
     }
 
+    // Check for decimal point
     if (this.ch === '.') {
-      numStr += this.ch
+      const dotPos = this.position
       this.readChar()
 
-      if (this.ch < '0' || this.ch > '9') {
-        return { type: TokenType.ERROR, value: 'invalid number', line: this.line, column: startColumn }
+      if (!this.isDigit()) {
+        // It was just a decimal point, not a float
+        const numStr = this.input.slice(start, dotPos)
+        return { type: TokenType.NUMBER, value: parseFloat(numStr), line: this.line, column: startColumn }
       }
 
-      while (this.ch >= '0' && this.ch <= '9') {
-        numStr += this.ch
+      // Read decimal part
+      while (this.isDigit()) {
         this.readChar()
       }
 
-      if (this.ch === '.') {
-        return { type: TokenType.ERROR, value: 'invalid number', line: this.line, column: startColumn }
-      }
-
+      const numStr = this.input.slice(start, this.position)  // OTIMIZAÇÃO: slice único
       return { type: TokenType.NUMBER, value: parseFloat(numStr), line: this.line, column: startColumn }
     }
 
-    return { type: TokenType.NUMBER, value: parseInt(numStr, 10), line: this.line, column: startColumn }
+    const numStr = this.input.slice(start, this.position)  // OTIMIZAÇÃO: slice único
+    return { type: TokenType.NUMBER, value: parseFloat(numStr), line: this.line, column: startColumn }
   }
 
   readString(quote: string): Token {
@@ -171,7 +196,7 @@ export class Lexer {
     const startColumn = this.column
     let tagName = ''
 
-    while (this.isLetter(this.ch) || this.isDigit(this.ch) || this.ch === '-' || this.ch === '_' || this.ch === ':') {
+    while (this.isLetter() || this.isDigit() || this.ch === '-' || this.ch === '_' || this.ch === ':') {
       tagName += this.ch
       this.readChar()
     }
@@ -185,7 +210,7 @@ export class Lexer {
     const startColumn = this.column
     let tagName = ''
 
-    while (this.isLetter(this.ch) || this.isDigit(this.ch) || this.ch === '-' || this.ch === '_' || this.ch === ':') {
+    while (this.isLetter() || this.isDigit() || this.ch === '-' || this.ch === '_' || this.ch === ':') {
       tagName += this.ch
       this.readChar()
     }
@@ -261,13 +286,13 @@ export class Lexer {
 
   readAndroxText(): Token {
     const startColumn = this.column
-    let text = ''
+    const start = this.position  // OTIMIZAÇÃO: guarda posição inicial
 
     while (this.ch !== '<' && this.ch !== '{' && this.ch !== '' && this.ch !== '\n') {
-      text += this.ch
       this.readChar()
     }
 
+    const text = this.input.slice(start, this.position)  // OTIMIZAÇÃO: slice único
     return { type: TokenType.ANDROX_TEXT, value: text, line: this.line, column: startColumn }
   }
 
@@ -438,11 +463,11 @@ export class Lexer {
       return result[0] ?? { type: TokenType.EOF, value: null, line: this.line, column: this.column }
     }
 
-    if (this.isLetter(this.ch)) {
+    if (this.isLetter()) {
       return this.readIdentifier()
     }
 
-    if (this.ch >= '0' && this.ch <= '9') {
+    if (this.isDigit()) {
       return this.readNumber()
     }
 
@@ -495,9 +520,9 @@ export class Lexer {
       return { type: TokenType.ANDROX_SELF_CLOSE, value: tagName, line: this.line, column: startColumn }
     }
 
-    if (this.isLetter(this.ch)) {
+    if (this.isLetter()) {
       let attrName = ''
-      while (this.isLetter(this.ch) || this.isDigit(this.ch) || this.ch === '-' || this.ch === '_') {
+      while (this.isLetter() || this.isDigit() || this.ch === '-' || this.ch === '_') {
         attrName += this.ch
         this.readChar()
       }
@@ -582,11 +607,11 @@ export class Lexer {
       return this.readAndroxAttributeValue()
     }
 
-    if (this.isLetter(this.ch)) {
+    if (this.isLetter()) {
       return this.readIdentifier()
     }
 
-    if (this.ch >= '0' && this.ch <= '9') {
+    if (this.isDigit()) {
       return this.readNumber()
     }
 
@@ -640,13 +665,14 @@ export class Lexer {
   }
 
   readIdentifier(): Token {
-    let ident = ''
     const startColumn = this.column
+    const start = this.position  // OTIMIZAÇÃO: guarda posição inicial
 
-    while (this.isLetter(this.ch) || this.isDigit(this.ch)) {
-      ident += this.ch
+    while (this.isLetter() || this.isDigit()) {
       this.readChar()
     }
+
+    const ident = this.input.slice(start, this.position)  // OTIMIZAÇÃO: slice único em vez de concatenação
 
     if (ident === 'true') {
       return { type: TokenType.BOOLEAN, value: true, line: this.line, column: startColumn }
@@ -680,22 +706,26 @@ export class Lexer {
       return { type: TokenType.TYPE_VOID, value: 'void', line: this.line, column: startColumn }
     }
 
-    const isKeyword = KEYWORDS.includes(ident)
+    // OTIMIZAÇÃO: Set.has() é O(1) vs Array.includes() que é O(n)
+    const isKeyword = KEYWORDS_SET.has(ident)
     const type = isKeyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
 
     return { type, value: ident, line: this.line, column: startColumn }
   }
 
   isIdentifierChar(ch: string): boolean {
-    return this.isLetter(ch) || this.isDigit(ch)
+    return this.isLetter() || this.isDigit()
   }
 
-  isLetter(ch: string): boolean {
-    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_' || ch === '$'
+  // ============ OTIMIZAÇÕES: isLetter/isDigit using charCodeAt ============
+  isLetter(): boolean {
+    const c = this.input.charCodeAt(this.position)
+    return (c >= CC_a && c <= CC_z) || (c >= CC_A && c <= CC_Z) || c === CC_UNDER || c === CC_DOLLAR
   }
 
-  isDigit(ch: string): boolean {
-    return ch >= '0' && ch <= '9'
+  isDigit(): boolean {
+    const c = this.input.charCodeAt(this.position)
+    return c >= CC_0 && c <= CC_9
   }
 
   readOperator(): Token {
@@ -745,7 +775,7 @@ export class Lexer {
           this.readChar()
           return this.readAndroxCloseTag()
         }
-        if (this.isLetter(this.ch) || this.ch === '_' || this.ch === '$') {
+        if (this.isLetter() || this.ch === '_' || this.ch === '$') {
           return this.readAndroxOpenTag()
         }
         return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }

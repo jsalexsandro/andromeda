@@ -102,14 +102,16 @@ const PI = 3.14      // imutável
 ## 8. Statements
 
 ```
-Statement  → ExpressionStmt
-           | VariableStmt
-           | BlockStmt
-           | IfStmt
-           | WhileStmt
-           | ForStmt
-           | FunctionStmt
-           | ReturnStmt
+Statement     → ExpressionStmt
+              | VariableStmt
+              | BlockStmt
+              | IfStmt
+              | WhileStmt
+              | BreakStmt
+              | ContinueStmt
+              | ForStmt
+              | FunctionStmt
+              | ReturnStmt
 
 BlockStmt  → "{" Statement* "}"
 
@@ -135,6 +137,38 @@ IfStmt     → "if" "(" Expression ")" Statement ("else" Statement)?
 if (true) { x = 1 }
 if (x > 0) { ... } else { ... }
 if (a > 10) { ... } else if (a > 5) { ... } else { ... }
+```
+
+### 8.3 While Statement
+```
+WhileStmt  → "while" "(" Expression ")" Statement
+```
+- Loop condicional
+- Cria novo escopo para variáveis
+
+### Exemplos:
+```andromeda
+while (condicao) { ... }
+while (i < 10) {
+  i
+}
+```
+
+### 8.4 Break & Continue
+```
+BreakStmt    → "break"
+ContinueStmt → "continue"
+```
+- Só podem ser usados dentro de loops (`while`, `for`)
+- Erro semântico se usados fora de loops
+
+### Exemplos:
+```andromeda
+while (true) {
+  if (condicao) break
+  if (outra) continue
+  x
+}
 ```
 
 ---
@@ -168,6 +202,7 @@ var y: int = 20 // explícito: int
 | TYPE_MISMATCH | Tipos incompatíveis em operação |
 | VAL_REQUIRES_TYPE | `val` sem type annotation |
 | INVALID_OPERATION | Operação inválida (ex: logical com não-boolean) |
+| INVALID_BREAK | `break`/`continue` usado fora de loop |
 
 ---
 
@@ -183,7 +218,7 @@ var y: int = 20 // explícito: int
 
 | Tipo | Valor | Descrição |
 |------|-------|-----------|
-| KEYWORD | var, val, const, func, if, else | Palavras reservadas |
+| KEYWORD | var, val, const, func, if, else, while, break, continue | Palavras reservadas |
 | IDENTIFIER | nomes | Identificadores |
 | NUMBER | 42, 3.14 | Números |
 | STRING | "texto" | Strings |
@@ -209,12 +244,12 @@ var y: int = 20 // explícito: int
 | 1.0.0 | 2026-04-10 | Lexer, Parser, AST, Literals, Binários, Unários |
 | 1.0.1 | 2026-04-11 | Semantic Analyzer, Type Checker, Escopos |
 | 1.0.2 | 2026-04-11 | Block Statement, IfStatement |
+| 1.0.3 | 2026-04-11 | WhileStatement, BreakStmt, ContinueStmt |
 
 ---
 
 ## Em Desenvolvimento (Planejado)
 
-- [ ] WhileStatement
 - [ ] ForStatement
 - [ ] Funções (func, arrow functions)
 - [ ] Androx (sintaxe JSX nativa)

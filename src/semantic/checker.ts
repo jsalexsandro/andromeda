@@ -7,6 +7,7 @@ import { TokenType } from "../lexer/types"
 export class TypeChecker {
   private scopeManager: ScopeManager
   private errors: SemanticErrorReporter
+  private loopDepth = 0
 
   constructor(scopeManager: ScopeManager, errors: SemanticErrorReporter) {
     this.scopeManager = scopeManager
@@ -43,8 +44,39 @@ export class TypeChecker {
         }
         break
       case "WhileStmt":
-      case "ForStmt":
+        this.loopDepth++
+        if (stmt.condition) {
+          this.checkExpression(stmt.condition)
+        }
         this.checkStatement(stmt.body)
+        this.loopDepth--
+        break
+      case "ForStmt":
+        this.loopDepth++
+        this.checkStatement(stmt.body)
+        this.loopDepth--
+        break
+      case "BreakStmt":
+        if (this.loopDepth === 0) {
+          this.errors.report({
+            type: SemanticErrorType.INVALID_BREAK,
+            message: "'break' can only be used inside loops",
+            line: (stmt as any).line || 0,
+            column: (stmt as any).column || 0,
+            node: stmt
+          })
+        }
+        break
+      case "ContinueStmt":
+        if (this.loopDepth === 0) {
+          this.errors.report({
+            type: SemanticErrorType.INVALID_BREAK,
+            message: "'continue' can only be used inside loops",
+            line: (stmt as any).line || 0,
+            column: (stmt as any).column || 0,
+            node: stmt
+          })
+        }
         break
       case "FunctionStmt":
         this.checkFunctionDeclaration(stmt)

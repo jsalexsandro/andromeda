@@ -1,0 +1,56 @@
+[
+  {
+    "timestamp": "2026-04-11T16:37:40.529Z",
+    "file": "performance/benchmark.med",
+    "statements": 780,
+    "lexerMs": 12.09,
+    "parserMs": 15.03,
+    "semanticMs": 8.87,
+    "totalMs": 35.99
+  },
+  {
+    "timestamp": "2026-04-11T16:54:40.841Z",
+    "file": "performance/benchmark.med",
+    "statements": 780,
+    "lexerMs": 15.4,
+    "parserMs": 6.85,
+    "semanticMs": 4.94,
+    "totalMs": 27.2
+  },
+  {
+    "timestamp": "2026-04-11T16:54:44.288Z",
+    "file": "performance/benchmark.med",
+    "statements": 780,
+    "lexerMs": 18.49,
+    "parserMs": 5.24,
+    "semanticMs": 4.12,
+    "totalMs": 27.85
+  },
+  {
+    "timestamp": "2026-04-11T16:54:45.181Z",
+    "file": "performance/benchmark.med",
+    "statements": 780,
+    "lexerMs": 8.3,
+    "parserMs": 12,
+    "semanticMs": 7.95,
+    "totalMs": 28.25
+  },
+  {
+    "timestamp": "2026-04-11T16:54:45.871Z",
+    "file": "performance/benchmark.med",
+    "statements": 780,
+    "lexerMs": 15.1,
+    "parserMs": 7.69,
+    "semanticMs": 6.7,
+    "totalMs": 29.5
+  },
+  {
+    "timestamp": "2026-04-11T16:54:46.587Z",
+    "file": "performance/benchmark.med",
+    "statements": 780,
+    "lexerMs": 9.47,
+    "parserMs": 10.45,
+    "semanticMs": 5.12,
+    "totalMs": 25.04
+  }
+]
