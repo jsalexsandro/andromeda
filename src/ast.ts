@@ -78,6 +78,7 @@ export interface AssignExpr {
   kind: "Assign"
   name: Expr
   value: Expr
+  operator?: Token
 }
 
 export interface CallExpr {

@@ -37,6 +37,14 @@ export class Parser {
     this.prefixParselets.set(TokenType.PLUS, this.parseUnary.bind(this))
     this.prefixParselets.set(TokenType.NOT, this.parseUnary.bind(this))
 
+    // Assignment operators (= and compound: +=, -=, *=, /=, %=)
+    this.infixParselets.set(TokenType.ASSIGN, this.parseAssignment.bind(this))
+    this.infixParselets.set(TokenType.PLUS_EQUAL, this.parseAssignment.bind(this))
+    this.infixParselets.set(TokenType.MINUS_EQUAL, this.parseAssignment.bind(this))
+    this.infixParselets.set(TokenType.STAR_EQUAL, this.parseAssignment.bind(this))
+    this.infixParselets.set(TokenType.SLASH_EQUAL, this.parseAssignment.bind(this))
+    this.infixParselets.set(TokenType.MODULO_EQUAL, this.parseAssignment.bind(this))
+
     // Arithmetic operators
     this.infixParselets.set(TokenType.PLUS, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.MINUS, this.parseBinary.bind(this))
@@ -113,6 +121,16 @@ export class Parser {
       TokenType.STAR, TokenType.SLASH, TokenType.MODULO
     ]
     return startTypes.includes(prev.type)
+  }
+
+  private parseAssignment(left: Expr): Expr | null {
+    const operator = this.previous()
+    const value = this.parseExpression(Precedence.LOWEST)
+    if (!value) {
+      this.error(`Expected expression after '${operator.value}'`, operator)
+      return null
+    }
+    return { kind: "Assign", name: left, value, operator }
   }
 
   private parseBinary(left: Expr): Expr | null {

@@ -747,22 +747,42 @@ readNumber(): Token {
       
       case '+':
         this.readChar()
+        if (this.ch === '=') {
+          this.readChar()
+          return { type: TokenType.PLUS_EQUAL, value: '+=', line: this.line, column: startColumn }
+        }
         return { type: TokenType.PLUS, value: '+', line: this.line, column: startColumn }
       
       case '-':
         this.readChar()
+        if (this.ch === '=') {
+          this.readChar()
+          return { type: TokenType.MINUS_EQUAL, value: '-=', line: this.line, column: startColumn }
+        }
         return { type: TokenType.MINUS, value: '-', line: this.line, column: startColumn }
       
       case '*':
         this.readChar()
+        if (this.ch === '=') {
+          this.readChar()
+          return { type: TokenType.STAR_EQUAL, value: '*=', line: this.line, column: startColumn }
+        }
         return { type: TokenType.STAR, value: '*', line: this.line, column: startColumn }
       
       case '/':
         this.readChar()
+        if (this.ch === '=') {
+          this.readChar()
+          return { type: TokenType.SLASH_EQUAL, value: '/=', line: this.line, column: startColumn }
+        }
         return { type: TokenType.SLASH, value: '/', line: this.line, column: startColumn }
       
       case '%':
         this.readChar()
+        if (this.ch === '=') {
+          this.readChar()
+          return { type: TokenType.MODULO_EQUAL, value: '%=', line: this.line, column: startColumn }
+        }
         return { type: TokenType.MODULO, value: '%', line: this.line, column: startColumn }
       
       case '<':

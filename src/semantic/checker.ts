@@ -195,6 +195,9 @@ export class TypeChecker {
       case "Unary":
         return this.checkUnaryExpression(expr)
 
+      case "Assign":
+        return this.checkAssignmentExpression(expr)
+
       case "Group":
         if (expr.expression) {
           return this.checkExpression(expr.expression)
@@ -320,6 +323,56 @@ export class TypeChecker {
     }
 
     return { kind: "unknown" }
+  }
+
+  private checkAssignmentExpression(expr: any): Type {
+    const valueType = this.checkExpression(expr.value)
+
+    const targetName = (expr.name as any).name?.value
+    if (!targetName) {
+      this.errors.report({
+        type: SemanticErrorType.INVALID_OPERATION,
+        message: `Cannot assign to this expression`,
+        line: (expr.name as any).line || 0,
+        column: (expr.name as any).column || 0,
+        node: expr
+      })
+      return { kind: "unknown" }
+    }
+
+    const symbol = this.scopeManager.resolve(targetName)
+    if (!symbol) {
+      this.errors.report({
+        type: SemanticErrorType.UNDEFINED_VARIABLE,
+        message: `Variable '${targetName}' is not defined`,
+        line: (expr.name as any).line || 0,
+        column: (expr.name as any).column || 0,
+        node: expr
+      })
+      return { kind: "unknown" }
+    }
+
+    if (symbol.declarationType === "val" || symbol.declarationType === "const") {
+      this.errors.report({
+        type: SemanticErrorType.CANNOT_ASSIGN,
+        message: `Cannot reassign to '${targetName}' (${symbol.declarationType})`,
+        line: (expr.name as any).line || 0,
+        column: (expr.name as any).column || 0,
+        node: expr
+      })
+    }
+
+    if (!canAssign(valueType, symbol.type)) {
+      this.errors.report({
+        type: SemanticErrorType.TYPE_MISMATCH,
+        message: `Cannot assign ${JSON.stringify(valueType)} to ${JSON.stringify(symbol.type)}`,
+        line: (expr.name as any).line || 0,
+        column: (expr.name as any).column || 0,
+        node: expr
+      })
+    }
+
+    return valueType
   }
 
   private checkUnaryExpression(expr: UnaryExpr): Type {

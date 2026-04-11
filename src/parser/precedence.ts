@@ -19,6 +19,11 @@ export enum Precedence {
 
 export const TokenPrecedence: Record<string, Precedence> = {
   [TokenType.ASSIGN]: Precedence.ASSIGN,
+  [TokenType.PLUS_EQUAL]: Precedence.ASSIGN,
+  [TokenType.MINUS_EQUAL]: Precedence.ASSIGN,
+  [TokenType.STAR_EQUAL]: Precedence.ASSIGN,
+  [TokenType.SLASH_EQUAL]: Precedence.ASSIGN,
+  [TokenType.MODULO_EQUAL]: Precedence.ASSIGN,
   [TokenType.QUESTION]: Precedence.CONDITIONAL,
   [TokenType.QUESTION_QUESTION]: Precedence.NULLISH,
   [TokenType.OR]: Precedence.OR,
