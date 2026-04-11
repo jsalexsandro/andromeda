@@ -9,6 +9,7 @@
 - [x] 2026-04-10 - Grouped Expressions (parênteses: (expr))
 - [x] 2026-04-10 - Operadores Unários (-X, +X, !X)
 - [x] 2026-04-10 - VariableDeclaration (var, val, const)
+- [x] 2026-04-11 - Semantic Analyzer (Type Checker, Scope, Errors)
 
 #### Funcionalidades testadas:
 - Unário negativo: `-5`, `-x`
@@ -18,6 +19,12 @@
 - Unário após binário: `-10 + -3`, `10 - -2`
 - Com parênteses: `-(1 + 2)`, `!(-x)`
 - Com binários: `-5 * 2`, `3 + -2`, `-1 * -2`
+
+Erros Semânticos Implementados:
+- UNDEFINED_VARIABLE: Variável não declarada
+- ALREADY_DECLARED: Nome já usado
+- TYPE_MISMATCH: Tipos incompatíveis
+- VAL_REQUIRES_TYPE: val sem tipo
 
 ### Planejados
 - [ ] Incremento/Decremento (++, --)

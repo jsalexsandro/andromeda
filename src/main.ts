@@ -1,6 +1,7 @@
 import * as fs from 'fs'
 import { Lexer } from './lexer/lexer'
 import { Parser } from './parser/parser'
+import { SemanticAnalyzer } from './semantic/index'
 
 function showHelp() {
   console.log(`Andromeda Language CLI v1.0.0`)
@@ -74,8 +75,22 @@ export function main() {
     }
 
     console.log(`> Syntax pass completed: AST generated with ${ast.length} statements.`)
+
+    // Run semantic analysis
+    const semanticAnalyzer = new SemanticAnalyzer()
+    const semanticResult = semanticAnalyzer.analyze(ast)
+
+    if (semanticResult.hasErrors) {
+      console.log(`\n> Semantic errors found:`)
+      for (const error of semanticResult.errors) {
+        console.error(`[Semantic]: ${error.message}`)
+        console.error(`At line ${error.line}, column ${error.column}`)
+      }
+      process.exit(1)
+    }
+
+    console.log(`> Semantic pass completed: No errors found.`)
     console.log(JSON.stringify(ast, null, 2))
-    console.log(`> Evaluator is not initialized yet. Skipping execution.`)
   } else {
     console.log(`Tokens (${tokens.length}):\n`)
     for (const token of tokens) {
