@@ -187,4 +187,4 @@ MIT License
 
 ## Autor
 
-João Sandro - https://github.com/jsalexsandro
+jsalexsandro - https://github.com/jsalexsandro
