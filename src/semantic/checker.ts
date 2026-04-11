@@ -291,12 +291,18 @@ export class TypeChecker {
   }
 
   private checkUnaryExpression(expr: UnaryExpr): Type {
-    this.checkExpression(expr.right)
+    const rightType = this.checkExpression(expr.right)
     const operator = expr.operator.value as string
 
-    if (operator === "-") return { kind: "inferred" }
+    if (operator === "-") {
+      // Se operando é número, retorna int; caso contrário usa o tipo do operando
+      if (rightType === "int" || rightType === "float") {
+        return rightType
+      }
+      return rightType
+    }
     if (operator === "!") return "bool"
-    if (operator === "+") return { kind: "inferred" }
+    if (operator === "+") return rightType
 
     return { kind: "unknown" }
   }
