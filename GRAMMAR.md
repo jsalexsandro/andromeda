@@ -62,16 +62,17 @@ Group     → "(" Expression ")"
 ## 6. Precedência de Operadores (do menor para maior)
 
 ```
-1.  OR           ||
-2.  AND          &&
-3.  EQUALS       ==  !=
-4.  LESSGREATER  >   <   >=  <=
-5.  SUM          +   -
-6.  PRODUCT      *   /   %
-7.  PREFIX      -X  +X  !X
-8.  CALL        ()
-9.  INDEX       []
-10. MEMBER       .
+1.  ASSIGN      =   +=  -=  *=  /=  %=
+2.  OR           ||
+3.  AND          &&
+4.  EQUALS       ==  !=
+5.  LESSGREATER  >   <   >=  <=
+6.  SUM          +   -
+7.  PRODUCT      *   /   %
+8.  PREFIX      -X  +X  !X
+9.  CALL        ()
+10. INDEX       []
+11. MEMBER       .
 ```
 
 ---
@@ -160,7 +161,7 @@ BreakStmt    → "break"
 ContinueStmt → "continue"
 ```
 - Só podem ser usados dentro de loops (`while`, `for`)
-- Erro semântico se usados fora de loops
+- Erro semântico se usado fora de loops
 
 ### Exemplos:
 ```andromeda
@@ -169,6 +170,41 @@ while (true) {
   if (outra) continue
   x
 }
+```
+
+### 8.5 Assignment
+```
+Assignment → Identifier "=" Expression
+CompoundAssign → ("+=" | "-=" | "*=" | "/=" | "%=") Expression
+```
+- Atribuição simples: `x = 10`
+- Atribuição composta: `x += 1`, `x -= 1`, `x *= 2`, `x /= 2`, `x %= 2`
+- Valida se variável está declarada
+- Valida tipo compatível
+
+### Exemplos:
+```andromeda
+var x = 10
+x = 20
+x += 5
+x -= 3
+x *= 2
+x /= 4
+x %= 3
+```
+
+### 8.6 Expression as Statement
+```
+ExpressionStmt → Expression
+```
+- Qualquer expressão pode ser usada como statement
+- O resultado é avaliado mas descartado
+
+### Exemplos:
+```andromeda
+"hello world"
+1 + 2
+print("oi")
 ```
 
 ---
@@ -203,6 +239,7 @@ var y: int = 20 // explícito: int
 | VAL_REQUIRES_TYPE | `val` sem type annotation |
 | INVALID_OPERATION | Operação inválida (ex: logical com não-boolean) |
 | INVALID_BREAK | `break`/`continue` usado fora de loop |
+| CANNOT_ASSIGN | Tentativa de reatribuir a `val` ou `const` |
 
 ---
 
@@ -225,6 +262,9 @@ var y: int = 20 // explícito: int
 | BOOLEAN | true, false | Booleanos |
 | NULL | null | Nulo |
 | ASSIGN | = | Atribuição |
+| PLUS_EQUAL, MINUS_EQUAL | +=, -= | Atribuição composta |
+| STAR_EQUAL, SLASH_EQUAL | *=, /= | Atribuição composta |
+| MODULO_EQUAL | %= | Atribuição composta |
 | COLON | : | Dois pontos |
 | PLUS, MINUS | +, - | Aritméticos |
 | STAR, SLASH, MODULO | *, /, % | Aritméticos |
@@ -245,6 +285,7 @@ var y: int = 20 // explícito: int
 | 1.0.1 | 2026-04-11 | Semantic Analyzer, Type Checker, Escopos |
 | 1.0.2 | 2026-04-11 | Block Statement, IfStatement |
 | 1.0.3 | 2026-04-11 | WhileStatement, BreakStmt, ContinueStmt |
+| 1.0.4 | 2026-04-11 | Assignment (x = 10), Compound (+=, etc), ExpressionStmt |
 
 ---
 
