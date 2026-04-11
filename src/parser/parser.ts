@@ -1,0 +1,324 @@
+import { Token, TokenType } from '../lexer/types'
+import { ErrorHandler } from './error'
+import { Expr, Stmt } from '../ast'
+import { Precedence, getPrecedence } from './precedence'
+
+type PrefixParselet = () => Expr | null;
+type InfixParselet = (left: Expr) => Expr | null;
+
+export class Parser {
+  private tokens: Token[]
+  private current = 0
+  public errors: ErrorHandler
+  private sourceCode: string
+
+  private prefixParselets: Map<TokenType, PrefixParselet> = new Map()
+  private infixParselets: Map<TokenType, InfixParselet> = new Map()
+
+  constructor(tokens: Token[], sourceCode: string) {
+    this.tokens = tokens
+    this.sourceCode = sourceCode
+    this.errors = new ErrorHandler(sourceCode)
+
+    this.registerParselets()
+  }
+
+  private registerParselets() {
+    // Literals
+    this.prefixParselets.set(TokenType.IDENTIFIER, this.parseIdentifier.bind(this))
+    this.prefixParselets.set(TokenType.NUMBER, this.parseNumber.bind(this))
+    this.prefixParselets.set(TokenType.STRING, this.parseString.bind(this))
+    this.prefixParselets.set(TokenType.BOOLEAN, this.parseBoolean.bind(this))
+    this.prefixParselets.set(TokenType.NULL, this.parseNull.bind(this))
+    this.prefixParselets.set(TokenType.LPAREN, this.parseGroup.bind(this))
+
+    // Unary operators
+    this.prefixParselets.set(TokenType.MINUS, this.parseUnary.bind(this))
+    this.prefixParselets.set(TokenType.PLUS, this.parseUnary.bind(this))
+    this.prefixParselets.set(TokenType.NOT, this.parseUnary.bind(this))
+
+    // Arithmetic operators
+    this.infixParselets.set(TokenType.PLUS, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.MINUS, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.STAR, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.SLASH, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.MODULO, this.parseBinary.bind(this))
+
+    // Comparison operators
+    this.infixParselets.set(TokenType.EQUAL, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.NOT_EQUAL, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.LESS_THAN, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.GREATER_THAN, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.LESS_EQUAL, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.GREATER_EQUAL, this.parseBinary.bind(this))
+
+    // Logical operators
+    this.infixParselets.set(TokenType.AND, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.OR, this.parseBinary.bind(this))
+  }
+
+  // --- LITERAL PARSELETS ---
+
+  private parseIdentifier(): Expr {
+    return { kind: "Identifier", name: this.previous() }
+  }
+
+  private parseNumber(): Expr {
+    return { kind: "Literal", value: this.previous().value }
+  }
+
+  private parseString(): Expr {
+    return { kind: "Literal", value: this.previous().value }
+  }
+
+  private parseBoolean(): Expr {
+    return { kind: "Literal", value: this.previous().value }
+  }
+
+  private parseNull(): Expr {
+    return { kind: "Literal", value: null }
+  }
+
+  private parseGroup(): Expr {
+    const lparen = this.previous()
+    const expr = this.parseExpression(Precedence.LOWEST)
+    if (this.check(TokenType.RPAREN)) {
+      this.advance()
+    } else {
+      // Report error at the lparen position since we lost track of the closing paren
+      this.error(`Expected ')' to close group starting at line ${lparen.line}`, lparen)
+    }
+    return { kind: "Group", expression: expr }
+  }
+
+  private parseUnary(): Expr {
+    const operator = this.previous()
+    const right = this.parseExpression(Precedence.PREFIX)
+    if (!right) {
+      this.error(`Expected expression after '${operator.value}'`, operator)
+      return { kind: "Literal", value: null }
+    }
+    return { kind: "Unary", operator, right }
+  }
+
+  private isAtExpressionStart(): boolean {
+    if (this.current === 0) return true
+    const prev = this.tokens[this.current - 1]
+    const startTypes = [
+      TokenType.LPAREN, TokenType.LBRACE, TokenType.LBRACKET,
+      TokenType.COMMA, TokenType.ASSIGN, TokenType.COLON,
+      TokenType.AND, TokenType.OR, TokenType.EQUAL, TokenType.NOT_EQUAL,
+      TokenType.LESS_THAN, TokenType.GREATER_THAN, TokenType.LESS_EQUAL,
+      TokenType.GREATER_EQUAL, TokenType.PLUS, TokenType.MINUS,
+      TokenType.STAR, TokenType.SLASH, TokenType.MODULO
+    ]
+    return startTypes.includes(prev.type)
+  }
+
+  private parseBinary(left: Expr): Expr | null {
+    const operator = this.previous()
+    const precedence = getPrecedence(operator.type)
+    const right = this.parseExpression(precedence)
+    if (!right) {
+      this.error(`Expected expression after '${operator.value}'`, operator)
+      return null
+    }
+    return {
+      kind: "Binary",
+      left,
+      operator,
+      right
+    }
+  }
+
+  public parse(): Stmt[] {
+    const statements: Stmt[] = []
+    while (!this.isAtEnd()) {
+      try {
+        const stmt = this.parseStatement()
+        if (stmt) statements.push(stmt)
+      } catch (e) {
+        // On error, skip to next token and continue parsing
+        this.advance()
+      }
+    }
+    return statements
+  }
+
+  private parseStatement(): Stmt | null {
+    // Check for variable declarations
+    const token = this.peek()
+    if (token?.type === TokenType.KEYWORD) {
+      const keyword = token.value as string
+      if (keyword === 'var' || keyword === 'val' || keyword === 'const') {
+        return this.parseVariableDeclaration()
+      }
+    }
+
+    // For now everything acts as an expression statement until we implement `func`, `val`, etc.
+    const expr = this.parseExpression(Precedence.LOWEST)
+    if (!expr) {
+       // if completely invalid token, consume it so we don't infinite loop when testing initially
+       this.advance()
+       return null
+    }
+    // We will consume semi-colons here eventually, but now just pass through
+    return { kind: "ExpressionStmt", expression: expr }
+  }
+
+  private parseVariableDeclaration(): Stmt | null {
+    const keywordToken = this.advance() // consume var/val/const
+    const keyword = keywordToken.value as string
+    
+    // Parse variable name
+    const nameToken = this.advance()
+    if (nameToken.type !== TokenType.IDENTIFIER) {
+      this.error(`Expected variable name after '${keyword}'`, nameToken)
+      this.advance()
+      return null
+    }
+    
+    // Check for type annotation
+    let typeAnnotation: Token | undefined
+    if (this.peek().type === TokenType.COLON) {
+      this.advance() // consume colon
+      const typeToken = this.advance()
+      const validTypes = [
+        TokenType.IDENTIFIER, 
+        TokenType.KEYWORD,
+        TokenType.TYPE_INT,
+        TokenType.TYPE_FLOAT,
+        TokenType.TYPE_BOOL,
+        TokenType.TYPE_STRING,
+        TokenType.TYPE_VOID
+      ]
+      if (validTypes.includes(typeToken.type)) {
+        typeAnnotation = typeToken
+      } else {
+        this.error(`Expected type after ':'`, typeToken)
+      }
+    } else if (keyword === 'val') {
+      this.error(`Type annotation is required for 'val' declarations`, nameToken)
+    }
+    
+    // Check for initializer
+    let initializer: Expr | undefined
+    if (this.peek().type === TokenType.ASSIGN) {
+      this.advance() // consume =
+      initializer = this.parseExpression(Precedence.LOWEST)
+    }
+    
+    return {
+      kind: "VariableStmt",
+      declarationType: keyword as "var" | "val" | "const",
+      name: nameToken,
+      typeAnnotation,
+      initializer
+    }
+  }
+
+  // --- PRATT EXPRESSION ROOT ---
+
+  public parseExpression(precedence: Precedence): Expr | null {
+    if (this.isAtEnd()) return null
+
+    let token = this.advance()
+    let prefix = this.prefixParselets.get(token.type)
+
+    if (!prefix) {
+      this.error(`Unexpected token '${token.value ?? token.type}', expected expression.`, token)
+      throw new Error('ParseError') 
+    }
+
+    let left = prefix()
+    if (!left) return null
+
+    // Left associativity loop
+    while (!this.isAtEnd() && precedence < getPrecedence(this.peek().type)) {
+      const infix = this.infixParselets.get(this.peek().type)
+      if (!infix) {
+        return left
+      }
+      this.advance()
+      left = infix(left)
+      if (!left) break
+    }
+
+    return left
+  }
+
+  // --- TOKEN NAVIGATION ---
+
+  public peek(): Token {
+    return this.tokens[this.current]
+  }
+
+  public previous(): Token {
+    return this.tokens[this.current - 1]
+  }
+
+  public isAtEnd(): boolean {
+    return this.peek().type === TokenType.EOF
+  }
+
+  public advance(): Token {
+    if (!this.isAtEnd()) this.current++
+    return this.previous()
+  }
+
+  public check(type: TokenType): boolean {
+    if (this.isAtEnd()) return false
+    return this.peek().type === type
+  }
+
+  public match(...types: TokenType[]): boolean {
+    for (const type of types) {
+      if (this.check(type)) {
+        this.advance()
+        return true
+      }
+    }
+    return false
+  }
+
+  public consume(type: TokenType, message: string): Token {
+    if (this.check(type)) return this.advance()
+    this.error(message, this.peek())
+    throw new Error('ParseError')
+  }
+
+  // --- ERROR RECOVERY ---
+
+  public error(message: string, token: Token) {
+    this.errors.report(message, token)
+  }
+
+  public synchronize() {
+    // Skip tokens until we find a safe recovery point
+    while (!this.isAtEnd()) {
+      const currentType = this.peek()?.type
+
+      // Found SEMICOLON - safe to continue
+      if (currentType === TokenType.SEMICOLON) {
+        this.advance()
+        return
+      }
+
+      // Found keyword that starts a statement - safe to continue
+      if (currentType === TokenType.KEYWORD) {
+        const val = this.peek().value
+        if (['func', 'val', 'const', 'var', 'if', 'for', 'while', 'return', 'class'].includes(val as string)) {
+          return
+        }
+      }
+
+      // Found start of new expression - safe to continue
+      if ([TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN, TokenType.NULL, TokenType.LPAREN, TokenType.LBRACE].includes(currentType)) {
+        return
+      }
+
+      // Skip this token and try next
+      this.advance()
+    }
+  }
+}

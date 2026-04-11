@@ -1,0 +1,12 @@
+var id: int = 10
+val od: int = 20
+
+// em val tipagem é obrigatoria
+
+print(id, od)
+
+// androx (andromeda xml) sintaxe básica (igual ao JSX do react porém nativo no compilador)
+
+const head = <h1>Jonny</h1>
+
+1 == 2
