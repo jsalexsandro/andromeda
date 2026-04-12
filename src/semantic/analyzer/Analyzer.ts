@@ -11,6 +11,8 @@ export class Analyzer {
   private context: AnalyzerContext
   private inLoop: boolean = false
   private inFunction: boolean = false
+  private expectedReturnType: AndroType = Primitive.void()
+  private hasReachableReturn: boolean = false
 
   constructor(scopeStack?: ScopeStack, errors?: SemanticErrorHandler) {
     this.errors = errors || new SemanticErrorHandler()
@@ -408,7 +410,19 @@ export class Analyzer {
     const name = stmt.name.value as string
     const [line, column] = this.getLineColumn(stmt.name)
 
-    // Check for duplicate function name in global scope
+    // Determine return type
+    const returnType = stmt.returnType
+      ? TypeChecker.fromKeyword(stmt.returnType.value as string) || Primitive.unknown()
+      : Primitive.void()
+
+    // Build function type for symbol table
+    const paramTypes = (stmt.params || []).map((p: any) => {
+      return p.type
+        ? TypeChecker.fromKeyword(p.type.value as string) || Primitive.unknown()
+        : Primitive.unknown()
+    })
+
+    // Check for duplicate function name
     if (this.scopeStack.current.kind === "global") {
       const existing = this.scopeStack.current.lookupLocal(name)
       if (existing) {
@@ -416,8 +430,30 @@ export class Analyzer {
       }
     }
 
+    // Create function symbol BEFORE entering scope (for recursion)
+    const funcSymbol: SymbolDefinition = {
+      name,
+      type: { kind: "function", params: paramTypes, returnType } as any,
+      kind: SymbolKind.Function,
+      mutable: false,
+      ast: stmt,
+      line,
+      column,
+    }
+
+    // Register function in current scope (allows recursion)
+    try {
+      this.scopeStack.current.define(funcSymbol)
+    } catch (e) {
+      if (e instanceof Error) {
+        this.report("ALREADY_DECLARED", e.message, line, column)
+      }
+    }
+
     // Enter function scope
     this.inFunction = true
+    this.expectedReturnType = returnType
+    this.hasReachableReturn = false
     this.enterScope("function")
 
     // Register parameters
@@ -449,9 +485,21 @@ export class Analyzer {
     // Analyze body
     this.analyzeStatement(stmt.body)
 
+    // Check if all code paths return (for non-void functions)
+    const isVoid = TypeChecker.isSameType(this.expectedReturnType, Primitive.void())
+    if (!isVoid && !this.hasReachableReturn) {
+      this.report(
+        "MISSING_RETURN",
+        `function '${name}' should return '${TypeChecker.toString(this.expectedReturnType)}' but not all paths return a value`,
+        line,
+        column
+      )
+    }
+
     // Exit function scope
     this.exitScope()
     this.inFunction = false
+    this.expectedReturnType = Primitive.void()
   }
 
   analyzeReturn(stmt: any): void {
@@ -460,8 +508,31 @@ export class Analyzer {
       return
     }
 
+    this.hasReachableReturn = true
+
     if (stmt.value) {
-      this.analyzeExpression(stmt.value)
+      const valueType = this.analyzeExpression(stmt.value)
+
+      // Check if return type matches expected
+      if (!TypeChecker.isAssignableTo(valueType, this.expectedReturnType) && !TypeChecker.isUnknown(valueType)) {
+        this.report(
+          "TYPE_MISMATCH",
+          `return type '${TypeChecker.toString(valueType)}' does not match expected type '${TypeChecker.toString(this.expectedReturnType)}'`,
+          stmt.line ?? 0,
+          stmt.column ?? 0
+        )
+      }
+    } else {
+      // Return without value - check if function is void
+      const isVoid = TypeChecker.isSameType(this.expectedReturnType, Primitive.void())
+      if (!isVoid) {
+        this.report(
+          "TYPE_MISMATCH",
+          `return with no value in function that expects '${TypeChecker.toString(this.expectedReturnType)}'`,
+          stmt.line ?? 0,
+          stmt.column ?? 0
+        )
+      }
     }
   }
 
@@ -477,10 +548,23 @@ export class Analyzer {
       )
     }
 
+    const hadReturnBefore = this.hasReachableReturn
+    this.hasReachableReturn = false
     this.analyzeStatement(stmt.thenBranch)
+    const thenHasReturn = this.hasReachableReturn
 
+    let elseHasReturn = false
     if (stmt.elseBranch) {
+      this.hasReachableReturn = false
       this.analyzeStatement(stmt.elseBranch)
+      elseHasReturn = this.hasReachableReturn
+    }
+
+    // If both branches have return, the function returns
+    this.hasReachableReturn = thenHasReturn && elseHasReturn
+    if (!this.hasReachableReturn && stmt.elseBranch) {
+      // Restore the return status if not both branches return
+      this.hasReachableReturn = hadReturnBefore
     }
   }
 
