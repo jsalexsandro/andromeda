@@ -331,13 +331,15 @@ export class TypeChecker {
   private checkAssignmentExpression(expr: any): Type {
     const valueType = this.checkExpression(expr.value)
 
-    const targetName = (expr.name as any).name?.value
+    const targetExpr = expr.name
+    const targetToken = targetExpr?.name
+    const targetName = targetToken?.value
     if (!targetName) {
       this.errors.report({
         type: SemanticErrorType.INVALID_OPERATION,
         message: `Cannot assign to this expression`,
-        line: (expr.name as any).line || 0,
-        column: (expr.name as any).column || 0,
+        line: targetExpr?.line || 0,
+        column: targetExpr?.column || 0,
         node: expr
       })
       return { kind: "unknown" }
@@ -348,8 +350,8 @@ export class TypeChecker {
       this.errors.report({
         type: SemanticErrorType.UNDEFINED_VARIABLE,
         message: `Variable '${targetName}' is not defined`,
-        line: (expr.name as any).line || 0,
-        column: (expr.name as any).column || 0,
+        line: targetToken?.line || 0,
+        column: targetToken?.column || 0,
         node: expr
       })
       return { kind: "unknown" }
@@ -359,8 +361,8 @@ export class TypeChecker {
       this.errors.report({
         type: SemanticErrorType.CANNOT_ASSIGN,
         message: `Cannot reassign to '${targetName}' (${symbol.declarationType})`,
-        line: (expr.name as any).line || 0,
-        column: (expr.name as any).column || 0,
+        line: targetToken?.line || 0,
+        column: targetToken?.column || 0,
         node: expr
       })
     }
@@ -369,8 +371,8 @@ export class TypeChecker {
       this.errors.report({
         type: SemanticErrorType.TYPE_MISMATCH,
         message: `Cannot assign ${JSON.stringify(valueType)} to ${JSON.stringify(symbol.type)}`,
-        line: (expr.name as any).line || 0,
-        column: (expr.name as any).column || 0,
+        line: targetToken?.line || 0,
+        column: targetToken?.column || 0,
         node: expr
       })
     }
