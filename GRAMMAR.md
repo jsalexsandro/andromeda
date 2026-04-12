@@ -207,6 +207,24 @@ ExpressionStmt → Expression
 print("oi")
 ```
 
+### 8.7 Call Expression
+```
+CallExpr → Identifier "(" Expression* ")"
+```
+- Chamada de função
+- Suporta múltiplos argumentos
+- Suporta argumentos vazios
+- Valida se função está definida
+- Valida se callee é um identifier
+
+### Exemplos:
+```andromeda
+print("Hello")
+print("a", "b", "c")
+print()
+myFunc(arg1, arg2)
+```
+
 ---
 
 ## 9. Semantic Analyzer
@@ -237,7 +255,7 @@ var y: int = 20 // explícito: int
 | ALREADY_DECLARED | Nome já usado no mesmo escopo |
 | TYPE_MISMATCH | Tipos incompatíveis em operação |
 | VAL_REQUIRES_TYPE | `val` sem type annotation |
-| INVALID_OPERATION | Operação inválida (ex: logical com não-boolean) |
+| INVALID_OPERATION | Operação inválida (ex: logical com não-boolean, call em não-função) |
 | INVALID_BREAK | `break`/`continue` usado fora de loop |
 | CANNOT_ASSIGN | Tentativa de reatribuir a `val` ou `const` |
 
@@ -286,13 +304,15 @@ var y: int = 20 // explícito: int
 | 1.0.2 | 2026-04-11 | Block Statement, IfStatement |
 | 1.0.3 | 2026-04-11 | WhileStatement, BreakStmt, ContinueStmt |
 | 1.0.4 | 2026-04-11 | Assignment (x = 10), Compound (+=, etc), ExpressionStmt |
+| 1.0.5 | 2026-04-11 | CallExpression, String Concatenation |
 
 ---
 
 ## Em Desenvolvimento (Planejado)
 
 - [ ] ForStatement
-- [ ] Funções (func, arrow functions)
+- [ ] FuncDeclaration (func name(params) { })
+- [ ] Arrow Functions
 - [ ] Androx (sintaxe JSX nativa)
 - [ ] Classes
 - [ ] Import/Export
