@@ -127,6 +127,9 @@ export class Analyzer {
       case "Index":
         return this.visitIndex(expr)
 
+      case "ArrowFunction":
+        return this.visitArrowFunction(expr)
+
       default:
         return Primitive.unknown()
     }
@@ -299,6 +302,74 @@ export class Analyzer {
     this.analyzeExpression(expr.object)
     this.analyzeExpression(expr.index)
     return Primitive.unknown()
+  }
+
+  visitArrowFunction(expr: any): AndroType {
+    // Save current state
+    const savedInFunction = this.inFunction
+    const savedReturnType = this.expectedReturnType
+    const savedHasReturn = this.hasReachableReturn
+
+    // Enter function scope for arrow function
+    this.inFunction = true
+    this.expectedReturnType = expr.returnType
+      ? TypeChecker.fromKeyword(expr.returnType.value as string) || Primitive.unknown()
+      : Primitive.unknown()
+    this.hasReachableReturn = false
+    this.enterScope("function")
+
+    // Register parameters
+    for (const param of expr.params || []) {
+      const paramName = param.name.value as string
+      const paramType = param.type
+        ? TypeChecker.fromKeyword(param.type.value as string) || Primitive.unknown()
+        : Primitive.unknown()
+
+      const symbol: SymbolDefinition = {
+        name: paramName,
+        type: paramType,
+        kind: SymbolKind.Param,
+        mutable: true,
+        ast: param,
+        line: param.name.line ?? 0,
+        column: param.name.column ?? 0,
+      }
+
+      try {
+        this.scopeStack.current.define(symbol)
+      } catch (e) {
+        // Ignore duplicate param names (will be caught by parser)
+      }
+    }
+
+    // Analyze body
+    if (expr.body.kind === "BlockStmt") {
+      this.analyzeStatement(expr.body)
+    } else {
+      this.analyzeExpression(expr.body)
+      this.hasReachableReturn = true
+    }
+
+    // Exit function scope
+    this.exitScope()
+
+    // Restore state
+    this.inFunction = savedInFunction
+    this.expectedReturnType = savedReturnType
+    this.hasReachableReturn = savedHasReturn
+
+    // Return function type
+    const paramTypes = (expr.params || []).map((p: any) => {
+      return p.type
+        ? TypeChecker.fromKeyword(p.type.value as string) || Primitive.unknown()
+        : Primitive.unknown()
+    })
+
+    return {
+      kind: "function",
+      params: paramTypes,
+      returnType: this.expectedReturnType,
+    } as any
   }
 
   private checkArithmetic(operator: string, left: AndroType, right: AndroType, line: number, column: number): AndroType {

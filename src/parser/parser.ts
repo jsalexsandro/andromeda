@@ -37,6 +37,9 @@ export class Parser {
     this.prefixParselets.set(TokenType.PLUS, this.parseUnary.bind(this))
     this.prefixParselets.set(TokenType.NOT, this.parseUnary.bind(this))
 
+    // Arrow functions (x => x + 1)
+    this.prefixParselets.set(TokenType.LPAREN, this.parseArrowOrGroup.bind(this))
+
     // Assignment operators (= and compound: +=, -=, *=, /=, %=)
     this.infixParselets.set(TokenType.ASSIGN, this.parseAssignment.bind(this))
     this.infixParselets.set(TokenType.PLUS_EQUAL, this.parseAssignment.bind(this))
@@ -83,7 +86,16 @@ export class Parser {
   // --- LITERAL PARSELETS ---
 
   private parseIdentifier(): Expr {
-    return { kind: "Identifier", name: this.previous() }
+    const name = this.previous()
+
+    // Check for arrow function: x => expr (without parentheses)
+    if (this.check(TokenType.ARROW)) {
+      this.advance() // consume =>
+      const params = [{ name }]
+      return this.parseArrowBody(params)
+    }
+
+    return { kind: "Identifier", name }
   }
 
   private parseNumber(): Expr {
@@ -112,6 +124,137 @@ export class Parser {
       this.error(`Expected ')' to close group starting at line ${lparen.line}`, lparen)
     }
     return { kind: "Group", expression: expr }
+  }
+
+  private parseArrowOrGroup(): Expr {
+    // Save position to backtrack if needed
+    const startPos = this.current
+
+    // Try to parse as arrow function first
+    const arrow = this.tryParseArrowFunction()
+    if (arrow) {
+      return arrow
+    }
+
+    // Not an arrow function, backtrack and parse as group
+    this.current = startPos
+    return this.parseGroup()
+  }
+
+  private tryParseArrowFunction(): Expr | null {
+    // We're after consuming '(', so check for params
+    const params: { name: Token; type?: Token }[] = []
+
+    // Empty params: () => expr
+    if (this.check(TokenType.RPAREN)) {
+      this.advance() // consume )
+      if (!this.check(TokenType.ARROW)) {
+        return null // Not an arrow function
+      }
+      this.advance() // consume =>
+      return this.parseArrowBody(params)
+    }
+
+    // Parse parameters
+    while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
+      // Must be identifier
+      if (this.peek().type !== TokenType.IDENTIFIER) {
+        return null
+      }
+
+      const paramName = this.advance() // consume identifier
+
+      // Optional type annotation
+      let paramType: Token | undefined
+      if (this.check(TokenType.COLON)) {
+        this.advance() // consume :
+        paramType = this.advance() // consume type
+      }
+
+      params.push({ name: paramName, type: paramType })
+
+      // Comma or end
+      if (this.check(TokenType.COMMA)) {
+        this.advance() // consume ,
+        // Check if next is identifier (more params)
+        if (this.peek().type !== TokenType.IDENTIFIER) {
+          return null // Invalid, like (,)
+        }
+      }
+    }
+
+    // Expect )
+    if (!this.check(TokenType.RPAREN)) {
+      return null
+    }
+    this.advance() // consume )
+
+    // Optional return type annotation: ) => : int body or ) => int body
+    let returnType: Token | undefined
+    if (this.check(TokenType.COLON)) {
+      this.advance() // consume :
+      returnType = this.advance() // consume return type
+    }
+
+    // Expect =>
+    if (!this.check(TokenType.ARROW)) {
+      return null
+    }
+    this.advance() // consume =>
+
+    return this.parseArrowBodyWithReturnType(params, returnType)
+  }
+
+  private parseArrowBody(params: { name: Token; type?: Token }[]): Expr {
+    // Arrow body can be expression or block
+    if (this.check(TokenType.LBRACE)) {
+      // Block body: () => { return x }
+      const body = this.parseBlockStatement()
+      return {
+        kind: "ArrowFunction",
+        params,
+        body
+      }
+    } else {
+      // Expression body: () => x + 1
+      const body = this.parseExpression(Precedence.LOWEST)
+      if (!body) {
+        this.error("Expected expression after '=>'", this.peek())
+        return { kind: "Literal", value: null }
+      }
+      return {
+        kind: "ArrowFunction",
+        params,
+        body
+      }
+    }
+  }
+
+  private parseArrowBodyWithReturnType(params: { name: Token; type?: Token }[], returnType: Token | undefined): Expr {
+    // Arrow body can be expression or block
+    if (this.check(TokenType.LBRACE)) {
+      // Block body: () => { return x }
+      const body = this.parseBlockStatement()
+      return {
+        kind: "ArrowFunction",
+        params,
+        returnType,
+        body
+      }
+    } else {
+      // Expression body: () => x + 1
+      const body = this.parseExpression(Precedence.LOWEST)
+      if (!body) {
+        this.error("Expected expression after '=>'", this.peek())
+        return { kind: "Literal", value: null }
+      }
+      return {
+        kind: "ArrowFunction",
+        params,
+        returnType,
+        body
+      }
+    }
   }
 
   private parseUnary(): Expr {
