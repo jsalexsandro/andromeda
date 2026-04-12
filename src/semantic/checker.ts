@@ -292,6 +292,13 @@ export class TypeChecker {
     const rightType = this.checkExpression(expr.right)
     const operator = expr.operator.value as string
 
+    // String concatenation with +
+    if (operator === "+") {
+      if (leftType === "string" && rightType === "string") {
+        return "string"
+      }
+    }
+
     if (["+", "-", "*", "/", "%"].includes(operator)) {
       if (!isSameType(leftType, rightType)) {
         this.errors.report({
