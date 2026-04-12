@@ -71,7 +71,11 @@ FASE 3 — LITERAIS E EXPRESSÕES SIMPLES
 FASE 4 — DECLARATIONS
 │
 ├── 12. VariableDeclaration
+        var -> mutable: true
 │       val  → mutable: false
+        val sem pre definição de tipo -> error
+        (ex: val n: string = "") -> ok, tipo informado
+        (ex: val n = "") -> error (val requer tipo informado)
 │       const → mutable: false (alias)
 │       checar: nome já existe no escopo atual → erro
 │       checar: tipo anotado bate com valor → erro

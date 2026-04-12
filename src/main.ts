@@ -1,13 +1,15 @@
 import * as fs from 'fs'
 import { Lexer } from './lexer/lexer'
 import { Parser } from './parser/parser'
+import { SemanticAnalyzer } from './semantic'
+import { Analyzer } from './semantic/analyzer'
 
 function showHelp() {
   console.log(`Andromeda Language CLI v1.0.0`)
   console.log('Usage: andromeda <command> [options] <file>')
   console.log('')
   console.log('Commands:')
-  console.log('  run <file>      Run an andromeda file (currently syntatic validation)')
+  console.log('  run <file>      Run an andromeda file (syntax + semantic validation)')
   console.log('  tokens <file>   Print the token stream of a file')
   console.log('  help            Show this help message')
   console.log('  version         Show the version')
@@ -81,8 +83,19 @@ export function main() {
 
     console.log(`> Syntax pass completed: AST generated with ${ast.length} statements.`)
 
-    // Run semantic analysis
-    
+    console.time("semantic")
+    const analyzer = new Analyzer()
+    analyzer.analyzeProgram(ast)
+    console.timeEnd("semantic")
+
+    if (analyzer.hasErrors()) {
+      console.log("\nSemantic errors:")
+      for (const err of analyzer.getErrors()) {
+        console.log(`  line ${err.line}, col ${err.column}: ${err.message}`)
+      }
+      process.exit(1)
+    }
+
   } else {
     console.log(`Tokens (${tokens.length}):\n`)
     for (const token of tokens) {
