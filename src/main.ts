@@ -84,15 +84,15 @@ export function main() {
 
     // Run semantic analysis
     console.time("semantic")
-    const semanticAnalyzer = new SemanticAnalyzer()
+    const semanticAnalyzer = new SemanticAnalyzer(input)
     const semanticResult = semanticAnalyzer.analyze(ast)
     console.timeEnd("semantic")
 
     if (semanticResult.hasErrors) {
       console.log(`\n> Semantic errors found:`)
-      for (const error of semanticResult.errors) {
-        console.error(`[Semantic]: ${error.message}`)
-        console.error(`At line ${error.line}, column ${error.column}`)
+      const output = semanticAnalyzer.errors.render()
+      if (output) {
+        console.error(output)
       }
       process.exit(1)
     }

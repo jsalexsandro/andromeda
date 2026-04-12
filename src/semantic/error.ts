@@ -21,6 +21,11 @@ export interface SemanticError {
 
 export class SemanticErrorReporter {
   errors: SemanticError[] = []
+  private sourceCode: string
+
+  constructor(sourceCode: string = "") {
+    this.sourceCode = sourceCode
+  }
 
   report(error: SemanticError): void {
     this.errors.push(error)
@@ -39,8 +44,25 @@ export class SemanticErrorReporter {
 
     let output = ""
     for (const error of this.errors) {
+      const line = error.line > 0 ? error.line : 1
+      const column = error.column > 0 ? error.column : 1
+
+      // Adjust column for pointer (point AFTER the token)
+      const errorColumn = column + 1
+      const lineStr = String(line)
+
+      const lines = this.sourceCode.split('\n')
+      const targetLine = lines[line - 1] || ''
+
+      const linePrefix = `${lineStr} | `
+      const spacePrefix = ' '.repeat(lineStr.length) + ' | '
+      const padding = ' '.repeat(Math.max(0, errorColumn - 1))
+      const pointer = spacePrefix + padding + '^'
+
       output += `[Semantic Error]: ${error.message}\n`
-      output += `At line ${error.line}, column ${error.column}\n\n`
+      output += `At line ${line}, column ${column}:\n\n`
+      output += `${linePrefix}${targetLine}\n`
+      output += `${pointer}\n\n`
     }
     return output
   }

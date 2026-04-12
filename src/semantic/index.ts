@@ -9,12 +9,11 @@ export interface SemanticResult {
 }
 
 export class SemanticAnalyzer {
-  private scopeManager: ScopeManager
-  private errors: SemanticErrorReporter
+  public errors: SemanticErrorReporter
 
-  constructor() {
+  constructor(sourceCode: string = "") {
     this.scopeManager = new ScopeManager()
-    this.errors = new SemanticErrorReporter()
+    this.errors = new SemanticErrorReporter(sourceCode)
   }
 
   analyze(stmts: Stmt[]): SemanticResult {

@@ -29,7 +29,9 @@ export class ParserError extends Error {
     }
 
     const column = this.token.column > 0 ? this.token.column : 1
-    const padding = ' '.repeat(Math.max(0, column - 1))
+    // Adjust column to point AFTER the token (where the error actually is)
+    const errorColumn = column + 1
+    const padding = ' '.repeat(Math.max(0, errorColumn - 1))
     const pointer = spacePrefix + padding + '^'.repeat(Math.max(1, tokenLength))
 
     return `[Parse Error]: ${this.message}\n` +
