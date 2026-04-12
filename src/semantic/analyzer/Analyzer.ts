@@ -82,6 +82,14 @@ export class Analyzer {
         this.analyzeContinue(stmt)
         break
 
+      case "FunctionStmt":
+        this.analyzeFunction(stmt)
+        break
+
+      case "ReturnStmt":
+        this.analyzeReturn(stmt)
+        break
+
       default:
         break
     }
@@ -171,6 +179,7 @@ export class Analyzer {
 
     const name = nameExpr.name.value as string
     const [line, column] = this.getLineColumn(nameExpr.name)
+    const operator = expr.operator?.value as string | undefined
 
     const symbol = this.scopeStack.lookup(name)
 
@@ -180,19 +189,32 @@ export class Analyzer {
     }
 
     if (!symbol.mutable) {
-      this.report("CANNOT_ASSIGN", `cannot reassign '${name}': it is declared with '${symbol.kind === SymbolKind.Variable ? 'val' : 'const'} and is not mutable`, line, column)
+      this.report("CANNOT_ASSIGN", `cannot reassign '${name}': it is declared with 'val' and is not mutable`, line, column)
       return Primitive.unknown()
     }
 
     const valueType = this.analyzeExpression(expr.value)
 
-    if (!TypeChecker.isAssignableTo(valueType, symbol.type) && !TypeChecker.isUnknown(valueType)) {
-      this.report(
-        "TYPE_MISMATCH",
-        `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(symbol.type)}'`,
-        line,
-        column
-      )
+    if (operator && ["+=", "-=", "*=", "/=", "%="].includes(operator)) {
+      const compoundArithmeticOps = ["+=", "-=", "*=", "/=", "%="]
+      if (compoundArithmeticOps.includes(operator)) {
+        const validLeft = TypeChecker.isSameType(symbol.type, Primitive.int()) || TypeChecker.isSameType(symbol.type, Primitive.float())
+        if (!validLeft && !TypeChecker.isUnknown(symbol.type)) {
+          this.report("TYPE_MISMATCH", `compound assignment '${operator}' requires int or float, got '${TypeChecker.toString(symbol.type)}'`, line, column)
+        }
+        if (!TypeChecker.isAssignableTo(valueType, symbol.type) && !TypeChecker.isUnknown(valueType)) {
+          this.report("TYPE_MISMATCH", `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(symbol.type)}'`, line, column)
+        }
+      }
+    } else {
+      if (!TypeChecker.isAssignableTo(valueType, symbol.type) && !TypeChecker.isUnknown(valueType)) {
+        this.report(
+          "TYPE_MISMATCH",
+          `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(symbol.type)}'`,
+          line,
+          column
+        )
+      }
     }
 
     return symbol.type
@@ -382,13 +404,116 @@ export class Analyzer {
     return declaredType
   }
 
-  analyzeIf(stmt: any): void {}
+  analyzeFunction(stmt: any): void {
+    const name = stmt.name.value as string
+    const [line, column] = this.getLineColumn(stmt.name)
 
-  analyzeWhile(stmt: any): void {}
+    // Check for duplicate function name in global scope
+    if (this.scopeStack.current.kind === "global") {
+      const existing = this.scopeStack.current.lookupLocal(name)
+      if (existing) {
+        this.report("ALREADY_DECLARED", `function '${name}' is already declared in this scope`, line, column)
+      }
+    }
 
-  analyzeBreak(stmt: any): void {}
+    // Enter function scope
+    this.inFunction = true
+    this.enterScope("function")
 
-  analyzeContinue(stmt: any): void {}
+    // Register parameters
+    for (const param of stmt.params || []) {
+      const paramName = param.name.value as string
+      const paramType = param.type
+        ? TypeChecker.fromKeyword(param.type.value as string) || Primitive.unknown()
+        : Primitive.unknown()
+
+      const symbol: SymbolDefinition = {
+        name: paramName,
+        type: paramType,
+        kind: SymbolKind.Param,
+        mutable: false,
+        ast: param,
+        line: param.name.line ?? 0,
+        column: param.name.column ?? 0,
+      }
+
+      try {
+        this.scopeStack.current.define(symbol)
+      } catch (e) {
+        if (e instanceof Error) {
+          this.report("ALREADY_DECLARED", e.message, line, column)
+        }
+      }
+    }
+
+    // Analyze body
+    this.analyzeStatement(stmt.body)
+
+    // Exit function scope
+    this.exitScope()
+    this.inFunction = false
+  }
+
+  analyzeReturn(stmt: any): void {
+    if (!this.inFunction) {
+      this.report("INVALID_RETURN", "return statement must be inside a function", stmt.line ?? 0, stmt.column ?? 0)
+      return
+    }
+
+    if (stmt.value) {
+      this.analyzeExpression(stmt.value)
+    }
+  }
+
+  analyzeIf(stmt: any): void {
+    const condType = this.analyzeExpression(stmt.condition)
+
+    if (!TypeChecker.isSameType(condType, Primitive.bool()) && !TypeChecker.isUnknown(condType)) {
+      this.report(
+        "TYPE_MISMATCH",
+        `if condition must be boolean, got '${TypeChecker.toString(condType)}'`,
+        stmt.condition.line ?? 0,
+        stmt.condition.column ?? 0
+      )
+    }
+
+    this.analyzeStatement(stmt.thenBranch)
+
+    if (stmt.elseBranch) {
+      this.analyzeStatement(stmt.elseBranch)
+    }
+  }
+
+  analyzeWhile(stmt: any): void {
+    const condType = this.analyzeExpression(stmt.condition)
+
+    if (!TypeChecker.isSameType(condType, Primitive.bool()) && !TypeChecker.isUnknown(condType)) {
+      this.report(
+        "TYPE_MISMATCH",
+        `while condition must be boolean, got '${TypeChecker.toString(condType)}'`,
+        stmt.condition.line ?? 0,
+        stmt.condition.column ?? 0
+      )
+    }
+
+    this.inLoop = true
+    this.enterScope("block")
+    this.analyzeStatement(stmt.body)
+    this.exitScope()
+    this.inLoop = false
+  }
+
+  analyzeBreak(stmt: any): void {
+    if (!this.inLoop) {
+      this.report("INVALID_BREAK", "break statement must be inside a loop", stmt.line ?? 0, stmt.column ?? 0)
+    }
+  }
+
+  analyzeContinue(stmt: any): void {
+    if (!this.inLoop) {
+      this.report("INVALID_CONTINUE", "continue statement must be inside a loop", stmt.line ?? 0, stmt.column ?? 0)
+    }
+  }
 
   hasErrors(): boolean {
     return this.errors.hasErrors()

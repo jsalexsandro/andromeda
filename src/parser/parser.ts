@@ -72,6 +72,12 @@ export class Parser {
 
     // Index access ([])
     this.infixParselets.set(TokenType.LBRACKET, this.parseIndex.bind(this))
+
+    // Ternary expression (a ? b : c)
+    this.infixParselets.set(TokenType.QUESTION, this.parseTernary.bind(this))
+
+    // Nullish coalescing (a ?? b)
+    this.infixParselets.set(TokenType.QUESTION_QUESTION, this.parseNullish.bind(this))
   }
 
   // --- LITERAL PARSELETS ---
@@ -212,6 +218,50 @@ export class Parser {
     return { kind: "Index", object: left, index: indexExpr }
   }
 
+  private parseTernary(left: Expr): Expr | null {
+    // current is now the '?' token (already consumed)
+    const consequent = this.parseExpression(Precedence.LOWEST)
+    if (!consequent) {
+      this.error("Expected expression after '?'", this.peek())
+      return null
+    }
+
+    // Expect ':'
+    if (!this.check(TokenType.COLON)) {
+      this.error("Expected ':' after '?' expression", this.peek())
+      return null
+    }
+    this.advance() // consume ':'
+
+    const alternate = this.parseExpression(Precedence.CONDITIONAL)
+    if (!alternate) {
+      this.error("Expected expression after ':'", this.peek())
+      return null
+    }
+
+    return {
+      kind: "Conditional",
+      condition: left,
+      consequent,
+      alternate
+    }
+  }
+
+  private parseNullish(left: Expr): Expr | null {
+    // current is now the '??' token (already consumed)
+    const right = this.parseExpression(Precedence.NULLISH)
+    if (!right) {
+      this.error("Expected expression after '??'", this.peek())
+      return null
+    }
+
+    return {
+      kind: "NullishCoalescing",
+      left,
+      right
+    }
+  }
+
   private parseBinary(left: Expr): Expr | null {
     const operator = this.previous()
     const precedence = getPrecedence(operator.type)
@@ -269,6 +319,12 @@ export class Parser {
       if (keyword === 'continue') {
         this.advance()
         return { kind: "ContinueStmt" }
+      }
+      if (keyword === 'func') {
+        return this.parseFunctionStatement()
+      }
+      if (keyword === 'return') {
+        return this.parseReturnStatement()
       }
     }
 
@@ -425,6 +481,98 @@ return {
       kind: "WhileStmt",
       condition,
       body
+    }
+  }
+
+  private parseFunctionStatement(): Stmt {
+    this.advance() // consume 'func'
+
+    // Parse function name
+    const nameToken = this.advance()
+    if (nameToken.type !== TokenType.IDENTIFIER) {
+      this.error("Expected function name after 'func'", nameToken)
+      return { kind: "ExpressionStmt", expression: { kind: "Literal", value: null } }
+    }
+
+    // Parse parameters: (
+    if (!this.check(TokenType.LPAREN)) {
+      this.error("Expected '(' after function name", this.peek())
+    }
+    this.advance() // consume (
+
+    // Parse parameter list
+    const params: any[] = []
+    while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
+      const paramName = this.advance()
+      if (paramName.type !== TokenType.IDENTIFIER) {
+        this.error("Expected parameter name", paramName)
+        break
+      }
+
+      let paramType: Token | undefined
+      if (this.check(TokenType.COLON)) {
+        this.advance() // consume :
+        const typeToken = this.advance()
+        paramType = typeToken
+      }
+
+      params.push({ name: paramName, type: paramType })
+
+      if (this.check(TokenType.COMMA)) {
+        this.advance() // consume ,
+      }
+    }
+
+    if (this.check(TokenType.RPAREN)) {
+      this.advance() // consume )
+    } else {
+      this.error("Expected ')' after parameters", this.peek())
+    }
+
+    // Parse return type
+    let returnType: Token | undefined
+    if (this.check(TokenType.COLON)) {
+      this.advance() // consume :
+      const typeToken = this.advance()
+      returnType = typeToken
+    }
+
+    // Parse body
+    let body: any
+    if (this.check(TokenType.LBRACE)) {
+      body = this.parseBlockStatement()
+    } else {
+      this.error("Expected '{' before function body", this.peek())
+      body = { kind: "BlockStmt", statements: [] }
+    }
+
+    return {
+      kind: "FunctionStmt",
+      name: nameToken,
+      params,
+      returnType,
+      body
+    }
+  }
+
+  private parseReturnStatement(): Stmt {
+    const keyword = this.advance() // consume 'return'
+
+    // Check if there's an expression after return
+    if (this.check(TokenType.RBRACE) || this.isAtEnd()) {
+      // return without value
+      return { kind: "ReturnStmt" }
+    }
+
+    // Try to parse return value
+    const value = this.parseExpression(Precedence.LOWEST)
+    if (!value) {
+      return { kind: "ReturnStmt" }
+    }
+
+    return {
+      kind: "ReturnStmt",
+      value
     }
   }
 
