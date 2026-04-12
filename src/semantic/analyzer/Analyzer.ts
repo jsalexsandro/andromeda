@@ -411,9 +411,10 @@ export class Analyzer {
     const [line, column] = this.getLineColumn(stmt.name)
 
     // Determine return type
+    const hasExplicitReturnType = !!stmt.returnType
     const returnType = stmt.returnType
       ? TypeChecker.fromKeyword(stmt.returnType.value as string) || Primitive.unknown()
-      : Primitive.void()
+      : Primitive.unknown()
 
     // Build function type for symbol table
     const paramTypes = (stmt.params || []).map((p: any) => {
@@ -485,15 +486,17 @@ export class Analyzer {
     // Analyze body
     this.analyzeStatement(stmt.body)
 
-    // Check if all code paths return (for non-void functions)
-    const isVoid = TypeChecker.isSameType(this.expectedReturnType, Primitive.void())
-    if (!isVoid && !this.hasReachableReturn) {
-      this.report(
-        "MISSING_RETURN",
-        `function '${name}' should return '${TypeChecker.toString(this.expectedReturnType)}' but not all paths return a value`,
-        line,
-        column
-      )
+    // Check if all code paths return (only for functions with EXPLICIT non-void return type)
+    if (hasExplicitReturnType) {
+      const isVoid = TypeChecker.isSameType(this.expectedReturnType, Primitive.void())
+      if (!isVoid && !this.hasReachableReturn) {
+        this.report(
+          "MISSING_RETURN",
+          `function '${name}' should return '${TypeChecker.toString(this.expectedReturnType)}' but not all paths return a value`,
+          line,
+          column
+        )
+      }
     }
 
     // Exit function scope
