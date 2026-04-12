@@ -405,7 +405,52 @@ export class TypeChecker {
   }
 
   private checkCallExpression(expr: any): Type {
-    return { kind: "unknown" }
+    const callee = expr.callee
+
+    // Verificar se o callee é um identifier
+    if (callee?.kind !== "Identifier") {
+      this.errors.report({
+        type: SemanticErrorType.INVALID_OPERATION,
+        message: `Cannot call this expression`,
+        line: callee?.name?.line || callee?.line || 0,
+        column: callee?.name?.column || callee?.column || 0,
+        node: expr
+      })
+      return { kind: "unknown" }
+    }
+
+    const funcName = callee?.name?.value as string
+
+    const symbol = this.scopeManager.resolve(funcName)
+    if (!symbol) {
+      this.errors.report({
+        type: SemanticErrorType.UNDEFINED_VARIABLE,
+        message: `Function '${funcName}' is not defined`,
+        line: callee?.name?.line || 0,
+        column: callee?.name?.column || 0,
+        node: expr
+      })
+      return { kind: "unknown" }
+    }
+
+    if (symbol.type.kind !== "function") {
+      this.errors.report({
+        type: SemanticErrorType.INVALID_OPERATION,
+        message: `'${funcName}' is not a function`,
+        line: (callee as any).name?.line || 0,
+        column: (callee as any).name?.column || 0,
+        node: expr
+      })
+      return { kind: "unknown" }
+    }
+
+    // Verificar argumentos
+    for (const arg of expr.args || []) {
+      this.checkExpression(arg)
+    }
+
+    // Retornar tipo de retorno da função
+    return symbol.type.returnType || { kind: "unknown" }
   }
 
   private checkMemberExpression(expr: any): Type {

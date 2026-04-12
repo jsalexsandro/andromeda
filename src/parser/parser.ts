@@ -63,6 +63,9 @@ export class Parser {
     // Logical operators
     this.infixParselets.set(TokenType.AND, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.OR, this.parseBinary.bind(this))
+
+    // Function call
+    this.infixParselets.set(TokenType.LPAREN, this.parseCall.bind(this))
   }
 
   // --- LITERAL PARSELETS ---
@@ -131,6 +134,40 @@ export class Parser {
       return null
     }
     return { kind: "Assign", name: left, value, operator }
+  }
+
+  private parseCall(left: Expr): Expr | null {
+    const args: Expr[] = []
+
+    // Check for empty call like fn() or fn()
+    if (this.check(TokenType.RPAREN)) {
+      this.advance() // consume )
+      return { kind: "Call", callee: left, args }
+    }
+
+    // Parse arguments
+    while (!this.isAtEnd()) {
+      const arg = this.parseExpression(Precedence.LOWEST)
+      if (arg) {
+        args.push(arg)
+      }
+
+      if (this.check(TokenType.RPAREN)) {
+        this.advance() // consume )
+        break
+      }
+
+      if (!this.check(TokenType.COMMA)) {
+        break
+      }
+      this.advance() // consume comma
+
+      if (this.isAtEnd()) {
+        break
+      }
+    }
+
+    return { kind: "Call", callee: left, args }
   }
 
   private parseBinary(left: Expr): Expr | null {
