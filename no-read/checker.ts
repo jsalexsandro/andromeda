@@ -413,8 +413,8 @@ export class TypeChecker {
   private checkCallExpression(expr: any): Type {
     const callee = expr.callee
 
-    // Verificar se o callee é um identifier
-    if (callee?.kind !== "Identifier") {
+    // Verificar se o callee é um identifier ou MemberExpr
+    if (callee?.kind !== "Identifier" && callee?.kind !== "Member") {
       this.errors.report({
         type: SemanticErrorType.INVALID_OPERATION,
         message: `Cannot call this expression`,
@@ -425,29 +425,66 @@ export class TypeChecker {
       return { kind: "unknown" }
     }
 
-    const funcName = callee?.name?.value as string
-
-    const symbol = this.scopeManager.resolve(funcName)
-    if (!symbol) {
-      this.errors.report({
-        type: SemanticErrorType.UNDEFINED_VARIABLE,
-        message: `Function '${funcName}' is not defined`,
-        line: callee?.name?.line || 0,
-        column: callee?.name?.column || 0,
-        node: expr
-      })
-      return { kind: "unknown" }
+    // Resolve o nome da função
+    let funcName: string
+    if (callee?.kind === "Member") {
+      const prop = callee.property as any
+      funcName = prop?.name?.value as string
+    } else {
+      funcName = callee?.name?.value as string
     }
 
-    if (symbol.type.kind !== "function") {
-      this.errors.report({
-        type: SemanticErrorType.INVALID_OPERATION,
-        message: `'${funcName}' is not a function`,
-        line: (callee as any).name?.line || 0,
-        column: (callee as any).name?.column || 0,
-        node: expr
-      })
-      return { kind: "unknown" }
+    let symbol: any
+    let isMemberCall = callee?.kind === "Member"
+
+    if (isMemberCall) {
+      const objectName = (callee.object as any).name?.value as string
+      const objSymbol = this.scopeManager.resolve(objectName)
+      if (!objSymbol || objSymbol.type.kind !== "object") {
+        this.errors.report({
+          type: SemanticErrorType.INVALID_OPERATION,
+          message: `'${objectName}' is not an object`,
+          line: (callee.object as any).name?.line || 0,
+          column: (callee.object as any).name?.column || 0,
+          node: expr
+        })
+        return { kind: "unknown" }
+      }
+      const propType = objSymbol.type.properties.get(funcName)
+      if (!propType || propType.kind !== "function") {
+        this.errors.report({
+          type: SemanticErrorType.INVALID_OPERATION,
+          message: `'${funcName}' is not a function on object`,
+          line: callee?.property?.name?.line || 0,
+          column: callee?.property?.name?.column || 0,
+          node: expr
+        })
+        return { kind: "unknown" }
+      }
+      return propType.returnType || { kind: "unknown" }
+    } else {
+      symbol = this.scopeManager.resolve(funcName)
+      if (!symbol) {
+        this.errors.report({
+          type: SemanticErrorType.UNDEFINED_VARIABLE,
+          message: `Function '${funcName}' is not defined`,
+          line: callee?.name?.line || 0,
+          column: callee?.name?.column || 0,
+          node: expr
+        })
+        return { kind: "unknown" }
+      }
+
+      if (symbol.type.kind !== "function") {
+        this.errors.report({
+          type: SemanticErrorType.INVALID_OPERATION,
+          message: `'${funcName}' is not a function`,
+          line: (callee as any).name?.line || 0,
+          column: (callee as any).name?.column || 0,
+          node: expr
+        })
+        return { kind: "unknown" }
+      }
     }
 
     // Verificar argumentos

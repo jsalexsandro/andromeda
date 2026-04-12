@@ -33,7 +33,7 @@ FASE 3 — EXPRESSÕES COMPOSTAS
 ├── 14. Assignment              x = 10
 |       Atribuição composta: (x += 1, x -= 1)
 ├── 15. CallExpression          fn(a, b)
-├── 16. MemberExpression        obj.prop
-├── 17. IndexExpression         arr[0]
+├── 16. MemberExpression        obj.prop (falta o semantic)
+├── 17. IndexExpression         arr[0]  (falta o semantic)
 ├── 18. TernaryExpression       a ? b : c
 └── 19. NullishCoalescing       a ?? b

@@ -129,33 +129,31 @@ export class Lexer {
 
 readNumber(): Token {
     const startColumn = this.column
-    const start = this.position  // OTIMIZAÇÃO: guarda posição inicial
+    const start = this.position
 
     while (this.isDigit()) {
       this.readChar()
     }
 
-    // Check for decimal point
+    // Check for decimal point - but only if followed by a digit (without consuming)
     if (this.ch === '.') {
-      const dotPos = this.position
-      this.readChar()
+      const nextChar = this.input[this.position + 1]
+      const nextCharIsDigit = nextChar && nextChar >= '0' && nextChar <= '9'
 
-      if (!this.isDigit()) {
-        // It was just a decimal point, not a float
-        const numStr = this.input.slice(start, dotPos)
+      if (!nextCharIsDigit) {
+        // It's a separate DOT token, not part of a float - leave it for the DOT handler
+      } else {
+        // It's a decimal point of a float
+        this.readChar() // consume '.'
+        while (this.isDigit()) {
+          this.readChar()
+        }
+        const numStr = this.input.slice(start, this.position)
         return { type: TokenType.NUMBER, value: parseFloat(numStr), line: this.line, column: startColumn }
       }
-
-      // Read decimal part
-      while (this.isDigit()) {
-        this.readChar()
-      }
-
-      const numStr = this.input.slice(start, this.position)  // OTIMIZAÇÃO: slice único
-      return { type: TokenType.NUMBER, value: parseFloat(numStr), line: this.line, column: startColumn }
     }
 
-    const numStr = this.input.slice(start, this.position)  // OTIMIZAÇÃO: slice único
+    const numStr = this.input.slice(start, this.position)
     return { type: TokenType.NUMBER, value: parseFloat(numStr), line: this.line, column: startColumn }
   }
 

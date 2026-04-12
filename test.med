@@ -1,2 +1,8 @@
-var nome = "Jonny"
-val blesed = false
+val name: string = "Jonny"
+var number = 22
+
+var obj = 2
+
+obj.uuid()
+
+obj[1]

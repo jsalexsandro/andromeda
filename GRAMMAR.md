@@ -207,7 +207,40 @@ ExpressionStmt → Expression
 print("oi")
 ```
 
-### 8.7 Call Expression
+### 8.7 Member Expression
+```
+MemberExpr → Expression "." Identifier
+```
+- Accesso de propriedade de objeto
+- Sintaxe: `obj.property`
+- Suporta acesso encadeado: `obj.prop1.prop2`
+- Precedência mais alta que Call
+
+#### Exemplos:
+```andromeda
+x.name
+x.value
+obj.prop.subprop
+```
+
+### 8.8 Index Expression
+```
+IndexExpr → Expression "[" Expression "]"
+```
+- Acesso a elemento de array
+- Sintaxe: `arr[index]`
+- Suporta index encadeado: `arr[0][1]`
+- Suporta Member + Index: `obj.items[0]`
+
+#### Exemplos:
+```andromeda
+arr[0]
+arr[i + 1]
+matrix[0][1]
+obj.list[0]
+```
+
+### 8.9 Call Expression
 ```
 CallExpr → Identifier "(" Expression* ")"
 ```
@@ -305,6 +338,8 @@ var y: int = 20 // explícito: int
 | 1.0.3 | 2026-04-11 | WhileStatement, BreakStmt, ContinueStmt |
 | 1.0.4 | 2026-04-11 | Assignment (x = 10), Compound (+=, etc), ExpressionStmt |
 | 1.0.5 | 2026-04-11 | CallExpression, String Concatenation |
+| 1.0.6 | 2026-04-12 | MemberExpression (obj.prop) |
+| 1.0.7 | 2026-04-12 | IndexExpression (arr[i]) |
 
 ---
 

@@ -66,6 +66,12 @@ export class Parser {
 
     // Function call
     this.infixParselets.set(TokenType.LPAREN, this.parseCall.bind(this))
+
+    // Member access (.)
+    this.infixParselets.set(TokenType.DOT, this.parseMember.bind(this))
+
+    // Index access ([])
+    this.infixParselets.set(TokenType.LBRACKET, this.parseIndex.bind(this))
   }
 
   // --- LITERAL PARSELETS ---
@@ -168,6 +174,42 @@ export class Parser {
     }
 
     return { kind: "Call", callee: left, args }
+  }
+
+  private parseMember(left: Expr): Expr | null {
+    // Note: advance() was already called by parseExpression before calling this parselet
+    // DOT has already been consumed, current now points to property token
+
+    const property = this.peek()
+
+    if (property.type !== TokenType.IDENTIFIER) {
+      this.errors.report("Expected property name after '.'", property)
+      return null
+    }
+
+    this.advance() // consume property identifier
+    return {
+      kind: "Member",
+      object: left,
+      property: { kind: "Identifier", name: this.previous() }
+    }
+  }
+
+  private parseIndex(left: Expr): Expr | null {
+    const indexExpr = this.parseExpression(Precedence.LOWEST)
+
+    if (!indexExpr) {
+      this.error("Expected expression inside brackets", this.peek())
+      return null
+    }
+
+    if (!this.check(TokenType.RBRACKET)) {
+      this.error("Expected ']' after index expression", this.peek())
+      return null
+    }
+
+    this.advance() // consume RBRACKET
+    return { kind: "Index", object: left, index: indexExpr }
   }
 
   private parseBinary(left: Expr): Expr | null {

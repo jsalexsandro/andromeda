@@ -1,0 +1,14 @@
+var name:int = 2
+name = 2
+
+while (name < 100){
+    name += 1
+    
+    if (name > 50){
+        break   
+    }
+    
+}
+
+val print:int =2
+print()
