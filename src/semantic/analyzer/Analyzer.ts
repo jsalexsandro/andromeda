@@ -468,7 +468,7 @@ export class Analyzer {
         name: paramName,
         type: paramType,
         kind: SymbolKind.Param,
-        mutable: false,
+        mutable: true,
         ast: param,
         line: param.name.line ?? 0,
         column: param.name.column ?? 0,
