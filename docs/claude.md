@@ -27,3 +27,13 @@ FASE 2 — STATEMENTS SIMPLES
 ├── 11. IfStatement             if/else
 ├── 12. WhileStatement          while
 └── 13. ExpressionStatement     expr como statement
+FASE 3 — EXPRESSÕES COMPOSTAS
+│       (precisam de expr e statement prontos)
+│
+├── 14. Assignment              x = 10
+|       Atribuição composta: (x += 1, x -= 1)
+├── 15. CallExpression          fn(a, b)
+├── 16. MemberExpression        obj.prop
+├── 17. IndexExpression         arr[0]
+├── 18. TernaryExpression       a ? b : c
+└── 19. NullishCoalescing       a ?? b
