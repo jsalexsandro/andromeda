@@ -1,17 +1,20 @@
-import { Expr, Stmt, LiteralExpr, IdentifierExpr, UnaryExpr, BinaryExpr, GroupExpr } from "../../ast"
-import { AndroType, Primitive, TypeKind } from "../types"
+import { Expr, Stmt, LiteralExpr, IdentifierExpr, UnaryExpr, BinaryExpr, GroupExpr, AssignExpr, VariableStmt } from "../../ast"
+import { AndroType, Primitive, TypeKind, SymbolKind, SymbolDefinition } from "../types"
 import { TypeChecker } from "../TypeChecker"
 import { AnalyzerContext, AnalyzerError, createContext } from "./types"
 import { SemanticErrorHandler } from "../SemanticError"
+import { ScopeStack } from "../ScopeStack"
 
 export class Analyzer {
   private errors: SemanticErrorHandler
+  private scopeStack: ScopeStack
   private context: AnalyzerContext
   private inLoop: boolean = false
   private inFunction: boolean = false
 
-  constructor(errors?: SemanticErrorHandler) {
+  constructor(scopeStack?: ScopeStack, errors?: SemanticErrorHandler) {
     this.errors = errors || new SemanticErrorHandler()
+    this.scopeStack = scopeStack || new ScopeStack()
     this.context = createContext()
   }
 
@@ -21,6 +24,22 @@ export class Analyzer {
 
   private getLineColumn(node: { line?: number; column?: number }): [number, number] {
     return [node.line ?? 0, node.column ?? 0]
+  }
+
+  enterGlobalScope(): void {
+    this.scopeStack.enter("global")
+  }
+
+  exitGlobalScope(): void {
+    this.scopeStack.exit()
+  }
+
+  enterScope(kind: "function" | "block" | "class"): void {
+    this.scopeStack.enter(kind)
+  }
+
+  exitScope(): void {
+    this.scopeStack.exit()
   }
 
   analyzeProgram(statements: Stmt[]): void {
@@ -36,9 +55,11 @@ export class Analyzer {
         break
 
       case "BlockStmt":
+        this.enterScope("block")
         for (const s of stmt.statements) {
           this.analyzeStatement(s)
         }
+        this.exitScope()
         break
 
       case "VariableStmt":
@@ -74,6 +95,9 @@ export class Analyzer {
       case "Identifier":
         return this.visitIdentifier(expr)
 
+      case "Assign":
+        return this.visitAssign(expr)
+
       case "Group":
         return this.analyzeExpression(expr.expression)
 
@@ -83,6 +107,15 @@ export class Analyzer {
       case "Binary":
       case "Logical":
         return this.visitBinary(expr as BinaryExpr)
+
+      case "Call":
+        return this.visitCall(expr)
+
+      case "Member":
+        return this.visitMember(expr)
+
+      case "Index":
+        return this.visitIndex(expr)
 
       default:
         return Primitive.unknown()
@@ -115,7 +148,54 @@ export class Analyzer {
   }
 
   visitIdentifier(expr: IdentifierExpr): AndroType {
-    return Primitive.unknown()
+    const name = expr.name.value as string
+    const [line, column] = this.getLineColumn(expr.name)
+
+    const symbol = this.scopeStack.lookup(name)
+
+    if (!symbol) {
+      this.report("UNDEFINED_VARIABLE", `variable '${name}' is not defined`, line, column)
+      return Primitive.unknown()
+    }
+
+    return symbol.type
+  }
+
+  visitAssign(expr: AssignExpr): AndroType {
+    const nameExpr = expr.name
+
+    if (nameExpr.kind !== "Identifier") {
+      this.report("INVALID_ASSIGNMENT", "assignment target must be an identifier", 0, 0)
+      return Primitive.unknown()
+    }
+
+    const name = nameExpr.name.value as string
+    const [line, column] = this.getLineColumn(nameExpr.name)
+
+    const symbol = this.scopeStack.lookup(name)
+
+    if (!symbol) {
+      this.report("UNDEFINED_VARIABLE", `variable '${name}' is not defined`, line, column)
+      return Primitive.unknown()
+    }
+
+    if (!symbol.mutable) {
+      this.report("CANNOT_ASSIGN", `cannot reassign '${name}': it is declared with '${symbol.kind === SymbolKind.Variable ? 'val' : 'const'} and is not mutable`, line, column)
+      return Primitive.unknown()
+    }
+
+    const valueType = this.analyzeExpression(expr.value)
+
+    if (!TypeChecker.isAssignableTo(valueType, symbol.type) && !TypeChecker.isUnknown(valueType)) {
+      this.report(
+        "TYPE_MISMATCH",
+        `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(symbol.type)}'`,
+        line,
+        column
+      )
+    }
+
+    return symbol.type
   }
 
   visitUnary(expr: UnaryExpr): AndroType {
@@ -179,6 +259,24 @@ export class Analyzer {
     return Primitive.unknown()
   }
 
+  visitCall(expr: any): AndroType {
+    for (const arg of expr.args || []) {
+      this.analyzeExpression(arg)
+    }
+    return Primitive.unknown()
+  }
+
+  visitMember(expr: any): AndroType {
+    this.analyzeExpression(expr.object)
+    return Primitive.unknown()
+  }
+
+  visitIndex(expr: any): AndroType {
+    this.analyzeExpression(expr.object)
+    this.analyzeExpression(expr.index)
+    return Primitive.unknown()
+  }
+
   private checkArithmetic(operator: string, left: AndroType, right: AndroType, line: number, column: number): AndroType {
     const validLeft = TypeChecker.isSameType(left, Primitive.int()) || TypeChecker.isSameType(left, Primitive.float())
     const validRight = TypeChecker.isSameType(right, Primitive.int()) || TypeChecker.isSameType(right, Primitive.float())
@@ -233,10 +331,59 @@ export class Analyzer {
     return Primitive.bool()
   }
 
-  analyzeVariable(stmt: any): void {
-    if (stmt.initializer) {
-      this.analyzeExpression(stmt.initializer)
+  analyzeVariable(stmt: VariableStmt): AndroType {
+    const name = stmt.name.value as string
+    const [line, column] = this.getLineColumn(stmt.name)
+
+    if (stmt.declarationType === "val" && !stmt.typeAnnotation) {
+      this.report("VAL_REQUIRES_TYPE", `val declaration '${name}' requires type annotation`, line, column)
     }
+
+    let inferredType = Primitive.unknown()
+    if (stmt.initializer) {
+      inferredType = this.analyzeExpression(stmt.initializer)
+    }
+
+    const declaredType = stmt.typeAnnotation
+      ? TypeChecker.fromKeyword(stmt.typeAnnotation.value as string) || Primitive.unknown()
+      : inferredType
+
+    if (stmt.typeAnnotation && stmt.initializer) {
+      if (!TypeChecker.isAssignableTo(inferredType, declaredType) && !TypeChecker.isUnknown(inferredType)) {
+        this.report(
+          "TYPE_MISMATCH",
+          `cannot initialize '${name}' of type '${TypeChecker.toString(declaredType)}' with value of type '${TypeChecker.toString(inferredType)}'`,
+          line,
+          column
+        )
+      }
+    }
+
+    const existing = this.scopeStack.current.lookupLocal(name)
+    if (existing) {
+      this.report("ALREADY_DECLARED", `variable '${name}' is already declared in this scope`, line, column)
+    } else {
+      const mutable = stmt.declarationType === "var"
+      const symbol: SymbolDefinition = {
+        name,
+        type: declaredType,
+        kind: SymbolKind.Variable,
+        mutable,
+        ast: stmt,
+        line,
+        column,
+      }
+
+      try {
+        this.scopeStack.current.define(symbol)
+      } catch (e) {
+        if (e instanceof Error) {
+          this.report("ALREADY_DECLARED", e.message, line, column)
+        }
+      }
+    }
+
+    return declaredType
   }
 
   analyzeIf(stmt: any): void {}

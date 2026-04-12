@@ -85,7 +85,9 @@ export function main() {
 
     console.time("semantic")
     const analyzer = new Analyzer()
+    analyzer.enterGlobalScope()
     analyzer.analyzeProgram(ast)
+    analyzer.exitGlobalScope()
     console.timeEnd("semantic")
 
     if (analyzer.hasErrors()) {
