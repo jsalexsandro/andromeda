@@ -47,8 +47,8 @@ export class SemanticErrorReporter {
       const line = error.line > 0 ? error.line : 1
       const column = error.column > 0 ? error.column : 1
 
-      // Adjust column for pointer (point AFTER the token)
-      const errorColumn = column + 1
+      // Adjust column for pointer (point TO the token where error is)
+      const errorColumn = column
       const lineStr = String(line)
 
       const lines = this.sourceCode.split('\n')
