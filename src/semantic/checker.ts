@@ -1,5 +1,5 @@
 import { Expr, Stmt, VariableStmt, IdentifierExpr, LiteralExpr, BinaryExpr, UnaryExpr } from "../ast"
-import { Type, PrimitiveType, isSameType, canAssign } from "./types"
+import { Type, PrimitiveType, isSameType, canAssign, isBooleanType } from "./types"
 import { ScopeManager, Symbol, Scope } from "./scope"
 import { SemanticErrorReporter, SemanticErrorType } from "./error"
 import { TokenType } from "../lexer/types"
@@ -38,6 +38,7 @@ export class TypeChecker {
         this.scopeManager.popScope()
         break
       case "IfStmt":
+        this.checkExpression(stmt.condition)
         this.checkStatement(stmt.thenBranch)
         if (stmt.elseBranch) {
           this.checkStatement(stmt.elseBranch)
@@ -310,10 +311,12 @@ export class TypeChecker {
     }
 
     if (["&&", "||"].includes(operator)) {
-      if (leftType !== "bool" || rightType !== "bool") {
+      const leftIsBool = leftType === "bool" || leftType.kind === "inferred"
+      const rightIsBool = rightType === "bool" || rightType.kind === "inferred"
+      if (!leftIsBool || !rightIsBool) {
         this.errors.report({
           type: SemanticErrorType.TYPE_MISMATCH,
-          message: `Logical operators require boolean operands`,
+          message: `Logical operators require boolean operands, got ${JSON.stringify(leftType)} and ${JSON.stringify(rightType)}`,
           line: expr.operator.line,
           column: expr.operator.column,
           node: expr

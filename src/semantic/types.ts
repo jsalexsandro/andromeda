@@ -38,3 +38,7 @@ export function canAssign(from: Type, to: Type): boolean {
   }
   return false
 }
+
+export function isBooleanType(type: Type): boolean {
+  return type === "bool"
+}
