@@ -123,14 +123,20 @@ export class TypeChecker {
     if (stmt.initializer) {
       const initType = this.checkExpression(stmt.initializer)
 
+      // Try to get position from initializer's group expression
+      const initExpr = stmt.initializer
+      const groupExpr = (initExpr as any)?.expression
+      const errorLine = groupExpr?.line || stmt.name.line + 1 // After "="
+      const errorColumn = groupExpr?.column || stmt.name.column + 1
+
       if (declarationType !== "val" && type.kind === "inferred") {
         type = initType
       } else if (!canAssign(initType, type)) {
         this.errors.report({
           type: SemanticErrorType.TYPE_MISMATCH,
           message: `Cannot assign type to variable`,
-          line: stmt.name.line,
-          column: stmt.name.column,
+          line: errorLine,
+          column: errorColumn || 12, // Default to after the = sign
           node: stmt
         })
       }
