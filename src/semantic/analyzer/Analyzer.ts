@@ -335,10 +335,6 @@ export class Analyzer {
     const name = stmt.name.value as string
     const [line, column] = this.getLineColumn(stmt.name)
 
-    if (stmt.declarationType === "val" && !stmt.typeAnnotation) {
-      this.report("VAL_REQUIRES_TYPE", `val declaration '${name}' requires type annotation`, line, column)
-    }
-
     let inferredType = Primitive.unknown()
     if (stmt.initializer) {
       inferredType = this.analyzeExpression(stmt.initializer)
