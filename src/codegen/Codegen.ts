@@ -89,7 +89,7 @@ export class Codegen {
       this.visit(stmt)
     }
     this.ctx.writer.dedent()
-    this.ctx.writer.write("}")
+    this.ctx.writer.writeLine("}")
   }
 
   visitLiteral(node: Expr & { kind: "Literal"; value: any }): void {
