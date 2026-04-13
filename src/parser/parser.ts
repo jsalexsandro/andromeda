@@ -192,16 +192,24 @@ export class Parser {
 
   private tryParseArrowFunction(): Expr | null {
     // We're after consuming '(', so check for params
-    const params: { name: Token; type?: Token }[] = []
+    const params: { name: Token; type?: { base: Token; dimensions: number } }[] = []
 
-    // Empty params: () => expr
+    // Empty params: () => expr or (): int[] => expr
     if (this.check(TokenType.RPAREN)) {
       this.advance() // consume )
+      
+      // Optional return type annotation: ): int[] =>
+      let returnType: { base: Token; dimensions: number } | undefined
+      if (this.check(TokenType.COLON)) {
+        this.advance() // consume :
+        returnType = this.parseTypeAnnotation()
+      }
+      
       if (!this.check(TokenType.ARROW)) {
         return null // Not an arrow function
       }
       this.advance() // consume =>
-      return this.parseArrowBody(params)
+      return this.parseArrowBodyWithReturnType(params, returnType)
     }
 
     // Parse parameters
@@ -221,10 +229,10 @@ export class Parser {
       const paramName = this.advance() // consume identifier
 
       // Optional type annotation
-      let paramType: Token | undefined
+      let paramType: { base: Token; dimensions: number } | undefined
       if (this.check(TokenType.COLON)) {
         this.advance() // consume :
-        paramType = this.advance() // consume type
+        paramType = this.parseTypeAnnotation()
       }
 
       params.push({ name: paramName, type: paramType, isRest })
@@ -241,11 +249,11 @@ export class Parser {
     }
     this.advance() // consume )
 
-    // Optional return type annotation: ) => : int body or ) => int body
-    let returnType: Token | undefined
+    // Optional return type annotation: x): int[] =>
+    let returnType: { base: Token; dimensions: number } | undefined
     if (this.check(TokenType.COLON)) {
       this.advance() // consume :
-      returnType = this.advance() // consume return type
+      returnType = this.parseTypeAnnotation()
     }
 
     // Expect =>
@@ -257,7 +265,7 @@ export class Parser {
     return this.parseArrowBodyWithReturnType(params, returnType)
   }
 
-  private parseArrowBody(params: { name: Token; type?: Token }[]): Expr {
+  private parseArrowBody(params: { name: Token; type?: { base: Token; dimensions: number }; isRest?: boolean }[]): Expr {
     // Arrow body can be expression or block
     if (this.check(TokenType.LBRACE)) {
       // Block body: () => { return x }
@@ -282,7 +290,7 @@ export class Parser {
     }
   }
 
-  private parseArrowBodyWithReturnType(params: { name: Token; type?: Token }[], returnType: Token | undefined): Expr {
+  private parseArrowBodyWithReturnType(params: { name: Token; type?: { base: Token; dimensions: number }; isRest?: boolean }[], returnType: { base: Token; dimensions: number } | undefined): Expr {
     // Arrow body can be expression or block
     if (this.check(TokenType.LBRACE)) {
       // Block body: () => { return x }

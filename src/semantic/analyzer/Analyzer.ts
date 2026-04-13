@@ -184,16 +184,24 @@ export class Analyzer {
   }
 
   visitAssign(expr: AssignExpr): AndroType {
-    const nameExpr = expr.name
+    const targetExpr = expr.name
+    const operator = expr.operator?.value as string | undefined
+    const [line, column] = this.getLineColumn(targetExpr)
 
-    if (nameExpr.kind !== "Identifier") {
-      this.report("INVALID_ASSIGNMENT", "assignment target must be an identifier", 0, 0)
-      return Primitive.unknown()
+    if (targetExpr.kind === "Identifier") {
+      return this.assignToIdentifier(targetExpr, expr.value, operator, line, column)
     }
 
-    const name = nameExpr.name.value as string
-    const [line, column] = this.getLineColumn(nameExpr.name)
-    const operator = expr.operator?.value as string | undefined
+    if (targetExpr.kind === "Index") {
+      return this.assignToIndex(targetExpr, expr.value, operator, line, column)
+    }
+
+    this.report("INVALID_ASSIGNMENT", "assignment target must be an identifier or index expression", line, column)
+    return Primitive.unknown()
+  }
+
+  private assignToIdentifier(target: any, valueExpr: any, operator: string | undefined, line: number, column: number): AndroType {
+    const name = target.name.value as string
 
     const symbol = this.scopeStack.lookup(name)
 
@@ -207,18 +215,15 @@ export class Analyzer {
       return Primitive.unknown()
     }
 
-    const valueType = this.analyzeExpression(expr.value)
+    const valueType = this.analyzeExpression(valueExpr)
 
     if (operator && ["+=", "-=", "*=", "/=", "%="].includes(operator)) {
-      const compoundArithmeticOps = ["+=", "-=", "*=", "/=", "%="]
-      if (compoundArithmeticOps.includes(operator)) {
-        const validLeft = TypeChecker.isSameType(symbol.type, Primitive.int()) || TypeChecker.isSameType(symbol.type, Primitive.float())
-        if (!validLeft && !TypeChecker.isUnknown(symbol.type)) {
-          this.report("TYPE_MISMATCH", `compound assignment '${operator}' requires int or float, got '${TypeChecker.toString(symbol.type)}'`, line, column)
-        }
-        if (!TypeChecker.isAssignableTo(valueType, symbol.type) && !TypeChecker.isUnknown(valueType)) {
-          this.report("TYPE_MISMATCH", `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(symbol.type)}'`, line, column)
-        }
+      const validLeft = TypeChecker.isSameType(symbol.type, Primitive.int()) || TypeChecker.isSameType(symbol.type, Primitive.float())
+      if (!validLeft && !TypeChecker.isUnknown(symbol.type)) {
+        this.report("TYPE_MISMATCH", `compound assignment '${operator}' requires int or float, got '${TypeChecker.toString(symbol.type)}'`, line, column)
+      }
+      if (!TypeChecker.isAssignableTo(valueType, symbol.type) && !TypeChecker.isUnknown(valueType)) {
+        this.report("TYPE_MISMATCH", `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(symbol.type)}'`, line, column)
       }
     } else {
       if (!TypeChecker.isAssignableTo(valueType, symbol.type) && !TypeChecker.isUnknown(valueType)) {
@@ -232,6 +237,46 @@ export class Analyzer {
     }
 
     return symbol.type
+  }
+
+  private assignToIndex(target: any, valueExpr: any, operator: string | undefined, line: number, column: number): AndroType {
+    const objectType = this.analyzeExpression(target.object)
+    this.analyzeExpression(target.index)
+
+    if (!TypeChecker.isArray(objectType)) {
+      this.report("INVALID_ASSIGNMENT", `cannot assign to index of non-array type '${TypeChecker.toString(objectType)}'`, line, column)
+      return Primitive.unknown()
+    }
+
+    const symbol = this.scopeStack.lookup((target.object as any).name?.value as string)
+    if (symbol && !symbol.mutable) {
+      this.report("CANNOT_ASSIGN", `cannot modify array: it is declared with 'val' and is not mutable`, line, column)
+      return Primitive.unknown()
+    }
+
+    const valueType = this.analyzeExpression(valueExpr)
+    const elementType = (objectType as any).elementType
+
+    if (operator && ["+=", "-=", "*=", "/=", "%="].includes(operator)) {
+      const validElement = TypeChecker.isSameType(elementType, Primitive.int()) || TypeChecker.isSameType(elementType, Primitive.float())
+      if (!validElement && !TypeChecker.isUnknown(elementType)) {
+        this.report("TYPE_MISMATCH", `compound assignment '${operator}' requires int or float, got '${TypeChecker.toString(elementType)}'`, line, column)
+      }
+      if (!TypeChecker.isAssignableTo(valueType, elementType) && !TypeChecker.isUnknown(valueType)) {
+        this.report("TYPE_MISMATCH", `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(elementType)}'`, line, column)
+      }
+    } else {
+      if (!TypeChecker.isAssignableTo(valueType, elementType) && !TypeChecker.isUnknown(valueType)) {
+        this.report(
+          "TYPE_MISMATCH",
+          `cannot assign '${TypeChecker.toString(valueType)}' to array element of type '${TypeChecker.toString(elementType)}'`,
+          line,
+          column
+        )
+      }
+    }
+
+    return elementType
   }
 
   visitUnary(expr: UnaryExpr): AndroType {
@@ -440,7 +485,7 @@ const paramTypes = calleeType.params
     // Enter function scope for arrow function
     this.inFunction = true
     this.expectedReturnType = expr.returnType
-      ? TypeChecker.fromKeyword(expr.returnType.value as string) || Primitive.unknown()
+      ? this.resolveTypeAnnotation(expr.returnType)
       : Primitive.unknown()
     this.hasReachableReturn = false
     this.enterScope("function")
@@ -449,7 +494,7 @@ const paramTypes = calleeType.params
     for (const param of expr.params || []) {
       const paramName = param.name.value as string
       const paramType = param.type
-        ? TypeChecker.fromKeyword(param.type.value as string) || Primitive.unknown()
+        ? this.resolveTypeAnnotation(param.type)
         : Primitive.unknown()
 
       const symbol: SymbolDefinition = {
@@ -490,12 +535,12 @@ const paramTypes = calleeType.params
     // Return function type
     const paramTypes = (expr.params || []).map((p: any) => {
       return p.type
-        ? TypeChecker.fromKeyword(p.type.value as string) || Primitive.unknown()
+        ? this.resolveTypeAnnotation(p.type)
         : Primitive.unknown()
     })
 
     const returnType = expr.returnType
-      ? TypeChecker.fromKeyword(expr.returnType.value as string) || Primitive.unknown()
+      ? this.resolveTypeAnnotation(expr.returnType)
       : actualReturnType
 
     return {
