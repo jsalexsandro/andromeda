@@ -45,6 +45,10 @@ export class Codegen {
         return this.visitIfStmt(node)
       case "WhileStmt":
         return this.visitWhileStmt(node)
+      case "BreakStmt":
+        return this.visitBreakStmt(node)
+      case "ContinueStmt":
+        return this.visitContinueStmt(node)
 
       default:
         throw new Error(`Codegen: unsupported node kind '${node.kind}'`)
@@ -172,5 +176,13 @@ export class Codegen {
     this.visit(node.condition)
     this.ctx.writer.write(") ")
     this.visit(node.body)
+  }
+
+  visitBreakStmt(_node: Stmt & { kind: "BreakStmt" }): void {
+    this.ctx.writer.writeLine("break;")
+  }
+
+  visitContinueStmt(_node: Stmt & { kind: "ContinueStmt" }): void {
+    this.ctx.writer.writeLine("continue;")
   }
 }
