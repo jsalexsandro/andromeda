@@ -709,5 +709,41 @@
     "parserMs": 7.37,
     "semanticMs": 6.65,
     "totalMs": 27.71
+  },
+  {
+    "timestamp": "2026-04-13T17:56:36.605Z",
+    "file": "performance/benchmark.med",
+    "statements": 780,
+    "lexerMs": 19.64,
+    "parserMs": 6.67,
+    "semanticMs": 22.01,
+    "totalMs": 48.32
+  },
+  {
+    "timestamp": "2026-04-13T17:56:40.097Z",
+    "file": "performance/benchmark.med",
+    "statements": 780,
+    "lexerMs": 25.39,
+    "parserMs": 9.19,
+    "semanticMs": 17.34,
+    "totalMs": 51.93
+  },
+  {
+    "timestamp": "2026-04-13T17:56:40.220Z",
+    "file": "performance/benchmark.med",
+    "statements": 780,
+    "lexerMs": 17.08,
+    "parserMs": 13.89,
+    "semanticMs": 20.05,
+    "totalMs": 51.01
+  },
+  {
+    "timestamp": "2026-04-13T17:56:40.587Z",
+    "file": "performance/benchmark.med",
+    "statements": 780,
+    "lexerMs": 32.6,
+    "parserMs": 50.52,
+    "semanticMs": 45.29,
+    "totalMs": 128.41
   }
 ]

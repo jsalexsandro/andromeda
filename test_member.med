@@ -1,0 +1,6 @@
+var people = {
+    name: "Jonny"
+}
+
+people.name = ""
+people.stg = 2

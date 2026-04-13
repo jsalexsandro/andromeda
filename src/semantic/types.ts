@@ -85,6 +85,7 @@ export interface SymbolDefinition {
   type: AndroType
   kind: SymbolKind
   mutable: boolean
+  declarationType: "var" | "val" | "const"
   ast: Expr | Stmt
   line: number
   column: number

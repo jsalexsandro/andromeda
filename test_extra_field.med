@@ -1,0 +1,5 @@
+var oct: { name: string, id: int } = {
+  name: "Jonny",
+  id: 912,
+  uuid: "dhhfs-ffss-dsdg-34fd-fdsfd"
+}

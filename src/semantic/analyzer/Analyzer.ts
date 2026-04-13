@@ -225,7 +225,7 @@ export class Analyzer {
     }
 
     if (!symbol.mutable) {
-      this.report("CANNOT_ASSIGN", `cannot reassign '${name}': it is declared with 'val' and is not mutable`, line, column)
+      this.report("CANNOT_ASSIGN", `cannot reassign '${name}': it is declared with '${symbol.declarationType}' and is not mutable`, line, column)
       return Primitive.unknown()
     }
 
@@ -259,7 +259,8 @@ export class Analyzer {
 
     const symbol = this.scopeStack.lookup((target.object as any).name?.value as string)
     if (symbol && !symbol.mutable) {
-      this.report("CANNOT_ASSIGN", `cannot modify: it is declared with 'val' and is not mutable`, line, column)
+      const name = (target.object as any).name?.value as string
+      this.report("CANNOT_ASSIGN", `cannot modify '${name}': it is declared with '${symbol.declarationType}' and is not mutable`, line, column)
       return Primitive.unknown()
     }
 
@@ -799,6 +800,7 @@ export class Analyzer {
         type: paramType,
         kind: SymbolKind.Param,
         mutable: true,
+        declarationType: undefined,
         ast: param,
         line: param.name.line ?? 0,
         column: param.name.column ?? 0,
@@ -977,6 +979,7 @@ export class Analyzer {
         type: declaredType,
         kind: SymbolKind.Variable,
         mutable,
+        declarationType: stmt.declarationType,
         ast: stmt,
         line,
         column,
@@ -1025,6 +1028,7 @@ export class Analyzer {
       type: { kind: "function", params: paramTypes, returnType } as any,
       kind: SymbolKind.Function,
       mutable: false,
+      declarationType: undefined,
       ast: stmt,
       line,
       column,
@@ -1061,6 +1065,7 @@ export class Analyzer {
         type: paramType,
         kind: SymbolKind.Param,
         mutable: true,
+        declarationType: undefined,
         ast: param,
         line: param.name.line ?? 0,
         column: param.name.column ?? 0,
