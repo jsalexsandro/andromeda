@@ -43,6 +43,8 @@ export class Codegen {
         return this.visitObject(node)
       case "IfStmt":
         return this.visitIfStmt(node)
+      case "WhileStmt":
+        return this.visitWhileStmt(node)
 
       default:
         throw new Error(`Codegen: unsupported node kind '${node.kind}'`)
@@ -163,5 +165,12 @@ export class Codegen {
         this.visit(node.elseBranch)
       }
     }
+  }
+
+  visitWhileStmt(node: Stmt & { kind: "WhileStmt"; condition: Expr; body: Stmt }): void {
+    this.ctx.writer.write("while (")
+    this.visit(node.condition)
+    this.ctx.writer.write(") ")
+    this.visit(node.body)
   }
 }
