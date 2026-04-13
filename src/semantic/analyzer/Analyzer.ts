@@ -522,6 +522,10 @@ const paramTypes = calleeType.params
       return Primitive.unknown()
     }
 
+    if (TypeChecker.isSameType(objectType, Primitive.null())) {
+      return Primitive.unknown()
+    }
+
     if (!TypeChecker.isObject(objectType)) {
       this.report(
         "INVALID_MEMBER_ACCESS",
@@ -551,9 +555,11 @@ const paramTypes = calleeType.params
 
   visitIndex(expr: any): AndroType {
     const objectType = this.analyzeExpression(expr.object)
-    const [line, column] = this.getLineColumn(expr)
-
     const indexType = this.analyzeExpression(expr.index)
+
+    if (TypeChecker.isSameType(objectType, Primitive.null()) || TypeChecker.isUnknown(objectType)) {
+      return Primitive.unknown()
+    }
 
     if (TypeChecker.isArray(objectType)) {
       if (!TypeChecker.isUnknown(indexType) && !TypeChecker.isSameType(indexType, Primitive.int())) {
@@ -859,9 +865,16 @@ const paramTypes = calleeType.params
 
   visitNullishCoalescing(expr: any): AndroType {
     const leftType = this.analyzeExpression(expr.left)
-    const rightType = this.analyzeExpression(expr.right)
 
-    return TypeChecker.commonType(leftType, rightType)
+    const isLeftNull = TypeChecker.isSameType(leftType, Primitive.null())
+    const isLeftUnknown = TypeChecker.isUnknown(leftType)
+
+    if (isLeftNull || isLeftUnknown) {
+      const rightType = this.analyzeExpression(expr.right)
+      return rightType
+    }
+
+    return leftType
   }
 
   analyzeVariable(stmt: VariableStmt): AndroType {
