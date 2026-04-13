@@ -25,6 +25,8 @@ export class Codegen {
         return this.visitExpressionStmt(node)
       case "BlockStmt":
         return this.visitBlockStmt(node)
+      case "VariableStmt":
+        return this.visitVariableStmt(node)
       case "Literal":
         return this.visitLiteral(node)
       case "Identifier":
@@ -37,6 +39,20 @@ export class Codegen {
       default:
         throw new Error(`Codegen: unsupported node kind '${node.kind}'`)
     }
+  }
+
+  visitVariableStmt(node: Stmt & { kind: "VariableStmt"; declarationType: "var" | "val" | "const"; name: any; initializer?: Expr }): void {
+    const keyword = node.declarationType === "val" ? "let" : node.declarationType
+    const name = node.name.value as string
+    
+    this.ctx.writer.write(`${keyword} ${name}`)
+    
+    if (node.initializer) {
+      this.ctx.writer.write(" = ")
+      this.visit(node.initializer)
+    }
+    
+    this.ctx.writer.writeLine(";")
   }
 
   visitExpressionStmt(node: Stmt & { kind: "ExpressionStmt"; expression: Expr }): void {
