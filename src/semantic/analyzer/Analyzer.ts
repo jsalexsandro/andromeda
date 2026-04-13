@@ -248,42 +248,100 @@ export class Analyzer {
 
   private assignToIndex(target: any, valueExpr: any, operator: string | undefined, line: number, column: number): AndroType {
     const objectType = this.analyzeExpression(target.object)
-    this.analyzeExpression(target.index)
-
-    if (!TypeChecker.isArray(objectType)) {
-      this.report("INVALID_ASSIGNMENT", `cannot assign to index of non-array type '${TypeChecker.toString(objectType)}'`, line, column)
-      return Primitive.unknown()
-    }
+    const indexType = this.analyzeExpression(target.index)
 
     const symbol = this.scopeStack.lookup((target.object as any).name?.value as string)
     if (symbol && !symbol.mutable) {
-      this.report("CANNOT_ASSIGN", `cannot modify array: it is declared with 'val' and is not mutable`, line, column)
+      this.report("CANNOT_ASSIGN", `cannot modify: it is declared with 'val' and is not mutable`, line, column)
       return Primitive.unknown()
     }
 
-    const valueType = this.analyzeExpression(valueExpr)
-    const elementType = (objectType as any).elementType
+    if (TypeChecker.isArray(objectType)) {
+      if (!TypeChecker.isUnknown(indexType) && !TypeChecker.isSameType(indexType, Primitive.int())) {
+        this.report("INVALID_INDEX", `array index must be int, got '${TypeChecker.toString(indexType)}'`, line, column)
+        return Primitive.unknown()
+      }
 
-    if (operator && ["+=", "-=", "*=", "/=", "%="].includes(operator)) {
-      const validElement = TypeChecker.isSameType(elementType, Primitive.int()) || TypeChecker.isSameType(elementType, Primitive.float())
-      if (!validElement && !TypeChecker.isUnknown(elementType)) {
-        this.report("TYPE_MISMATCH", `compound assignment '${operator}' requires int or float, got '${TypeChecker.toString(elementType)}'`, line, column)
+      const valueType = this.analyzeExpression(valueExpr)
+      const elementType = (objectType as any).elementType
+
+      if (operator && ["+=", "-=", "*=", "/=", "%="].includes(operator)) {
+        const validElement = TypeChecker.isSameType(elementType, Primitive.int()) || TypeChecker.isSameType(elementType, Primitive.float())
+        if (!validElement && !TypeChecker.isUnknown(elementType)) {
+          this.report("TYPE_MISMATCH", `compound assignment '${operator}' requires int or float, got '${TypeChecker.toString(elementType)}'`, line, column)
+        }
+        if (!TypeChecker.isAssignableTo(valueType, elementType) && !TypeChecker.isUnknown(valueType)) {
+          this.report("TYPE_MISMATCH", `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(elementType)}'`, line, column)
+        }
+      } else {
+        if (!TypeChecker.isAssignableTo(valueType, elementType) && !TypeChecker.isUnknown(valueType)) {
+          this.report(
+            "TYPE_MISMATCH",
+            `cannot assign '${TypeChecker.toString(valueType)}' to array element of type '${TypeChecker.toString(elementType)}'`,
+            line,
+            column
+          )
+        }
       }
-      if (!TypeChecker.isAssignableTo(valueType, elementType) && !TypeChecker.isUnknown(valueType)) {
-        this.report("TYPE_MISMATCH", `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(elementType)}'`, line, column)
+
+      return elementType
+    }
+
+    if (TypeChecker.isObject(objectType)) {
+      if (!TypeChecker.isUnknown(indexType) && !TypeChecker.isSameType(indexType, Primitive.string())) {
+        this.report("INVALID_INDEX", `object property key must be string, got '${TypeChecker.toString(indexType)}'`, line, column)
+        return Primitive.unknown()
       }
-    } else {
-      if (!TypeChecker.isAssignableTo(valueType, elementType) && !TypeChecker.isUnknown(valueType)) {
+
+      const propertyName = (target.index as any).value as string
+      if (!propertyName) {
+        this.report("INVALID_ASSIGNMENT", `object property key must be a literal string`, line, column)
+        return Primitive.unknown()
+      }
+
+      const fields = (objectType as any).fields || []
+      const field = fields.find((f: any) => f.name === propertyName)
+
+      if (!field) {
+        const availableFields = fields.map((f: any) => f.name).join(", ") || "(none)"
         this.report(
-          "TYPE_MISMATCH",
-          `cannot assign '${TypeChecker.toString(valueType)}' to array element of type '${TypeChecker.toString(elementType)}'`,
+          "UNKNOWN_PROPERTY",
+          `object has no property '${propertyName}'. Available properties: ${availableFields}`,
           line,
           column
         )
+        return Primitive.unknown()
       }
+
+      const valueType = this.analyzeExpression(valueExpr)
+
+      if (operator && ["+=", "-=", "*=", "/=", "%="].includes(operator)) {
+        const validField = TypeChecker.isSameType(field.type, Primitive.int()) || TypeChecker.isSameType(field.type, Primitive.float())
+        if (!validField && !TypeChecker.isUnknown(field.type)) {
+          this.report("TYPE_MISMATCH", `compound assignment '${operator}' requires int or float, got '${TypeChecker.toString(field.type)}'`, line, column)
+        }
+        if (!TypeChecker.isAssignableTo(valueType, field.type) && !TypeChecker.isUnknown(valueType)) {
+          this.report("TYPE_MISMATCH", `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(field.type)}'`, line, column)
+        }
+      } else {
+        if (!TypeChecker.isAssignableTo(valueType, field.type) && !TypeChecker.isUnknown(valueType)) {
+          this.report(
+            "TYPE_MISMATCH",
+            `cannot assign '${TypeChecker.toString(valueType)}' to property '${propertyName}' of type '${TypeChecker.toString(field.type)}'`,
+            line,
+            column
+          )
+        }
+      }
+
+      return field.type
     }
 
-    return elementType
+    if (!TypeChecker.isUnknown(objectType)) {
+      this.report("INVALID_ASSIGNMENT", `cannot assign to index of non-array, non-object type '${TypeChecker.toString(objectType)}'`, line, column)
+    }
+
+    return Primitive.unknown()
   }
 
   private assignToMember(target: any, valueExpr: any, operator: string | undefined, line: number, column: number): AndroType {
@@ -497,23 +555,46 @@ const paramTypes = calleeType.params
 
     const indexType = this.analyzeExpression(expr.index)
 
-    if (!TypeChecker.isUnknown(indexType) && !TypeChecker.isSameType(indexType, Primitive.int())) {
-      this.report(
-        "INVALID_INDEX",
-        `array index must be int, got '${TypeChecker.toString(indexType)}'`,
-        line,
-        column
-      )
+    if (TypeChecker.isArray(objectType)) {
+      if (!TypeChecker.isUnknown(indexType) && !TypeChecker.isSameType(indexType, Primitive.int())) {
+        this.report(
+          "INVALID_INDEX",
+          `array index must be int, got '${TypeChecker.toString(indexType)}'`,
+          line,
+          column
+        )
+      }
+      return (objectType as any).elementType
     }
 
-    if (TypeChecker.isArray(objectType)) {
-      return (objectType as any).elementType
+    if (TypeChecker.isObject(objectType)) {
+      if (!TypeChecker.isUnknown(indexType) && !TypeChecker.isSameType(indexType, Primitive.string())) {
+        this.report(
+          "INVALID_INDEX",
+          `object property key must be string, got '${TypeChecker.toString(indexType)}'`,
+          line,
+          column
+        )
+      }
+
+      if (TypeChecker.isSameType(indexType, Primitive.string())) {
+        const propertyName = (expr.index as any).value as string
+        if (propertyName) {
+          const fields = (objectType as any).fields || []
+          const field = fields.find((f: any) => f.name === propertyName)
+          if (field) {
+            return field.type
+          }
+        }
+      }
+
+      return Primitive.unknown()
     }
 
     if (!TypeChecker.isUnknown(objectType)) {
       this.report(
         "INVALID_INDEX",
-        `cannot index into type '${TypeChecker.toString(objectType)}': not an array`,
+        `cannot index into type '${TypeChecker.toString(objectType)}': not an array or object`,
         line,
         column
       )
