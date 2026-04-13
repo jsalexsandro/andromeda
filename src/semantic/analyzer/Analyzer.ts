@@ -850,17 +850,6 @@ export class Analyzer {
   }
 
   private checkArithmetic(operator: string, left: AndroType, right: AndroType, line: number, column: number): AndroType {
-    if (operator === "+") {
-      const leftIsString = TypeChecker.isSameType(left, Primitive.string())
-      const rightIsString = TypeChecker.isSameType(right, Primitive.string())
-      const leftIsUnknown = TypeChecker.isUnknown(left)
-      const rightIsUnknown = TypeChecker.isUnknown(right)
-
-      if (leftIsString || rightIsString) {
-        return Primitive.string()
-      }
-    }
-
     const validLeft = TypeChecker.isSameType(left, Primitive.int()) || TypeChecker.isSameType(left, Primitive.float())
     const validRight = TypeChecker.isSameType(right, Primitive.int()) || TypeChecker.isSameType(right, Primitive.float())
 
