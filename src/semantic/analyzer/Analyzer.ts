@@ -850,6 +850,21 @@ export class Analyzer {
   }
 
   private checkArithmetic(operator: string, left: AndroType, right: AndroType, line: number, column: number): AndroType {
+    if (operator === "+") {
+      const leftIsString = TypeChecker.isSameType(left, Primitive.string())
+      const rightIsString = TypeChecker.isSameType(right, Primitive.string())
+
+      if (leftIsString && rightIsString) {
+        return Primitive.string()
+      }
+
+      if (leftIsString || rightIsString) {
+        const gotType = leftIsString ? TypeChecker.toString(right) : TypeChecker.toString(left)
+        this.report("TYPE_MISMATCH", `cannot concatenate string with '${gotType}'`, line, column)
+        return Primitive.unknown()
+      }
+    }
+
     const validLeft = TypeChecker.isSameType(left, Primitive.int()) || TypeChecker.isSameType(left, Primitive.float())
     const validRight = TypeChecker.isSameType(right, Primitive.int()) || TypeChecker.isSameType(right, Primitive.float())
 
