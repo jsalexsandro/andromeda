@@ -75,7 +75,8 @@ export class TypeChecker {
       const toFields = (to as any).fields || []
       const fromFields = (from as any).fields || []
 
-      if (toFields.length === 0) return true
+      if (toFields.length === 0 && fromFields.length === 0) return true
+      if (toFields.length === 0) return false
       if (fromFields.length === 0) return false
 
       for (const toField of toFields) {
