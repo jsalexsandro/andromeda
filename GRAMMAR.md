@@ -50,6 +50,15 @@ PropertyName → IDENTIFIER | KEYWORD | STRING
 - Suporta keywords como nomes: `{val: 1, if: 2}`
 - Suporta strings como chaves: `{"key": value}`
 
+### Tipagem Estrutural Estática
+Objetos em Andromeda são **estaticamente tipados**:
+- Os campos são definidos na criação/inferência
+- **Não é possível adicionar novos campos** após a criação
+- **Não é possível remover campos**
+- Erros em campos inexistentes são pegos em compile-time
+
+Isso garante robustez e facilita manutenção, enquanto mantém alta velocidade de desenvolvimento.
+
 ### Exemplos:
 ```andromeda
 {}                           // objeto vazio
@@ -259,17 +268,19 @@ while (true) {
 
 ### 8.5 Assignment
 ```
-Assignment       → (Identifier | IndexExpr) "=" Expression
-CompoundAssign   → (Identifier | IndexExpr) ("+=" | "-=" | "*=" | "/=" | "%=") Expression
+Assignment       → (Identifier | IndexExpr | MemberExpr) "=" Expression
+CompoundAssign   → (Identifier | IndexExpr | MemberExpr) ("+=" | "-=" | "*=" | "/=" | "%=") Expression
 IndexAssign      → Expression "[" Expression "]" "=" Expression
+MemberAssign     → Expression "." Identifier "=" Expression
 ```
 - Atribuição simples: `x = 10`
 - Atribuição composta: `x += 1`, `x -= 1`, `x *= 2`, `x /= 2`, `x %= 2`
 - **Assignment a índice**: `arr[0] = 5`
 - **Compound assignment a índice**: `arr[0] += 5`, `arr[0] -= 2`
+- **Assignment a membro**: `obj.field = value`
 - Valida se variável está declarada
 - Valida tipo compatível
-- Valida mutabilidade (não pode modificar `val`)
+- Valida mutabilidade (não pode modificar `val`/`const` na referência)
 
 ### Exemplos:
 ```andromeda
@@ -319,12 +330,31 @@ MemberExpr → Expression "." Identifier
 - Sintaxe: `obj.property`
 - Suporta acesso encadeado: `obj.prop1.prop2`
 - Precedência mais alta que Call
+- **Retorna o tipo do campo**: `{name: string}` → `string`
 
-#### Exemplos:
+#### Type Inference:
+```
+var user = {name: "Ana", age: 25}  // user: {name: string, age: int}
+var name = user.name                // name: string
+var nested = {a: {b: 1}}           // nested: {a: {b: int}}
+var b = nested.a.b                   // b: int
+```
+
+#### Member Assignment:
+```
+MemberAssign → Expression "." Identifier "=" Expression
+```
+- Atribuição a propriedade de objeto
+- Funciona em `var` e `val` (val só protege a referência, não o conteúdo)
+- Suporta compound assignment: `obj.prop += 1`
+
+#### Member Assignment Exemplos:
 ```andromeda
-x.name
-x.value
-obj.prop.subprop
+var user = {name: "Ana", age: 25}
+user.name = "Bruno"        // OK
+user.age += 1              // OK (compound)
+user.foo = "x"             // ERRO: campo inexistente
+user.name = 123            // ERRO: tipo incompatível
 ```
 
 ### 8.8 Index Expression
@@ -455,6 +485,8 @@ Arrays inferem o tipo dos elementos:
 | CANNOT_ASSIGN | Tentativa de reatribuir a `val` ou `const` |
 | INVALID_INDEX | Tentativa de indexar tipo não-array |
 | INVALID_ASSIGNMENT | Target de assignment inválido |
+| INVALID_MEMBER_ACCESS | Acesso a propriedade em tipo não-objeto |
+| UNKNOWN_PROPERTY | Tentativa de acessar campo inexistente |
 
 ---
 
@@ -546,6 +578,9 @@ Arrays inferem o tipo dos elementos:
 - [x] Structural Typing: campos extras são permitidos
 - [x] Object Literal Type Inference: `{name: "John", age: 30}` → `{name: string, age: int}`
 - [x] Object Type Checking: valida campos e tipos
+- [x] **Tipagem Estrutural Estática**: não permite adicionar/remover campos
+- [x] **Member Access**: `obj.field` retorna tipo do campo
+- [x] **Member Assignment**: `obj.field = value` com validação
 
 ### Other
 - [x] Ternary: `a ? b : c`
