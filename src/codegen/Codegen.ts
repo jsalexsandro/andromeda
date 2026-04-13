@@ -21,6 +21,8 @@ export class Codegen {
     switch (node.kind) {
       case "ExpressionStmt":
         return this.visitExpressionStmt(node)
+      case "BlockStmt":
+        return this.visitBlockStmt(node)
       case "Literal":
         return this.visitLiteral(node)
       case "Identifier":
@@ -35,8 +37,22 @@ export class Codegen {
     }
   }
 
-  visitExpressionStmt(node: Expr & { kind: "ExpressionStmt"; expression: Expr }): void {
+  visitExpressionStmt(node: Stmt & { kind: "ExpressionStmt"; expression: Expr }): void {
     this.visit(node.expression)
+    this.ctx.writer.writeLine(";")
+  }
+
+  visitBlockStmt(node: Stmt & { kind: "BlockStmt"; statements: Stmt[] }): void {
+    this.ctx.writer.writeLine("{")
+    this.ctx.writer.indent()
+    for (let i = 0; i < node.statements.length; i++) {
+      if (i > 0) {
+        this.ctx.writer.writeBlankLine()
+      }
+      this.visit(node.statements[i])
+    }
+    this.ctx.writer.dedent()
+    this.ctx.writer.writeLine("}")
   }
 
   visitLiteral(node: Expr & { kind: "Literal"; value: any }): void {
