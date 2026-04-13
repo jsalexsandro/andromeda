@@ -705,23 +705,45 @@ export class Parser {
     }
   }
 
-  private parseTypeAnnotation(): { base: Token; dimensions: number } | undefined {
-    const baseType = this.advance()
-    const validTypes = [
-      TokenType.IDENTIFIER,
-      TokenType.KEYWORD,
-      TokenType.TYPE_INT,
-      TokenType.TYPE_FLOAT,
-      TokenType.TYPE_BOOL,
-      TokenType.TYPE_STRING,
-      TokenType.TYPE_VOID
-    ]
-    if (!validTypes.includes(baseType.type)) {
-      this.error(`Expected type after ':'`, baseType)
-      return undefined
+  private parseTypeAnnotation(): any {
+    let objectType: any = null
+
+    // Check for object type annotation: { name: string, age: int }
+    if (this.check(TokenType.LBRACE)) {
+      objectType = this.parseObjectTypeAnnotation()
+    } else {
+      const baseType = this.advance()
+      const validTypes = [
+        TokenType.IDENTIFIER,
+        TokenType.KEYWORD,
+        TokenType.TYPE_INT,
+        TokenType.TYPE_FLOAT,
+        TokenType.TYPE_BOOL,
+        TokenType.TYPE_STRING,
+        TokenType.TYPE_VOID
+      ]
+      if (!validTypes.includes(baseType.type)) {
+        this.error(`Expected type after ':'`, baseType)
+        return undefined
+      }
+
+      // Parse dimensions: int[][] etc
+      let dimensions = 0
+      while (this.check(TokenType.LBRACKET)) {
+        this.advance()
+        if (!this.check(TokenType.RBRACKET)) {
+          this.error("Expected ']' after '[' in type annotation", this.peek())
+          break
+        }
+        this.advance()
+        dimensions++
+      }
+
+      return { base: baseType, dimensions }
     }
 
-    let dimensions = 0
+    // Handle array of objects: {name: string}[]
+    let dimsFromArray = 0
     while (this.check(TokenType.LBRACKET)) {
       this.advance()
       if (!this.check(TokenType.RBRACKET)) {
@@ -729,10 +751,78 @@ export class Parser {
         break
       }
       this.advance()
-      dimensions++
+      dimsFromArray++
     }
 
-    return { base: baseType, dimensions }
+    if (dimsFromArray > 0) {
+      objectType.dimensions = dimsFromArray
+    }
+
+    return objectType
+  }
+
+  private parseObjectTypeAnnotation(): any {
+    this.advance() // consume {
+    const fields: any[] = []
+
+    if (this.check(TokenType.RBRACE)) {
+      this.advance()
+      return { kind: "ObjectType", fields }
+    }
+
+    while (!this.isAtEnd() && !this.check(TokenType.RBRACE)) {
+      // Field name: identifier or keyword
+      const validNameTokens = [
+        TokenType.IDENTIFIER,
+        TokenType.KEYWORD,
+        TokenType.TYPE_INT,
+        TokenType.TYPE_FLOAT,
+        TokenType.TYPE_BOOL,
+        TokenType.TYPE_STRING,
+        TokenType.TYPE_VOID,
+        TokenType.BOOLEAN,
+        TokenType.NULL
+      ]
+
+      if (!validNameTokens.includes(this.peek().type)) {
+        this.error("Expected field name in type annotation", this.peek())
+        break
+      }
+
+      const fieldName = this.advance()
+
+      // Expect colon
+      if (!this.check(TokenType.COLON)) {
+        this.error("Expected ':' after field name", this.peek())
+        break
+      }
+      this.advance() // consume :
+
+      // Parse field type (recursive for nested types)
+      const fieldType = this.parseTypeAnnotation()
+
+      fields.push({
+        name: fieldName.value,
+        type: fieldType
+      })
+
+      // Check for comma or end
+      if (this.check(TokenType.RBRACE)) break
+
+      if (!this.check(TokenType.COMMA)) {
+        this.error("Expected ',' or '}' in type annotation", this.peek())
+        break
+      }
+      this.advance() // consume comma
+    }
+
+    if (this.check(TokenType.RBRACE)) {
+      this.advance()
+    } else {
+      this.error("Expected '}' to close type annotation", this.peek())
+    }
+
+    return { kind: "ObjectType", fields }
   }
 
   private parseIfStatement(): Stmt {

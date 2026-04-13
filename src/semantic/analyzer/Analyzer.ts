@@ -439,6 +439,26 @@ const paramTypes = calleeType.params
   }
 
   private resolveTypeAnnotation(annotation: any): AndroType {
+    // Handle object type: { name: string, age: int }
+    if (annotation.kind === "ObjectType") {
+      let objectType: AndroType = {
+        kind: "object",
+        fields: annotation.fields.map((f: any) => ({
+          name: f.name,
+          type: this.resolveTypeAnnotation(f.type)
+        }))
+      } as any
+
+      // Handle array of objects: {name: string}[]
+      const dimensions = annotation.dimensions || 0
+      for (let i = 0; i < dimensions; i++) {
+        objectType = Array.of(objectType)
+      }
+
+      return objectType
+    }
+
+    // Handle array type: int[], int[][]
     const baseType = TypeChecker.fromKeyword(annotation.base.value as string) || Primitive.unknown()
     const dimensions = annotation.dimensions || 0
 
