@@ -409,9 +409,42 @@ export class Analyzer {
   }
 
   visitUnary(expr: UnaryExpr): AndroType {
-    const operandType = this.analyzeExpression(expr.right)
     const operator = expr.operator.value as string
     const [line, column] = this.getLineColumn(expr.operator)
+
+    if (operator === "++" || operator === "--") {
+      if (expr.right.kind !== "Identifier") {
+        this.report(
+          "INVALID_ASSIGNMENT",
+          "increment/decrement requires a variable",
+          line,
+          column
+        )
+        return Primitive.unknown()
+      }
+
+      const name = (expr.right as IdentifierExpr).name.value as string
+      const symbol = this.scopeStack.lookup(name)
+
+      if (!symbol) {
+        this.report("UNDEFINED_VARIABLE", `variable '${name}' is not defined`, line, column)
+        return Primitive.unknown()
+      }
+
+      if (!symbol.mutable) {
+        this.report("CANNOT_ASSIGN", `cannot modify '${name}': it is declared with '${symbol.declarationType}' and is not mutable`, line, column)
+        return Primitive.unknown()
+      }
+
+      if (!TypeChecker.isSameType(symbol.type, Primitive.int()) && !TypeChecker.isSameType(symbol.type, Primitive.float())) {
+        this.report("TYPE_MISMATCH", `increment/decrement requires int or float, got '${TypeChecker.toString(symbol.type)}'`, line, column)
+        return Primitive.unknown()
+      }
+
+      return symbol.type
+    }
+
+    const operandType = this.analyzeExpression(expr.right)
 
     if (operator === "!") {
       if (!TypeChecker.isSameType(operandType, Primitive.bool()) && !TypeChecker.isUnknown(operandType)) {
