@@ -1,0 +1,11 @@
+var id: int = 10
+val od: int = 20
+
+// em val tipagem é obrigatoria
+
+// androx (andromeda xml) sintaxe básica (igual ao JSX do react porém nativo no compilador)
+
+
+func add(n1: int, n2: int): string  {
+  return n1 + n2
+}
