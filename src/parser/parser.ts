@@ -70,6 +70,12 @@ export class Parser {
     this.infixParselets.set(TokenType.AND, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.OR, this.parseBinary.bind(this))
 
+    // Ternary operator (?:)
+    this.infixParselets.set(TokenType.QUESTION, this.parseTernary.bind(this))
+
+    // Nullish coalescing (??)
+    this.infixParselets.set(TokenType.QUESTION_QUESTION, this.parseNullish.bind(this))
+
     // Function call
     this.infixParselets.set(TokenType.LPAREN, this.parseCall.bind(this))
 
@@ -190,7 +196,14 @@ export class Parser {
       let key: string | null = null
       let value: Expr | null = null
 
-      if (this.check(TokenType.IDENTIFIER)) {
+      if (this.check(TokenType.IDENTIFIER) || 
+          this.check(TokenType.KEYWORD) || 
+          this.check(TokenType.BOOLEAN) ||
+          this.check(TokenType.TYPE_INT) ||
+          this.check(TokenType.TYPE_FLOAT) ||
+          this.check(TokenType.TYPE_BOOL) ||
+          this.check(TokenType.TYPE_STRING) ||
+          this.check(TokenType.TYPE_VOID)) {
         key = this.advance().value as string
 
         if (this.check(TokenType.COLON)) {
