@@ -73,6 +73,52 @@ Isso garante robustez e facilita manutenção, enquanto mantém alta velocidade 
 {val: 1, bool: true}       // keywords como keys
 flag ? {a: 1} : {b: 2}    // em ternary
 maybe ?? {default: 0}       // em nullish
+{...obj1, ...obj2}         // spread de objetos
+```
+
+### 1.3 Spread Operator
+```
+Spread → "..." Expression
+```
+- Expande um array ou objeto em outro contexto
+- Funciona em arrays, objetos e chamadas de função
+
+#### Spread em Arrays:
+```andromeda
+[1, 2, ...arr, 3]        // expande arr no array
+[...a, ...b, ...c]      // múltiplos spreads
+[1, ...[2, 3], 4]       // spread de literal
+```
+
+#### Spread em Objetos:
+```andromeda
+{...obj1, c: 3}          // expande obj1, adiciona c
+{...obj1, ...obj2}       // merge de objetos
+{...base, ...overrides}   // overrides sobrepõe
+```
+
+#### Spread em Calls:
+```andromeda
+func sum(a, b, c) { return a + b + c }
+sum(...[1, 2, 3])        // expande array como argumentos
+```
+
+#### Spread em Parâmetros de Função:
+```andromeda
+func fn(...args) { }           // rest parameters
+func fn(...args: string) { }    // com tipo
+```
+
+#### Validações:
+- **Array spread**: argumento deve ser array
+- **Object spread**: argumento deve ser objeto
+- **Call spread**: argumento deve ser array
+
+#### Exemplos de Erros:
+```andromeda
+[... "texto"]         // ERRO: string não é array
+{... 123}            // ERRO: int não é objeto
+fn(... "x")          // ERRO: string não é array
 ```
 
 ---
@@ -531,6 +577,7 @@ Arrays inferem o tipo dos elementos:
 | INVALID_ASSIGNMENT | Target de assignment inválido |
 | INVALID_MEMBER_ACCESS | Acesso a propriedade em tipo não-objeto |
 | UNKNOWN_PROPERTY | Tentativa de acessar campo inexistente |
+| INVALID_SPREAD | Spread de tipo incompatível (não é array/objeto) |
 
 ---
 
@@ -594,6 +641,7 @@ Arrays inferem o tipo dos elementos:
 | 1.0.11 | 2026-04-13 | **Object Literals**, **Object Types**, **Object Semantic** |
 | 1.0.12 | 2026-04-13 | **MemberExpression Semantic**, **Member Assignment**, **Index Type Validation** |
 | 1.0.13 | 2026-04-13 | **Bracket Notation on Objects**, index/key type validation |
+| 1.0.14 | 2026-04-13 | **Spread Operator**: arrays, objects, function calls |
 
 ---
 
@@ -636,6 +684,7 @@ Arrays inferem o tipo dos elementos:
 - [x] Ternary: `a ? b : c`
 - [x] Nullish Coalescing: `a ?? b`
 - [x] CallExpression Semantic validation
+- [x] **Spread Operator**: `[...arr]`, `{...obj}`, `fn(...args)`
 
 ---
 
@@ -646,5 +695,4 @@ Arrays inferem o tipo dos elementos:
 - [ ] Classes
 - [ ] Import/Export
 - [ ] Template Literals
-- [ ] Spread Operator
 - [ ] Await/Async
