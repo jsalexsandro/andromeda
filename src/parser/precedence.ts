@@ -12,6 +12,7 @@ export enum Precedence {
   SUM,         // + -
   PRODUCT,     // * / %
   PREFIX,      // -X !X
+  POSTFIX,     // X++ X--
   CALL,        // myFunction(X)
   INDEX,       // array[index]
   MEMBER       // obj.property
@@ -42,6 +43,8 @@ export const TokenPrecedence: Record<string, Precedence> = {
   [TokenType.LPAREN]: Precedence.CALL,
   [TokenType.LBRACKET]: Precedence.INDEX,
   [TokenType.DOT]: Precedence.MEMBER,
+  [TokenType.INCREMENT]: Precedence.POSTFIX,
+  [TokenType.DECREMENT]: Precedence.POSTFIX,
   [TokenType.COMMA]: Precedence.LOWEST,
 }
 

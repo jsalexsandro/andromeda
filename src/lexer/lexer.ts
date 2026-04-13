@@ -749,6 +749,10 @@ readNumber(): Token {
           this.readChar()
           return { type: TokenType.PLUS_EQUAL, value: '+=', line: this.line, column: startColumn }
         }
+        if (this.ch === '+') {
+          this.readChar()
+          return { type: TokenType.INCREMENT, value: '++', line: this.line, column: startColumn }
+        }
         return { type: TokenType.PLUS, value: '+', line: this.line, column: startColumn }
       
       case '-':
@@ -756,6 +760,10 @@ readNumber(): Token {
         if (this.ch === '=') {
           this.readChar()
           return { type: TokenType.MINUS_EQUAL, value: '-=', line: this.line, column: startColumn }
+        }
+        if (this.ch === '-') {
+          this.readChar()
+          return { type: TokenType.DECREMENT, value: '--', line: this.line, column: startColumn }
         }
         return { type: TokenType.MINUS, value: '-', line: this.line, column: startColumn }
       

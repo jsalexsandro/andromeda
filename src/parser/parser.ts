@@ -90,6 +90,10 @@ export class Parser {
 
     // Object literal { key: value }
     this.prefixParselets.set(TokenType.LBRACE, this.parseObjectLiteral.bind(this))
+
+    // Postfix increment/decrement
+    this.infixParselets.set(TokenType.INCREMENT, this.parsePostfixIncrement.bind(this))
+    this.infixParselets.set(TokenType.DECREMENT, this.parsePostfixDecrement.bind(this))
   }
 
   // --- LITERAL PARSELETS ---
@@ -414,7 +418,17 @@ export class Parser {
       return { kind: "Literal", value: null }
 }
     return { kind: "Unary", operator, right }
-}
+  }
+
+  private parsePostfixIncrement(left: Expr): Expr {
+    const operator = this.previous()
+    return { kind: "Unary", operator, right: left }
+  }
+
+  private parsePostfixDecrement(left: Expr): Expr {
+    const operator = this.previous()
+    return { kind: "Unary", operator, right: left }
+  }
 
   private isAtExpressionStart(): boolean {
     if (this.current === 0) return true
