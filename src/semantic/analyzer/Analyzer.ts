@@ -459,6 +459,9 @@ const paramTypes = calleeType.params
   }
 
   private resolveTypeAnnotation(annotation: any): AndroType {
+    // Handle null/undefined
+    if (!annotation) return Primitive.unknown()
+
     // Handle object type: { name: string, age: int }
     if (annotation.kind === "ObjectType") {
       let objectType: AndroType = {
@@ -478,16 +481,26 @@ const paramTypes = calleeType.params
       return objectType
     }
 
-    // Handle array type: int[], int[][]
-    const baseType = TypeChecker.fromKeyword(annotation.base.value as string) || Primitive.unknown()
-    const dimensions = annotation.dimensions || 0
-
-    let type: AndroType = baseType
-    for (let i = 0; i < dimensions; i++) {
-      type = Array.of(type)
+    // Handle simple token type (from function params)
+    if (annotation.type) {
+      const baseType = TypeChecker.fromKeyword(annotation.value as string) || Primitive.unknown()
+      return baseType
     }
 
-    return type
+    // Handle array type: int[], int[][]
+    if (annotation.base) {
+      const baseType = TypeChecker.fromKeyword(annotation.base.value as string) || Primitive.unknown()
+      const dimensions = annotation.dimensions || 0
+
+      let type: AndroType = baseType
+      for (let i = 0; i < dimensions; i++) {
+        type = Array.of(type)
+      }
+
+      return type
+    }
+
+    return Primitive.unknown()
   }
 
   private checkArrayElementsType(elements: any[], expectedType: AndroType, declaredType: AndroType): void {
