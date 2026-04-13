@@ -389,6 +389,32 @@ const paramTypes = calleeType.params
     return type
   }
 
+  private checkArrayElementsType(elements: any[], expectedType: AndroType, declaredType: AndroType): void {
+    for (let i = 0; i < elements.length; i++) {
+      const element = elements[i]
+      const elementLine = element.line ?? 0
+      const elementColumn = element.column ?? 0
+
+      let actualType: AndroType
+      if (element.kind === "Literal") {
+        actualType = this.visitLiteral(element)
+      } else if (element.kind === "Array") {
+        actualType = this.visitArrayLiteral(element)
+      } else {
+        actualType = this.analyzeExpression(element)
+      }
+
+      if (!TypeChecker.isAssignableTo(actualType, expectedType) && !TypeChecker.isUnknown(actualType)) {
+        this.report(
+          "TYPE_MISMATCH",
+          `array element ${i + 1} has type '${TypeChecker.toString(actualType)}' which is not assignable to '${TypeChecker.toString(expectedType)}'`,
+          elementLine,
+          elementColumn
+        )
+      }
+    }
+  }
+
   visitArrowFunction(expr: any): AndroType {
     // Save current state
     const savedInFunction = this.inFunction
@@ -558,12 +584,17 @@ const paramTypes = calleeType.params
 
     if (stmt.typeAnnotation && stmt.initializer) {
       if (!TypeChecker.isAssignableTo(inferredType, declaredType) && !TypeChecker.isUnknown(inferredType)) {
-        this.report(
-          "TYPE_MISMATCH",
-          `cannot initialize '${name}' of type '${TypeChecker.toString(declaredType)}' with value of type '${TypeChecker.toString(inferredType)}'`,
-          line,
-          column
-        )
+        if (TypeChecker.isArray(declaredType) && stmt.initializer.kind === "Array") {
+          const elementType = (declaredType as any).elementType
+          this.checkArrayElementsType(stmt.initializer.elements, elementType, declaredType)
+        } else {
+          this.report(
+            "TYPE_MISMATCH",
+            `cannot initialize '${name}' of type '${TypeChecker.toString(declaredType)}' with value of type '${TypeChecker.toString(inferredType)}'`,
+            line,
+            column
+          )
+        }
       }
     }
 
