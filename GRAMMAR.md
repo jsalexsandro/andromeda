@@ -361,11 +361,15 @@ user.name = 123            // ERRO: tipo incompatível
 ```
 IndexExpr → Expression "[" Expression "]"
 ```
-- Acesso a elemento de array
-- Sintaxe: `arr[index]`
-- Suporta index encadeado: `arr[0][1]`
-- Suporta Member + Index: `obj.items[0]`
-- **Retorna o tipo do elemento**: `int[]` → `int`, `int[][]` → `int[]`
+- Acesso a elemento de array ou propriedade de objeto
+- Sintaxe: `arr[index]` ou `obj["property"]`
+- Suporta index encadeado: `arr[0][1]`, `obj["a"]["b"]`
+- Suporta Member + Index: `obj.items[0]`, `arr[0].name`
+
+#### Validação de Tipos:
+- **Arrays**: índice deve ser `int`
+- **Objetos**: chave deve ser `string`
+- Tipos incompatíveis geram erro em compile-time
 
 #### Type Inference:
 ```
@@ -375,6 +379,46 @@ var first = arr[0]      // first: int
 var matrix = [[1, 2], [3, 4]]  // matrix: int[][]
 var row = matrix[0]             // row: int[]
 var elem = matrix[0][0]        // elem: int
+```
+
+#### Exemplos com Arrays:
+```andromeda
+var nums = [10, 20, 30]
+nums[0]           // 10
+nums[1 + 1]       // 30
+nums[i]            // int (i: int)
+nums["x"]          // ERRO: índice deve ser int
+```
+
+#### Exemplos com Objetos:
+```andromeda
+var user = {name: "Ana", age: 25}
+user["name"]       // "Ana"
+user["age"]        // 25
+user["name"] = "Bruno"  // atribuição
+user[0]            // ERRO: chave deve ser string
+user["foo"]        // unknown (campo inexistente)
+user[key]          // unknown (key variável, não valida)
+```
+
+#### Index Assignment:
+```
+IndexAssign → Expression "[" Expression "]" "=" Expression
+```
+- Atribuição a índice de array ou propriedade de objeto via bracket
+- Valida tipo de índice (int para arrays, string para objetos)
+- Valida existência do campo em objetos (se chave for literal)
+
+#### Index Assignment Exemplos:
+```andromeda
+var arr = [1, 2, 3]
+arr[0] = 10            // OK
+arr[0] += 5            // OK (compound)
+
+var obj = {name: "Ana"}
+obj["name"] = "Bruno"  // OK
+obj["age"] = 25        // ERRO: campo inexistente
+obj["name"] = 123      // ERRO: tipo incompatível
 ```
 
 #### Exemplos:
@@ -548,6 +592,8 @@ Arrays inferem o tipo dos elementos:
 | 1.0.9 | 2026-04-13 | **Arrow Functions com tipos array**, **Index Assignment** |
 | 1.0.10 | 2026-04-13 | **Ternary**, **Nullish Coalescing**, CallExpression Semantic |
 | 1.0.11 | 2026-04-13 | **Object Literals**, **Object Types**, **Object Semantic** |
+| 1.0.12 | 2026-04-13 | **MemberExpression Semantic**, **Member Assignment**, **Index Type Validation** |
+| 1.0.13 | 2026-04-13 | **Bracket Notation on Objects**, index/key type validation |
 
 ---
 
@@ -562,6 +608,7 @@ Arrays inferem o tipo dos elementos:
 - [x] Compound Assignment to Index: `arr[0] += 5`, `arr[0] -= 2`
 - [x] Val Arrays: validação de immutabilidade
 - [x] Type checking em elementos: `[1, "two"]` em `int[]` → ERRO
+- [x] **Index type validation**: índice deve ser `int`
 
 ### Arrow Functions
 - [x] Arrow Functions básicas: `(x) => x + 1`
@@ -581,6 +628,9 @@ Arrays inferem o tipo dos elementos:
 - [x] **Tipagem Estrutural Estática**: não permite adicionar/remover campos
 - [x] **Member Access**: `obj.field` retorna tipo do campo
 - [x] **Member Assignment**: `obj.field = value` com validação
+- [x] **Bracket Access**: `obj["field"]` acesso via string
+- [x] **Bracket Assignment**: `obj["field"] = value` atribuição via string
+- [x] **Key type validation**: chave deve ser `string`
 
 ### Other
 - [x] Ternary: `a ? b : c`
