@@ -3,6 +3,7 @@ import { Lexer } from './lexer/lexer'
 import { Parser } from './parser/parser'
 import { SemanticAnalyzer } from './semantic'
 import { Analyzer } from './semantic/analyzer'
+import { Codegen, CodegenContext } from './codegen'
 
 function showHelp() {
   console.log(`Andromeda Language CLI v1.0.0`)
@@ -11,6 +12,7 @@ function showHelp() {
   console.log('Commands:')
   console.log('  run <file>      Run an andromeda file (syntax + semantic validation)')
   console.log('  tokens <file>   Print the token stream of a file')
+  console.log('  codegen <file>  Generate JavaScript code from an andromeda file')
   console.log('  help            Show this help message')
   console.log('  version         Show the version')
 }
@@ -39,9 +41,10 @@ export function main() {
   let isRun = command === 'run'
   let isTokens = command === 'tokens'
   let isAst = command === 'ast' || command === 'parse'
+  let isCodegen = command === 'codegen'
 
   // Alias bare minimal execution like `andromeda my_file.med` to `tokens` for now
-  if (!isRun && !isTokens && !isAst) {
+  if (!isRun && !isTokens && !isAst && !isCodegen) {
     if (fs.existsSync(command)) {
       filename = command
       isTokens = true
@@ -114,6 +117,27 @@ export function main() {
 
     console.log(`\nAST (${ast.length} statements):\n`)
     console.log(JSON.stringify(ast, null, 2))
+
+  } else if (isCodegen) {
+    console.log(`[Andromeda] Generating JavaScript from ${filename}...\n`)
+
+    console.time("parser")
+    const parser = new Parser(tokens, input)
+    const ast = parser.parse()
+    console.timeEnd("parser")
+
+    if (parser.errors.hasErrors()) {
+      parser.errors.renderAll()
+      process.exit(1)
+    }
+
+    console.time("codegen")
+    const codegen = new Codegen(new CodegenContext())
+    const js = codegen.generate(ast)
+    console.timeEnd("codegen")
+
+    console.log("--- Generated JavaScript ---\n")
+    console.log(js)
 
   } else {
     console.log(`Tokens (${tokens.length}):\n`)
