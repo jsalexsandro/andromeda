@@ -79,11 +79,8 @@ export class Parser {
     // Index access ([])
     this.infixParselets.set(TokenType.LBRACKET, this.parseIndex.bind(this))
 
-    // Ternary expression (a ? b : c)
-    this.infixParselets.set(TokenType.QUESTION, this.parseTernary.bind(this))
-
-    // Nullish coalescing (a ?? b)
-    this.infixParselets.set(TokenType.QUESTION_QUESTION, this.parseNullish.bind(this))
+    // Object literal { key: value }
+    this.prefixParselets.set(TokenType.LBRACE, this.parseObjectLiteral.bind(this))
   }
 
   // --- LITERAL PARSELETS ---
@@ -173,6 +170,64 @@ export class Parser {
     }
 
     return { kind: "Array", elements }
+  }
+
+  private parseObjectLiteral(): Expr {
+    const brace = this.peek()
+    const properties: { key: string | null; value: Expr }[] = []
+
+    const isAtBrace = this.check(TokenType.LBRACE)
+    if (isAtBrace) {
+      this.advance()
+    }
+
+    if (this.check(TokenType.RBRACE)) {
+      this.advance()
+      return { kind: "Object", properties }
+    }
+
+    while (!this.isAtEnd() && !this.check(TokenType.RBRACE)) {
+      let key: string | null = null
+      let value: Expr | null = null
+
+      if (this.check(TokenType.IDENTIFIER)) {
+        key = this.advance().value as string
+
+        if (this.check(TokenType.COLON)) {
+          this.advance()
+          value = this.parseExpression(Precedence.LOWEST)
+        } else {
+          value = { kind: "Identifier", name: { type: TokenType.IDENTIFIER, value: key, line: brace.line, column: brace.column } }
+        }
+      } else if (this.check(TokenType.STRING)) {
+        key = this.advance().value as string
+        this.advance()
+        value = this.parseExpression(Precedence.LOWEST)
+      } else {
+        this.error("Expected property name", this.peek())
+        break
+      }
+
+      if (value) {
+        properties.push({ key, value })
+      }
+
+      if (this.check(TokenType.RBRACE)) break
+
+      if (!this.check(TokenType.COMMA)) {
+        this.error("Expected ',' or '}' in object literal", this.peek())
+        break
+      }
+      this.advance()
+    }
+
+    if (this.check(TokenType.RBRACE)) {
+      this.advance()
+    } else {
+      this.error("Expected '}' to close object literal", brace)
+    }
+
+    return { kind: "Object", properties }
   }
 
   private parseArrowOrGroup(): Expr {
@@ -498,8 +553,12 @@ export class Parser {
   private parseStatement(): Stmt | null {
     const token = this.peek()
 
-    // Block statement: {
+    // Block statement or Object literal: {
     if (token?.type === TokenType.LBRACE) {
+      if (this.looksLikeObjectLiteral()) {
+        const expr = this.parseObjectLiteral()
+        return { kind: "ExpressionStmt", expression: expr }
+      }
       return this.parseBlockStatement()
     }
 
@@ -540,6 +599,41 @@ export class Parser {
     }
     // We will consume semi-colons here eventually, but now just pass through
     return { kind: "ExpressionStmt", expression: expr }
+  }
+
+  private looksLikeObjectLiteral(): boolean {
+    let i = this.current + 1
+    if (this.tokens[i]?.type === TokenType.RBRACE) {
+      return true
+    }
+    if (this.tokens[i]?.type === TokenType.IDENTIFIER) {
+      i++
+      if (this.tokens[i]?.type === TokenType.COLON) {
+        return true
+      }
+      if (this.tokens[i]?.type === TokenType.COMMA) {
+        return true
+      }
+      if (this.tokens[i]?.type === TokenType.RBRACE) {
+        return true
+      }
+    }
+    if (this.tokens[i]?.type === TokenType.STRING) {
+      i++
+      if (this.tokens[i]?.type === TokenType.COLON) {
+        return true
+      }
+      if (this.tokens[i]?.type === TokenType.COMMA) {
+        return true
+      }
+      if (this.tokens[i]?.type === TokenType.RBRACE) {
+        return true
+      }
+    }
+    if (this.tokens[i]?.type === TokenType.RBRACE) {
+      return true
+    }
+    return false
   }
 
   private parseBlockStatement(): Stmt {
