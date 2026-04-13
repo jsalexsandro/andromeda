@@ -130,6 +130,9 @@ export class Analyzer {
       case "Array":
         return this.visitArrayLiteral(expr)
 
+      case "Object":
+        return this.visitObjectLiteral(expr)
+
       case "ArrowFunction":
         return this.visitArrowFunction(expr)
 
@@ -436,6 +439,23 @@ const paramTypes = calleeType.params
     }
 
     return Array.of(commonType)
+  }
+
+  visitObjectLiteral(expr: any): AndroType {
+    const fields: any[] = []
+
+    for (const prop of expr.properties || []) {
+      const valueType = this.analyzeExpression(prop.value)
+      fields.push({
+        name: prop.key,
+        type: valueType
+      })
+    }
+
+    return {
+      kind: "object",
+      fields
+    } as any
   }
 
   private resolveTypeAnnotation(annotation: any): AndroType {

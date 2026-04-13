@@ -71,6 +71,21 @@ export class TypeChecker {
       )
     }
 
+    if (to.kind === "object" && from.kind === "object") {
+      const toFields = (to as any).fields || []
+      const fromFields = (from as any).fields || []
+
+      if (toFields.length === 0) return true
+      if (fromFields.length === 0) return false
+
+      for (const toField of toFields) {
+        const fromField = fromFields.find((f: any) => f.name === toField.name)
+        if (!fromField) return false
+        if (!this.isAssignableTo(fromField.type, toField.type)) return false
+      }
+      return true
+    }
+
     return false
   }
 
@@ -89,6 +104,12 @@ export class TypeChecker {
 
       case "class":
         return type.name
+
+      case "object":
+        const fields = (type as any).fields
+          .map((f: any) => `${f.name}: ${this.toString(f.type)}`)
+          .join(", ")
+        return `{${fields}}`
 
       default:
         return "unknown"
