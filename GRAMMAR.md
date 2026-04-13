@@ -14,6 +14,28 @@ BOOLEAN    → "true" | "false"
 NULL       → "null"
 ```
 
+### 1.1 Array Literals
+```
+ArrayLiteral → "[" (Expression ("," Expression)* ","?)? "]"
+```
+- Arrays podem conter elementos de tipos diferentes (inferido como `unknown[]` ou `any[]`)
+- Suporta arrays vazios: `[]`
+- Suporta nested arrays: `[[1, 2], [3, 4]]`
+- Suporta trailing comma: `[1, 2, 3,]`
+
+### Exemplos:
+```andromeda
+[]                    // array vazio
+[1, 2, 3]            // ints → int[]
+[1.5, 2.5]           // floats → float[]
+["a", "b"]           // strings → string[]
+[true, false]        // bools → bool[]
+[1, "two", true]     // mixed → unknown[]
+[[1, 2], [3, 4]]     // nested → int[][]
+[[1, ], [2, 3, ]]    // trailing comma
+[1 + 2, x * y]       // expressões
+```
+
 ---
 
 ## 2. Identificadores
@@ -83,6 +105,7 @@ Group     → "(" Expression ")"
 VariableDecl → ("var" | "val" | "const") Identifier (":" Type)? ("=" Expression)?
 
 Type        → "int" | "float" | "bool" | "string" | "void" | Identifier
+ArrayType   → Type ("[" "]")+
 ```
 
 ### Regras:
@@ -90,12 +113,25 @@ Type        → "int" | "float" | "bool" | "string" | "void" | Identifier
 - `val`   → **imutável, tipo obrigatório** ⚠️
 - `const` → imutável, tipo opcional (inferido)
 
+### Array Types:
+```
+int[]        // array de int
+string[]     // array de string
+int[][]      // array 2D de int
+float[][][]  // array 3D de float
+```
+
 ### Exemplos:
 ```andromeda
 var x = 10           // mutável, tipo inferido
 var y: int = 20      // mutável, tipo int
 val z: string = "hi" // imutável, tipo string (obrigatório)
 const PI = 3.14      // imutável
+
+// Arrays
+var nums: int[] = [1, 2, 3]
+val words: string[] = ["hello", "world"]
+var matrix: int[][] = [[1, 2], [3, 4]]
 ```
 
 ---
@@ -174,13 +210,17 @@ while (true) {
 
 ### 8.5 Assignment
 ```
-Assignment → Identifier "=" Expression
-CompoundAssign → ("+=" | "-=" | "*=" | "/=" | "%=") Expression
+Assignment       → (Identifier | IndexExpr) "=" Expression
+CompoundAssign   → (Identifier | IndexExpr) ("+=" | "-=" | "*=" | "/=" | "%=") Expression
+IndexAssign      → Expression "[" Expression "]" "=" Expression
 ```
 - Atribuição simples: `x = 10`
 - Atribuição composta: `x += 1`, `x -= 1`, `x *= 2`, `x /= 2`, `x %= 2`
+- **Assignment a índice**: `arr[0] = 5`
+- **Compound assignment a índice**: `arr[0] += 5`, `arr[0] -= 2`
 - Valida se variável está declarada
 - Valida tipo compatível
+- Valida mutabilidade (não pode modificar `val`)
 
 ### Exemplos:
 ```andromeda
@@ -191,6 +231,21 @@ x -= 3
 x *= 2
 x /= 4
 x %= 3
+
+// Assignment a índice
+var arr: int[] = [1, 2, 3]
+arr[0] = 10
+arr[1] += 5
+arr[2] *= 2
+
+// Nested assignment
+var matrix: int[][] = [[1, 2], [3, 4]]
+matrix[0][0] = 99
+matrix[1][1] *= 2
+
+// Erro: val não pode ser modificado
+val immutable: int[] = [1, 2, 3]
+immutable[0] = 10  // ERRO: cannot modify val
 ```
 
 ### 8.6 Expression as Statement
@@ -231,6 +286,17 @@ IndexExpr → Expression "[" Expression "]"
 - Sintaxe: `arr[index]`
 - Suporta index encadeado: `arr[0][1]`
 - Suporta Member + Index: `obj.items[0]`
+- **Retorna o tipo do elemento**: `int[]` → `int`, `int[][]` → `int[]`
+
+#### Type Inference:
+```
+var arr = [1, 2, 3]     // arr: int[]
+var first = arr[0]      // first: int
+
+var matrix = [[1, 2], [3, 4]]  // matrix: int[][]
+var row = matrix[0]             // row: int[]
+var elem = matrix[0][0]        // elem: int
+```
 
 #### Exemplos:
 ```andromeda
@@ -238,6 +304,8 @@ arr[0]
 arr[i + 1]
 matrix[0][1]
 obj.list[0]
+makeArray()[0]        // call + index
+getMatrix()[1][0]     // chained
 ```
 
 ### 8.9 Call Expression
@@ -258,6 +326,38 @@ print()
 myFunc(arg1, arg2)
 ```
 
+### 8.10 Arrow Functions
+```
+ArrowFunction → "(" (Param ("," Param)*)? ")" (":" Type)? "=>" (Expression | Block)
+Param          → Identifier (":" Type)?
+Block          → "{" Statement* "}"
+```
+- Funções anônimas com sintaxe arrow
+- Parâmetros opcionais com type annotation
+- Return type opcional
+- Body pode ser expressão ou bloco
+
+#### Tipos de Parâmetros e Retorno:
+```
+(int) => int           // parâmetro int, retorna int
+(int[], int) => int[]  // parâmetro array, retorna array
+() => int[]            // sem parâmetros, retorna array
+(x: int[]) => int      // parâmetro array tipado
+```
+
+#### Exemplos:
+```andromeda
+var identity = (x: int): int => x
+var makeArray = (): int[] => [1, 2, 3]
+var makeMatrix = (): int[][] => [[1, 2], [3, 4]]
+var double = (arr: int[]): int[] => [arr[0] * 2, arr[1] * 2]
+
+// Uso
+var arr = makeArray()
+var first = arr[0]
+var elem = makeMatrix()[0][1]
+```
+
 ---
 
 ## 9. Semantic Analyzer
@@ -274,13 +374,26 @@ Cada símbolo é pesquisado primeiro no escopo atual, depois nos pais.
 
 ### 9.2 Type Inference
 
-O type checker infere tipos ausente:
+O type checker infere tipos ausentes:
 ```andromeda
 var x = 10      // infere: int
 var y: int = 20 // explícito: int
+var arr = [1, 2, 3]  // infere: int[]
+var first = arr[0]  // infere: int
 ```
 
-### 9.3 Erros Semânticos Detectados
+### 9.3 Array Literal Type Inference
+
+Arrays inferem o tipo dos elementos:
+```
+[1, 2, 3]           → int[]
+[1.0, 2.0]          → float[]
+["a", "b"]          → string[]
+[1, "two"]          → unknown[] (tipos mistos)
+[[1, 2], [3, 4]]    → int[][]
+```
+
+### 9.4 Erros Semânticos Detectados
 
 | Código | Descrição |
 |--------|----------|
@@ -291,6 +404,8 @@ var y: int = 20 // explícito: int
 | INVALID_OPERATION | Operação inválida (ex: logical com não-boolean, call em não-função) |
 | INVALID_BREAK | `break`/`continue` usado fora de loop |
 | CANNOT_ASSIGN | Tentativa de reatribuir a `val` ou `const` |
+| INVALID_INDEX | Tentativa de indexar tipo não-array |
+| INVALID_ASSIGNMENT | Target de assignment inválido |
 
 ---
 
@@ -316,7 +431,7 @@ var y: int = 20 // explícito: int
 | PLUS_EQUAL, MINUS_EQUAL | +=, -= | Atribuição composta |
 | STAR_EQUAL, SLASH_EQUAL | *=, /= | Atribuição composta |
 | MODULO_EQUAL | %= | Atribuição composta |
-| COLON | : | Dois pontos |
+| COLON | : | Dois pontos (type annotation) |
 | PLUS, MINUS | +, - | Aritméticos |
 | STAR, SLASH, MODULO | *, /, % | Aritméticos |
 | EQUAL, NOT_EQUAL | ==, != | Comparação |
@@ -325,6 +440,14 @@ var y: int = 20 // explícito: int
 | AND, OR | &&, \|\| | Lógicos |
 | LPAREN, RPAREN | ( ) | Agrupamento |
 | LBRACE, RBRACE | { } | Bloco |
+| LBRACKET, RBRACKET | [ ] | Arrays |
+| TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_BOOL, TYPE_VOID | int, float, string, bool, void | Tipos |
+| ARROW | => | Arrow function |
+| QUESTION, QUESTION_QUESTION | ?, ?? | Ternary, Nullish |
+| DOT | . | Member access |
+| COMMA | , | Separador |
+| SEMICOLON | ; | Statement separator |
+| SPREAD | ... | Rest/Spread |
 
 ---
 
@@ -340,19 +463,43 @@ var y: int = 20 // explícito: int
 | 1.0.5 | 2026-04-11 | CallExpression, String Concatenation |
 | 1.0.6 | 2026-04-12 | MemberExpression (obj.prop) |
 | 1.0.7 | 2026-04-12 | IndexExpression (arr[i]) |
+| 1.0.8 | 2026-04-13 | **Array Literals**, **Array Types**, **Index Type Inference** |
+| 1.0.9 | 2026-04-13 | **Arrow Functions com tipos array**, **Index Assignment** |
+| 1.0.10 | 2026-04-13 | **Ternary**, **Nullish Coalescing**, CallExpression Semantic |
+
+---
+
+## Implementado ✓
+
+### Arrays
+- [x] Array Literais: `[1, 2, 3]`, `[[1, 2], [3, 4]]`
+- [x] Array Types: `int[]`, `string[]`, `int[][]`, `float[][][]`
+- [x] Index Access: `arr[0]`, `matrix[0][1]`
+- [x] Index Type Inference: `int[]` → `int`, `int[][]` → `int[]`
+- [x] Index Assignment: `arr[0] = 5`, `matrix[0][0] = 10`
+- [x] Compound Assignment to Index: `arr[0] += 5`, `arr[0] -= 2`
+- [x] Val Arrays: validação de immutabilidade
+- [x] Type checking em elementos: `[1, "two"]` em `int[]` → ERRO
+
+### Arrow Functions
+- [x] Arrow Functions básicas: `(x) => x + 1`
+- [x] Com type annotation: `(x: int): int => x * 2`
+- [x] Com return type: `(): int[] => [1, 2]`
+- [x] Com array types: `(x: int[]): int[] => [x[0]]`
+
+### Other
+- [x] Ternary: `a ? b : c`
+- [x] Nullish Coalescing: `a ?? b`
+- [x] CallExpression Semantic validation
 
 ---
 
 ## Em Desenvolvimento (Planejado)
 
 - [ ] ForStatement
-- [ ] FuncDeclaration (func name(params) { })
-- [ ] Arrow Functions
 - [ ] Androx (sintaxe JSX nativa)
 - [ ] Classes
 - [ ] Import/Export
 - [ ] Template Literals
-- [ ] Operador Ternário
-- [ ] Nullish Coalescing
 - [ ] Spread Operator
 - [ ] Await/Async
