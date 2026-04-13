@@ -1,2 +1,0 @@
-var id = 22
-var s:int = () => 2

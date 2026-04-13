@@ -1,3 +1,0 @@
-var all = [1, "two", true, 3.16]
-var str: string[] = ["Hi", "Hello"]
-var m: int[][] = [[1,2], [3,4]]
