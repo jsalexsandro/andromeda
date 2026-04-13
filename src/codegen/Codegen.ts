@@ -27,6 +27,8 @@ export class Codegen {
         return this.visitBlockStmt(node)
       case "VariableStmt":
         return this.visitVariableStmt(node)
+      case "Assign":
+        return this.visitAssign(node)
       case "Literal":
         return this.visitLiteral(node)
       case "Identifier":
@@ -53,6 +55,18 @@ export class Codegen {
     }
     
     this.ctx.writer.writeLine(";")
+  }
+
+  visitAssign(node: Expr & { kind: "Assign"; name: Expr; value: Expr; operator?: any }): void {
+    this.visit(node.name)
+    
+    if (node.operator) {
+      this.ctx.writer.write(` ${node.operator.value} `)
+    } else {
+      this.ctx.writer.write(" = ")
+    }
+    
+    this.visit(node.value)
   }
 
   visitExpressionStmt(node: Stmt & { kind: "ExpressionStmt"; expression: Expr }): void {
