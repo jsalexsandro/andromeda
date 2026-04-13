@@ -36,6 +36,36 @@ ArrayLiteral → "[" (Expression ("," Expression)* ","?)? "]"
 [1 + 2, x * y]       // expressões
 ```
 
+### 1.2 Object Literals
+```
+ObjectLiteral → "{" (Property ("," Property)* ","?)? "}"
+Property     → PropertyName ":" Expression
+            | PropertyName
+PropertyName → IDENTIFIER | KEYWORD | STRING
+```
+- Objetos são literais com pares chave-valor
+- Suporta empty objects: `{}`
+- Suporta nested objects: `{a: {b: 1}}`
+- Suporta shorthand: `{a, b}` → `{a: a, b: b}`
+- Suporta keywords como nomes: `{val: 1, if: 2}`
+- Suporta strings como chaves: `{"key": value}`
+
+### Exemplos:
+```andromeda
+{}                           // objeto vazio
+{a: 1}                      // basic
+{a: 1, b: 2}               // múltiplas propriedades
+{name: "John"}              // string como valor
+{a, b}                      // shorthand (equivale a {a: a, b: b})
+{a: 1 + 2, b: x * y}       // expressões
+{a: {b: 1}}                 // nested
+{a: [1, 2]}                // array como valor
+{a: {nested: true}}        // objeto em objeto
+{val: 1, bool: true}       // keywords como keys
+flag ? {a: 1} : {b: 2}    // em ternary
+maybe ?? {default: 0}       // em nullish
+```
+
 ---
 
 ## 2. Identificadores
@@ -106,6 +136,8 @@ VariableDecl → ("var" | "val" | "const") Identifier (":" Type)? ("=" Expressio
 
 Type        → "int" | "float" | "bool" | "string" | "void" | Identifier
 ArrayType   → Type ("[" "]")+
+ObjectType  → "{" (Field ("," Field)*)? "}"
+Field       → IDENTIFIER ":" Type
 ```
 
 ### Regras:
@@ -121,6 +153,16 @@ int[][]      // array 2D de int
 float[][][]  // array 3D de float
 ```
 
+### Object Types:
+```
+{}                        // objeto vazio
+{name: string}           // objeto com um campo
+{name: string, age: int} // objeto com múltiplos campos
+{outer: {inner: int}}    // objeto aninhado
+{items: int[], name: string}  // objeto com campo array
+{name: string}[]         // array de objetos
+```
+
 ### Exemplos:
 ```andromeda
 var x = 10           // mutável, tipo inferido
@@ -132,6 +174,13 @@ const PI = 3.14      // imutável
 var nums: int[] = [1, 2, 3]
 val words: string[] = ["hello", "world"]
 var matrix: int[][] = [[1, 2], [3, 4]]
+
+// Objects
+val empty: {} = {}
+val person: {name: string, age: int} = {name: "John", age: 30}
+val nested: {outer: {inner: int}} = {outer: {inner: 42}}
+val withArr: {items: int[], name: string} = {items: [1, 2], name: "test"}
+val users: {name: string}[] = [{name: "Alice"}, {name: "Bob"}]
 ```
 
 ---
@@ -466,6 +515,7 @@ Arrays inferem o tipo dos elementos:
 | 1.0.8 | 2026-04-13 | **Array Literals**, **Array Types**, **Index Type Inference** |
 | 1.0.9 | 2026-04-13 | **Arrow Functions com tipos array**, **Index Assignment** |
 | 1.0.10 | 2026-04-13 | **Ternary**, **Nullish Coalescing**, CallExpression Semantic |
+| 1.0.11 | 2026-04-13 | **Object Literals**, **Object Types**, **Object Semantic** |
 
 ---
 
@@ -486,6 +536,16 @@ Arrays inferem o tipo dos elementos:
 - [x] Com type annotation: `(x: int): int => x * 2`
 - [x] Com return type: `(): int[] => [1, 2]`
 - [x] Com array types: `(x: int[]): int[] => [x[0]]`
+
+### Objects
+- [x] Object Literals: `{a: 1}`, `{a, b}` shorthand, `{a: {b: 1}}` nested
+- [x] Object Types: `{}`, `{name: string}`, `{name: string, age: int}`
+- [x] Nested Object Types: `{outer: {inner: int}}`
+- [x] Object with Array field: `{items: int[], name: string}`
+- [x] Array of Objects: `{name: string}[]`
+- [x] Structural Typing: campos extras são permitidos
+- [x] Object Literal Type Inference: `{name: "John", age: 30}` → `{name: string, age: int}`
+- [x] Object Type Checking: valida campos e tipos
 
 ### Other
 - [x] Ternary: `a ? b : c`
