@@ -1,6 +1,6 @@
 import { Lexer } from '../src/lexer/lexer'
 import { Parser } from '../src/parser/parser'
-import { SemanticAnalyzer } from '../src/semantic/index'
+import { Analyzer } from '../src/semantic/analyzer/Analyzer'
 import * as fs from 'fs'
 
 interface BenchmarkResult {
@@ -30,8 +30,10 @@ function runBenchmark(): BenchmarkResult {
   const parserEnd = performance.now()
 
   const semanticStart = performance.now()
-  const semantic = new SemanticAnalyzer()
-  semantic.analyze(ast)
+  const analyzer = new Analyzer()
+  analyzer.enterGlobalScope()
+  analyzer.analyzeProgram(ast)
+  analyzer.exitGlobalScope()
   const semanticEnd = performance.now()
 
   const result: BenchmarkResult = {
