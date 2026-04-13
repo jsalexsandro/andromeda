@@ -1,8 +1,2 @@
-val name: string = "Jonny"
-var number = 22
-
-var obj = 2
-
-obj.uuid()
-
-obj[1]
+var id = 22
+var s:int = () => 2

@@ -1,9 +1,0 @@
-// val name: string = "Jonny"  // Não suportado ainda
-// var number = 22           // Não suportado ainda
-
-obj = 2
-
-obj.id
-obj.uuid()
-
-obj[1]

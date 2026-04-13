@@ -38,9 +38,10 @@ export function main() {
   let filename = args[1]
   let isRun = command === 'run'
   let isTokens = command === 'tokens'
+  let isAst = command === 'ast' || command === 'parse'
 
   // Alias bare minimal execution like `andromeda my_file.med` to `tokens` for now
-  if (!isRun && !isTokens) {
+  if (!isRun && !isTokens && !isAst) {
     if (fs.existsSync(command)) {
       filename = command
       isTokens = true
@@ -97,6 +98,22 @@ export function main() {
       }
       process.exit(1)
     }
+
+  } else if (isAst) {
+    console.log(`[Andromeda] Parsing ${filename}...`)
+
+    console.time("parser")
+    const parser = new Parser(tokens, input)
+    const ast = parser.parse()
+    console.timeEnd("parser")
+
+    if (parser.errors.hasErrors()) {
+      parser.errors.renderAll()
+      process.exit(1)
+    }
+
+    console.log(`\nAST (${ast.length} statements):\n`)
+    console.log(JSON.stringify(ast, null, 2))
 
   } else {
     console.log(`Tokens (${tokens.length}):\n`)

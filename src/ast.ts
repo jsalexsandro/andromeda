@@ -158,7 +158,7 @@ export interface VariableStmt {
   kind: "VariableStmt"
   declarationType: "var" | "val" | "const"
   name: Token
-  typeAnnotation?: Token
+  typeAnnotation?: { base: Token; dimensions: number }
   initializer?: Expr
 }
 

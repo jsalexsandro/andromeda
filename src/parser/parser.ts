@@ -40,6 +40,9 @@ export class Parser {
     // Arrow functions (x => x + 1)
     this.prefixParselets.set(TokenType.LPAREN, this.parseArrowOrGroup.bind(this))
 
+    // Array literal [1, 2, 3]
+    this.prefixParselets.set(TokenType.LBRACKET, this.parseArrayLiteral.bind(this))
+
     // Assignment operators (= and compound: +=, -=, *=, /=, %=)
     this.infixParselets.set(TokenType.ASSIGN, this.parseAssignment.bind(this))
     this.infixParselets.set(TokenType.PLUS_EQUAL, this.parseAssignment.bind(this))
@@ -124,6 +127,52 @@ export class Parser {
       this.error(`Expected ')' to close group starting at line ${lparen.line}`, lparen)
     }
     return { kind: "Group", expression: expr }
+  }
+
+  private parseArrayLiteral(): Expr {
+    const bracket = this.previous()
+    const elements: Expr[] = []
+
+    if (this.check(TokenType.RBRACKET)) {
+      this.advance()
+      return { kind: "Array", elements }
+    }
+
+    while (!this.isAtEnd()) {
+      // Check for end of array BEFORE parsing expression
+      if (this.check(TokenType.RBRACKET)) break
+      if (this.check(TokenType.COMMA)) {
+        this.advance() // consume trailing comma
+        break
+      }
+
+      if (this.check(TokenType.SPREAD)) {
+        this.advance()
+        const arg = this.parseExpression(Precedence.LOWEST)
+        if (arg) elements.push({ kind: "Spread", argument: arg })
+      } else {
+        const elem = this.parseExpression(Precedence.LOWEST)
+        if (elem) elements.push(elem)
+      }
+
+      // After parsing element, check if we're done
+      if (this.check(TokenType.RBRACKET)) break
+
+      // Must have comma to continue
+      if (!this.check(TokenType.COMMA)) {
+        this.error("Expected ',' or ']' in array literal", this.peek())
+        break
+      }
+      this.advance()
+    }
+
+    if (this.check(TokenType.RBRACKET)) {
+      this.advance()
+    } else {
+      this.error("Expected ']' to close array literal", bracket)
+    }
+
+    return { kind: "Array", elements }
   }
 
   private parseArrowOrGroup(): Expr {
@@ -516,24 +565,10 @@ export class Parser {
     }
     
     // Check for type annotation
-    let typeAnnotation: Token | undefined
+    let typeAnnotation: { base: Token; dimensions: number } | undefined
     if (this.peek().type === TokenType.COLON) {
       this.advance() // consume colon
-      const typeToken = this.advance()
-      const validTypes = [
-        TokenType.IDENTIFIER, 
-        TokenType.KEYWORD,
-        TokenType.TYPE_INT,
-        TokenType.TYPE_FLOAT,
-        TokenType.TYPE_BOOL,
-        TokenType.TYPE_STRING,
-        TokenType.TYPE_VOID
-      ]
-      if (validTypes.includes(typeToken.type)) {
-        typeAnnotation = typeToken
-      } else {
-        this.error(`Expected type after ':'`, typeToken)
-      }
+      typeAnnotation = this.parseTypeAnnotation()
     } else if (keyword === 'val') {
       this.error(`Type annotation is required for 'val' declarations`, nameToken)
     }
@@ -545,13 +580,43 @@ export class Parser {
       initializer = this.parseExpression(Precedence.LOWEST)
     }
     
-return {
+    return {
       kind: "VariableStmt",
       declarationType: keyword as "var" | "val" | "const",
       name: nameToken,
       typeAnnotation,
       initializer
     }
+  }
+
+  private parseTypeAnnotation(): { base: Token; dimensions: number } | undefined {
+    const baseType = this.advance()
+    const validTypes = [
+      TokenType.IDENTIFIER,
+      TokenType.KEYWORD,
+      TokenType.TYPE_INT,
+      TokenType.TYPE_FLOAT,
+      TokenType.TYPE_BOOL,
+      TokenType.TYPE_STRING,
+      TokenType.TYPE_VOID
+    ]
+    if (!validTypes.includes(baseType.type)) {
+      this.error(`Expected type after ':'`, baseType)
+      return undefined
+    }
+
+    let dimensions = 0
+    while (this.check(TokenType.LBRACKET)) {
+      this.advance()
+      if (!this.check(TokenType.RBRACKET)) {
+        this.error("Expected ']' after '[' in type annotation", this.peek())
+        break
+      }
+      this.advance()
+      dimensions++
+    }
+
+    return { base: baseType, dimensions }
   }
 
   private parseIfStatement(): Stmt {
