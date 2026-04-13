@@ -10,11 +10,13 @@ export class Codegen {
 
   generate(statements: Stmt[]): string {
     this.ctx.reset()
-    for (const stmt of statements) {
-      this.visit(stmt)
-      this.ctx.writer.writeBlankLine()
+    for (let i = 0; i < statements.length; i++) {
+      if (i > 0) {
+        this.ctx.writer.writeBlankLine()
+      }
+      this.visit(statements[i])
     }
-    return this.ctx.writer.getOutput()
+    return this.ctx.writer.getOutput().trim()
   }
 
   visit(node: Stmt | Expr): void {
@@ -33,7 +35,7 @@ export class Codegen {
         return this.visitUnary(node)
 
       default:
-        this.ctx.writer.write(`/* TODO: ${node.kind} */`)
+        throw new Error(`Codegen: unsupported node kind '${node.kind}'`)
     }
   }
 
