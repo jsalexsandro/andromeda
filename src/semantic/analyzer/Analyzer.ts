@@ -130,6 +130,12 @@ export class Analyzer {
       case "ArrowFunction":
         return this.visitArrowFunction(expr)
 
+      case "Conditional":
+        return this.visitConditional(expr)
+
+      case "NullishCoalescing":
+        return this.visitNullishCoalescing(expr)
+
       default:
         return Primitive.unknown()
     }
@@ -287,10 +293,55 @@ export class Analyzer {
   }
 
   visitCall(expr: any): AndroType {
+    const calleeType = this.analyzeExpression(expr.callee)
+    const [line, column] = this.getLineColumn(expr.callee)
+
+    const calleeName = expr.callee?.name?.value as string
+
+    const argTypes: AndroType[] = []
     for (const arg of expr.args || []) {
-      this.analyzeExpression(arg)
+      const argType = this.analyzeExpression(arg)
+      argTypes.push(argType)
     }
-    return Primitive.unknown()
+
+    if (TypeChecker.isUnknown(calleeType)) {
+      return Primitive.unknown()
+    }
+
+    if (!TypeChecker.isFunction(calleeType)) {
+      this.report(
+        "INVALID_CALL",
+        `cannot call '${TypeChecker.toString(calleeType)}': not a function`,
+        line,
+        column
+      )
+      return Primitive.unknown()
+    }
+
+const paramTypes = calleeType.params
+    const minParams = paramTypes.length
+
+    if (argTypes.length > minParams && !calleeName) {
+      this.report(
+        "ARGUMENT_COUNT_MISMATCH",
+        `expected ${minParams} arguments but got ${argTypes.length}`,
+        line,
+        column
+      )
+    }
+
+    for (let i = 0; i < Math.min(argTypes.length, minParams); i++) {
+      if (!TypeChecker.isAssignableTo(argTypes[i], paramTypes[i])) {
+        this.report(
+          "TYPE_MISMATCH",
+          `argument ${i + 1}: expected '${TypeChecker.toString(paramTypes[i])}' but got '${TypeChecker.toString(argTypes[i])}'`,
+          line,
+          column
+        )
+      }
+}
+
+    return calleeType.returnType
   }
 
   visitMember(expr: any): AndroType {
@@ -343,10 +394,12 @@ export class Analyzer {
     }
 
     // Analyze body
+    let actualReturnType: AndroType = Primitive.unknown()
     if (expr.body.kind === "BlockStmt") {
       this.analyzeStatement(expr.body)
+      actualReturnType = this.expectedReturnType
     } else {
-      this.analyzeExpression(expr.body)
+      actualReturnType = this.analyzeExpression(expr.body)
       this.hasReachableReturn = true
     }
 
@@ -365,10 +418,14 @@ export class Analyzer {
         : Primitive.unknown()
     })
 
+    const returnType = expr.returnType
+      ? TypeChecker.fromKeyword(expr.returnType.value as string) || Primitive.unknown()
+      : actualReturnType
+
     return {
       kind: "function",
       params: paramTypes,
-      returnType: this.expectedReturnType,
+      returnType: returnType,
     } as any
   }
 
@@ -424,6 +481,32 @@ export class Analyzer {
     }
 
     return Primitive.bool()
+  }
+
+  visitConditional(expr: any): AndroType {
+    const conditionType = this.analyzeExpression(expr.condition)
+    const [line, column] = this.getLineColumn(expr.condition)
+
+    if (!TypeChecker.isSameType(conditionType, Primitive.bool()) && !TypeChecker.isUnknown(conditionType)) {
+      this.report(
+        "TYPE_MISMATCH",
+        `ternary condition must be bool, got '${TypeChecker.toString(conditionType)}'`,
+        line,
+        column
+      )
+    }
+
+    const consequentType = this.analyzeExpression(expr.consequent)
+    const alternateType = this.analyzeExpression(expr.alternate)
+
+    return TypeChecker.commonType(consequentType, alternateType)
+  }
+
+  visitNullishCoalescing(expr: any): AndroType {
+    const leftType = this.analyzeExpression(expr.left)
+    const rightType = this.analyzeExpression(expr.right)
+
+    return TypeChecker.commonType(leftType, rightType)
   }
 
   analyzeVariable(stmt: VariableStmt): AndroType {
@@ -523,6 +606,10 @@ export class Analyzer {
     }
 
     // Enter function scope
+    const savedInFunction = this.inFunction
+    const savedReturnType = this.expectedReturnType
+    const savedHasReturn = this.hasReachableReturn
+
     this.inFunction = true
     this.expectedReturnType = returnType
     this.hasReachableReturn = false
@@ -572,8 +659,9 @@ export class Analyzer {
 
     // Exit function scope
     this.exitScope()
-    this.inFunction = false
-    this.expectedReturnType = Primitive.void()
+    this.inFunction = savedInFunction
+    this.expectedReturnType = savedReturnType
+    this.hasReachableReturn = savedHasReturn
   }
 
   analyzeReturn(stmt: any): void {

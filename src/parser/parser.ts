@@ -157,6 +157,13 @@ export class Parser {
 
     // Parse parameters
     while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
+      // Check for rest operator
+      let isRest = false
+      if (this.check(TokenType.SPREAD)) {
+        this.advance() // consume ...
+        isRest = true
+      }
+
       // Must be identifier
       if (this.peek().type !== TokenType.IDENTIFIER) {
         return null
@@ -171,15 +178,11 @@ export class Parser {
         paramType = this.advance() // consume type
       }
 
-      params.push({ name: paramName, type: paramType })
+      params.push({ name: paramName, type: paramType, isRest })
 
       // Comma or end
       if (this.check(TokenType.COMMA)) {
         this.advance() // consume ,
-        // Check if next is identifier (more params)
-        if (this.peek().type !== TokenType.IDENTIFIER) {
-          return null // Invalid, like (,)
-        }
       }
     }
 
@@ -263,9 +266,9 @@ export class Parser {
     if (!right) {
       this.error(`Expected expression after '${operator.value}'`, operator)
       return { kind: "Literal", value: null }
-    }
+}
     return { kind: "Unary", operator, right }
-  }
+}
 
   private isAtExpressionStart(): boolean {
     if (this.current === 0) return true
@@ -646,6 +649,12 @@ return {
     // Parse parameter list
     const params: any[] = []
     while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
+      let isRest = false
+      if (this.check(TokenType.SPREAD)) {
+        this.advance() // consume ...
+        isRest = true
+      }
+
       const paramName = this.advance()
       if (paramName.type !== TokenType.IDENTIFIER) {
         this.error("Expected parameter name", paramName)
@@ -659,7 +668,7 @@ return {
         paramType = typeToken
       }
 
-      params.push({ name: paramName, type: paramType })
+      params.push({ name: paramName, type: paramType, isRest })
 
       if (this.check(TokenType.COMMA)) {
         this.advance() // consume ,

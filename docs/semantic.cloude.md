@@ -73,9 +73,13 @@ FASE 4 — DECLARATIONS
 ├── 12. VariableDeclaration
         var -> mutable: true
 │       val  → mutable: false
-        val sem pre definição de tipo -> error
-        (ex: val n: string = "") -> ok, tipo informado
-        (ex: val n = "") -> error (val requer tipo informado)
+
+        PARSER: (essa função é do parser e ele ja faz)
+          val sem pre definição de tipo -> error
+          (ex: val n: string = "") -> ok, tipo informado
+          (ex: val n = "") -> error (val requer tipo informado)
+          
+          
 │       const → mutable: false (alias)
 │       checar: nome já existe no escopo atual → erro
 │       checar: tipo anotado bate com valor → erro
@@ -106,19 +110,20 @@ FASE 5 — CONTROLE DE FLUXO
 │       analisar body
 │       desmarcar flag
 │
-├── 17. ForStatement
-│       enter() escopo (val i pertence ao for)
-│       checar: init é VarDecl válida
-│       checar: condition é BOOLEAN
-│       checar: update é expressão válida
-│       analisar body com flag de loop
-│       exit() escopo
 │
 ├── 18. BreakStatement
 │       checar: flag de loop ativo → erro se fora de loop
 │
 └── 19. ContinueStatement
         idem break
+        
+├── 17. ForStatement // FALTA IMPLEMENTAR NO PARSER
+│       enter() escopo (val i pertence ao for)
+│       checar: init é VarDecl válida
+│       checar: condition é BOOLEAN
+│       checar: update é expressão válida
+│       analisar body com flag de loop
+│       exit() escopo
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

@@ -42,6 +42,7 @@ export const TokenPrecedence: Record<string, Precedence> = {
   [TokenType.LPAREN]: Precedence.CALL,
   [TokenType.LBRACKET]: Precedence.INDEX,
   [TokenType.DOT]: Precedence.MEMBER,
+  [TokenType.COMMA]: Precedence.LOWEST,
 }
 
 export function getPrecedence(type: TokenType): Precedence {

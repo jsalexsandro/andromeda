@@ -31,3 +31,10 @@ var full = greeting + " " + name
 ### Testes de Stress Anteriores
 - 41 statements com 0 erros ✅
 - 73 statements com 1 erro (string concat) ✅
+
+
+
+var s:int = () => 2
+no futuro:
+
+var s:Func<int> = () => 2
