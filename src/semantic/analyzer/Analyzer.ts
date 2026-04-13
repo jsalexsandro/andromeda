@@ -1,5 +1,5 @@
-import { Expr, Stmt, LiteralExpr, IdentifierExpr, UnaryExpr, BinaryExpr, GroupExpr, AssignExpr, VariableStmt } from "../../ast"
-import { AndroType, Primitive, TypeKind, SymbolKind, SymbolDefinition } from "../types"
+import { Expr, Stmt, LiteralExpr, IdentifierExpr, UnaryExpr, BinaryExpr, GroupExpr, AssignExpr, VariableStmt, ArrayExpr } from "../../ast"
+import { AndroType, Primitive, TypeKind, SymbolKind, SymbolDefinition, Array } from "../types"
 import { TypeChecker } from "../TypeChecker"
 import { AnalyzerContext, AnalyzerError, createContext } from "./types"
 import { SemanticErrorHandler } from "../SemanticError"
@@ -126,6 +126,9 @@ export class Analyzer {
 
       case "Index":
         return this.visitIndex(expr)
+
+      case "Array":
+        return this.visitArrayLiteral(expr)
 
       case "ArrowFunction":
         return this.visitArrowFunction(expr)
@@ -355,6 +358,37 @@ const paramTypes = calleeType.params
     return Primitive.unknown()
   }
 
+  visitArrayLiteral(expr: ArrayExpr): AndroType {
+    if (expr.elements.length === 0) {
+      return Array.of(Primitive.any())
+    }
+
+    const elementTypes: AndroType[] = []
+    for (const element of expr.elements) {
+      const elementType = this.analyzeExpression(element)
+      elementTypes.push(elementType)
+    }
+
+    let commonType = elementTypes[0]
+    for (let i = 1; i < elementTypes.length; i++) {
+      commonType = TypeChecker.commonType(commonType, elementTypes[i])
+    }
+
+    return Array.of(commonType)
+  }
+
+  private resolveTypeAnnotation(annotation: any): AndroType {
+    const baseType = TypeChecker.fromKeyword(annotation.base.value as string) || Primitive.unknown()
+    const dimensions = annotation.dimensions || 0
+
+    let type: AndroType = baseType
+    for (let i = 0; i < dimensions; i++) {
+      type = Array.of(type)
+    }
+
+    return type
+  }
+
   visitArrowFunction(expr: any): AndroType {
     // Save current state
     const savedInFunction = this.inFunction
@@ -519,7 +553,7 @@ const paramTypes = calleeType.params
     }
 
     const declaredType = stmt.typeAnnotation
-      ? TypeChecker.fromKeyword(stmt.typeAnnotation.value as string) || Primitive.unknown()
+      ? this.resolveTypeAnnotation(stmt.typeAnnotation)
       : inferredType
 
     if (stmt.typeAnnotation && stmt.initializer) {
@@ -567,13 +601,13 @@ const paramTypes = calleeType.params
     // Determine return type
     const hasExplicitReturnType = !!stmt.returnType
     const returnType = stmt.returnType
-      ? TypeChecker.fromKeyword(stmt.returnType.value as string) || Primitive.unknown()
+      ? this.resolveTypeAnnotation(stmt.returnType)
       : Primitive.unknown()
 
     // Build function type for symbol table
     const paramTypes = (stmt.params || []).map((p: any) => {
       return p.type
-        ? TypeChecker.fromKeyword(p.type.value as string) || Primitive.unknown()
+        ? this.resolveTypeAnnotation(p.type)
         : Primitive.unknown()
     })
 

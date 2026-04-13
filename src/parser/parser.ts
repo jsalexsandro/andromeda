@@ -747,11 +747,10 @@ export class Parser {
     }
 
     // Parse return type
-    let returnType: Token | undefined
+    let returnType: { base: Token; dimensions: number } | undefined
     if (this.check(TokenType.COLON)) {
       this.advance() // consume :
-      const typeToken = this.advance()
-      returnType = typeToken
+      returnType = this.parseTypeAnnotation()
     }
 
     // Parse body
