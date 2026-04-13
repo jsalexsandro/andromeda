@@ -199,7 +199,11 @@ export class Analyzer {
       return this.assignToIndex(targetExpr, expr.value, operator, line, column)
     }
 
-    this.report("INVALID_ASSIGNMENT", "assignment target must be an identifier or index expression", line, column)
+    if (targetExpr.kind === "Member") {
+      return this.assignToMember(targetExpr, expr.value, operator, line, column)
+    }
+
+    this.report("INVALID_ASSIGNMENT", "assignment target must be an identifier, index, or member expression", line, column)
     return Primitive.unknown()
   }
 
@@ -280,6 +284,62 @@ export class Analyzer {
     }
 
     return elementType
+  }
+
+  private assignToMember(target: any, valueExpr: any, operator: string | undefined, line: number, column: number): AndroType {
+    const objectType = this.analyzeExpression(target.object)
+    const propertyName = target.property.name.value as string
+
+    if (TypeChecker.isUnknown(objectType)) {
+      return Primitive.unknown()
+    }
+
+    if (!TypeChecker.isObject(objectType)) {
+      this.report(
+        "INVALID_ASSIGNMENT",
+        `cannot assign to property '${propertyName}' on type '${TypeChecker.toString(objectType)}': not an object`,
+        line,
+        column
+      )
+      return Primitive.unknown()
+    }
+
+    const fields = (objectType as any).fields || []
+    const field = fields.find((f: any) => f.name === propertyName)
+
+    if (!field) {
+      const availableFields = fields.map((f: any) => f.name).join(", ") || "(none)"
+      this.report(
+        "UNKNOWN_PROPERTY",
+        `object has no property '${propertyName}'. Available properties: ${availableFields}`,
+        line,
+        column
+      )
+      return Primitive.unknown()
+    }
+
+    const valueType = this.analyzeExpression(valueExpr)
+
+    if (operator && ["+=", "-=", "*=", "/=", "%="].includes(operator)) {
+      const validField = TypeChecker.isSameType(field.type, Primitive.int()) || TypeChecker.isSameType(field.type, Primitive.float())
+      if (!validField && !TypeChecker.isUnknown(field.type)) {
+        this.report("TYPE_MISMATCH", `compound assignment '${operator}' requires int or float, got '${TypeChecker.toString(field.type)}'`, line, column)
+      }
+      if (!TypeChecker.isAssignableTo(valueType, field.type) && !TypeChecker.isUnknown(valueType)) {
+        this.report("TYPE_MISMATCH", `cannot assign '${TypeChecker.toString(valueType)}' to '${TypeChecker.toString(field.type)}'`, line, column)
+      }
+    } else {
+      if (!TypeChecker.isAssignableTo(valueType, field.type) && !TypeChecker.isUnknown(valueType)) {
+        this.report(
+          "TYPE_MISMATCH",
+          `cannot assign '${TypeChecker.toString(valueType)}' to property '${propertyName}' of type '${TypeChecker.toString(field.type)}'`,
+          line,
+          column
+        )
+      }
+    }
+
+    return field.type
   }
 
   visitUnary(expr: UnaryExpr): AndroType {
