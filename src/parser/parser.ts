@@ -203,7 +203,8 @@ export class Parser {
           this.check(TokenType.TYPE_FLOAT) ||
           this.check(TokenType.TYPE_BOOL) ||
           this.check(TokenType.TYPE_STRING) ||
-          this.check(TokenType.TYPE_VOID)) {
+          this.check(TokenType.TYPE_VOID) ||
+          this.check(TokenType.NULL)) {
         key = this.advance().value as string
 
         if (this.check(TokenType.COLON)) {
