@@ -495,7 +495,16 @@ const paramTypes = calleeType.params
     const objectType = this.analyzeExpression(expr.object)
     const [line, column] = this.getLineColumn(expr)
 
-    this.analyzeExpression(expr.index)
+    const indexType = this.analyzeExpression(expr.index)
+
+    if (!TypeChecker.isUnknown(indexType) && !TypeChecker.isSameType(indexType, Primitive.int())) {
+      this.report(
+        "INVALID_INDEX",
+        `array index must be int, got '${TypeChecker.toString(indexType)}'`,
+        line,
+        column
+      )
+    }
 
     if (TypeChecker.isArray(objectType)) {
       return (objectType as any).elementType
