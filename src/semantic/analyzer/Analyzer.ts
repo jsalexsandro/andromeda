@@ -232,6 +232,21 @@ export class Analyzer {
     const valueType = this.analyzeExpression(valueExpr)
 
     if (operator && ["+=", "-=", "*=", "/=", "%="].includes(operator)) {
+      if (operator === "+=") {
+        const leftIsString = TypeChecker.isSameType(symbol.type, Primitive.string())
+        const rightIsString = TypeChecker.isSameType(valueType, Primitive.string())
+
+        if (leftIsString && rightIsString) {
+          return Primitive.string()
+        }
+
+        if (leftIsString || rightIsString) {
+          const gotType = leftIsString ? TypeChecker.toString(valueType) : TypeChecker.toString(symbol.type)
+          this.report("TYPE_MISMATCH", `cannot concatenate string with '${gotType}'`, line, column)
+          return Primitive.unknown()
+        }
+      }
+
       const validLeft = TypeChecker.isSameType(symbol.type, Primitive.int()) || TypeChecker.isSameType(symbol.type, Primitive.float())
       if (!validLeft && !TypeChecker.isUnknown(symbol.type)) {
         this.report("TYPE_MISMATCH", `compound assignment '${operator}' requires int or float, got '${TypeChecker.toString(symbol.type)}'`, line, column)
