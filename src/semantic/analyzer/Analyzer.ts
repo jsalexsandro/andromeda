@@ -4,6 +4,7 @@ import { TypeChecker } from "../TypeChecker"
 import { AnalyzerContext, AnalyzerError, createContext } from "./types"
 import { SemanticErrorHandler } from "../SemanticError"
 import { ScopeStack } from "../ScopeStack"
+import { isBuiltin, getBuiltin } from "../builtins"
 
 export class Analyzer {
   private errors: SemanticErrorHandler
@@ -180,13 +181,16 @@ export class Analyzer {
     const [line, column] = this.getLineColumn(expr.name)
 
     const symbol = this.scopeStack.lookup(name)
-
-    if (!symbol) {
-      this.report("UNDEFINED_VARIABLE", `variable '${name}' is not defined`, line, column)
-      return Primitive.unknown()
+    if (symbol) {
+      return symbol.type
     }
 
-    return symbol.type
+    if (isBuiltin(name)) {
+      return getBuiltin(name)
+    }
+
+    this.report("UNDEFINED_VARIABLE", `variable '${name}' is not defined`, line, column)
+    return Primitive.unknown()
   }
 
   visitAssign(expr: AssignExpr): AndroType {
@@ -509,23 +513,29 @@ export class Analyzer {
     const paramTypes = calleeType.params
     const minParams = paramTypes.length
 
-    if (argTypes.length > minParams && !calleeName) {
-      this.report(
-        "ARGUMENT_COUNT_MISMATCH",
-        `expected ${minParams} arguments but got ${argTypes.length}`,
-        line,
-        column
-      )
-    }
+    const isVariadicBuiltin = calleeName === "print" && 
+      paramTypes.length === 1 && 
+      TypeChecker.isArray(paramTypes[0])
 
-    for (let i = 0; i < Math.min(argTypes.length, minParams); i++) {
-      if (!TypeChecker.isAssignableTo(argTypes[i], paramTypes[i])) {
+    if (!isVariadicBuiltin) {
+      if (argTypes.length > minParams && !calleeName) {
         this.report(
-          "TYPE_MISMATCH",
-          `argument ${i + 1}: expected '${TypeChecker.toString(paramTypes[i])}' but got '${TypeChecker.toString(argTypes[i])}'`,
+          "ARGUMENT_COUNT_MISMATCH",
+          `expected ${minParams} arguments but got ${argTypes.length}`,
           line,
           column
         )
+      }
+
+      for (let i = 0; i < Math.min(argTypes.length, minParams); i++) {
+        if (!TypeChecker.isAssignableTo(argTypes[i], paramTypes[i])) {
+          this.report(
+            "TYPE_MISMATCH",
+            `argument ${i + 1}: expected '${TypeChecker.toString(paramTypes[i])}' but got '${TypeChecker.toString(argTypes[i])}'`,
+            line,
+            column
+          )
+        }
       }
     }
 
