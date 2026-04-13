@@ -354,10 +354,21 @@ const paramTypes = calleeType.params
 
   visitIndex(expr: any): AndroType {
     const objectType = this.analyzeExpression(expr.object)
+    const [line, column] = this.getLineColumn(expr)
+
     this.analyzeExpression(expr.index)
 
     if (TypeChecker.isArray(objectType)) {
       return (objectType as any).elementType
+    }
+
+    if (!TypeChecker.isUnknown(objectType)) {
+      this.report(
+        "INVALID_INDEX",
+        `cannot index into type '${TypeChecker.toString(objectType)}': not an array`,
+        line,
+        column
+      )
     }
 
     return Primitive.unknown()
