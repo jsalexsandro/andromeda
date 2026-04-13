@@ -29,6 +29,10 @@ export class TypeChecker {
     return type.kind === "class"
   }
 
+  static isObject(type: AndroType): boolean {
+    return type.kind === "object"
+  }
+
   static isSameType(a: AndroType, b: AndroType): boolean {
     if (this.isUnknown(a) || this.isUnknown(b)) return false
     if (this.isAny(a) || this.isAny(b)) return true

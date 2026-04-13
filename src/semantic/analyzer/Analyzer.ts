@@ -396,8 +396,39 @@ const paramTypes = calleeType.params
   }
 
   visitMember(expr: any): AndroType {
-    this.analyzeExpression(expr.object)
-    return Primitive.unknown()
+    const objectType = this.analyzeExpression(expr.object)
+    const propertyName = expr.property.name.value as string
+    const [line, column] = this.getLineColumn(expr.property)
+
+    if (TypeChecker.isUnknown(objectType)) {
+      return Primitive.unknown()
+    }
+
+    if (!TypeChecker.isObject(objectType)) {
+      this.report(
+        "INVALID_MEMBER_ACCESS",
+        `cannot access property '${propertyName}' on type '${TypeChecker.toString(objectType)}': not an object`,
+        line,
+        column
+      )
+      return Primitive.unknown()
+    }
+
+    const fields = (objectType as any).fields || []
+    const field = fields.find((f: any) => f.name === propertyName)
+
+    if (!field) {
+      const availableFields = fields.map((f: any) => f.name).join(", ") || "(none)"
+      this.report(
+        "UNKNOWN_PROPERTY",
+        `object has no property '${propertyName}'. Available properties: ${availableFields}`,
+        line,
+        column
+      )
+      return Primitive.unknown()
+    }
+
+    return field.type
   }
 
   visitIndex(expr: any): AndroType {
