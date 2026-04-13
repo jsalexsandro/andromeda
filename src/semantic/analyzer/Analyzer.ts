@@ -353,8 +353,13 @@ const paramTypes = calleeType.params
   }
 
   visitIndex(expr: any): AndroType {
-    this.analyzeExpression(expr.object)
+    const objectType = this.analyzeExpression(expr.object)
     this.analyzeExpression(expr.index)
+
+    if (TypeChecker.isArray(objectType)) {
+      return (objectType as any).elementType
+    }
+
     return Primitive.unknown()
   }
 
