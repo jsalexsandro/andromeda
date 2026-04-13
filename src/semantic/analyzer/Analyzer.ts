@@ -142,6 +142,9 @@ export class Analyzer {
       case "NullishCoalescing":
         return this.visitNullishCoalescing(expr)
 
+      case "Spread":
+        return this.visitSpread(expr)
+
       default:
         return Primitive.unknown()
     }
@@ -468,8 +471,24 @@ export class Analyzer {
     const calleeName = expr.callee?.name?.value as string
 
     const argTypes: AndroType[] = []
-    for (const arg of expr.args || []) {
-      const argType = this.analyzeExpression(arg)
+    for (let i = 0; i < (expr.args || []).length; i++) {
+      const arg = expr.args[i]
+      let argType: AndroType
+
+      if (arg.kind === "Spread") {
+        const spreadArgType = this.analyzeExpression(arg)
+        if (!TypeChecker.isUnknown(spreadArgType) && !TypeChecker.isArray(spreadArgType)) {
+          this.report(
+            "INVALID_SPREAD",
+            `spread argument must be an array, got '${TypeChecker.toString(spreadArgType)}'`,
+            arg.argument?.line ?? 0,
+            arg.argument?.column ?? 0
+          )
+        }
+        argType = TypeChecker.isArray(spreadArgType) ? spreadArgType : Primitive.unknown()
+      } else {
+        argType = this.analyzeExpression(arg)
+      }
       argTypes.push(argType)
     }
 
@@ -487,7 +506,7 @@ export class Analyzer {
       return Primitive.unknown()
     }
 
-const paramTypes = calleeType.params
+    const paramTypes = calleeType.params
     const minParams = paramTypes.length
 
     if (argTypes.length > minParams && !calleeName) {
@@ -508,7 +527,7 @@ const paramTypes = calleeType.params
           column
         )
       }
-}
+    }
 
     return calleeType.returnType
   }
@@ -615,8 +634,24 @@ const paramTypes = calleeType.params
     }
 
     const elementTypes: AndroType[] = []
-    for (const element of expr.elements) {
-      const elementType = this.analyzeExpression(element)
+    for (let i = 0; i < expr.elements.length; i++) {
+      const element = expr.elements[i]
+      let elementType: AndroType
+
+      if (element.kind === "Spread") {
+        const argType = this.analyzeExpression(element)
+        if (!TypeChecker.isUnknown(argType) && !TypeChecker.isArray(argType)) {
+          this.report(
+            "INVALID_SPREAD",
+            `spread argument must be an array, got '${TypeChecker.toString(argType)}'`,
+            (element as any).argument?.line ?? 0,
+            (element as any).argument?.column ?? 0
+          )
+        }
+        elementType = TypeChecker.isArray(argType) ? argType : Primitive.unknown()
+      } else {
+        elementType = this.analyzeExpression(element)
+      }
       elementTypes.push(elementType)
     }
 
@@ -632,11 +667,23 @@ const paramTypes = calleeType.params
     const fields: any[] = []
 
     for (const prop of expr.properties || []) {
-      const valueType = this.analyzeExpression(prop.value)
-      fields.push({
-        name: prop.key,
-        type: valueType
-      })
+      if (prop.key === null && prop.value.kind === "Spread") {
+        const argType = this.analyzeExpression(prop.value)
+        if (!TypeChecker.isUnknown(argType) && !TypeChecker.isObject(argType)) {
+          this.report(
+            "INVALID_SPREAD",
+            `spread argument must be an object in object literal, got '${TypeChecker.toString(argType)}'`,
+            (prop.value as any).argument?.line ?? 0,
+            (prop.value as any).argument?.column ?? 0
+          )
+        }
+      } else {
+        const valueType = this.analyzeExpression(prop.value)
+        fields.push({
+          name: prop.key,
+          type: valueType
+        })
+      }
     }
 
     return {
@@ -875,6 +922,10 @@ const paramTypes = calleeType.params
     }
 
     return leftType
+  }
+
+  visitSpread(expr: any): AndroType {
+    return this.analyzeExpression(expr.argument)
   }
 
   analyzeVariable(stmt: VariableStmt): AndroType {

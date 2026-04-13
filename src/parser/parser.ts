@@ -43,6 +43,9 @@ export class Parser {
     // Array literal [1, 2, 3]
     this.prefixParselets.set(TokenType.LBRACKET, this.parseArrayLiteral.bind(this))
 
+    // Spread operator ...
+    this.prefixParselets.set(TokenType.SPREAD, this.parseSpread.bind(this))
+
     // Assignment operators (= and compound: +=, -=, *=, /=, %=)
     this.infixParselets.set(TokenType.ASSIGN, this.parseAssignment.bind(this))
     this.infixParselets.set(TokenType.PLUS_EQUAL, this.parseAssignment.bind(this))
@@ -196,7 +199,14 @@ export class Parser {
       let key: string | null = null
       let value: Expr | null = null
 
-      if (this.check(TokenType.IDENTIFIER) || 
+      // Check for spread operator first
+      if (this.check(TokenType.SPREAD)) {
+        this.advance()
+        const spreadArg = this.parseExpression(Precedence.LOWEST)
+        if (spreadArg) {
+          properties.push({ key: null, value: { kind: "Spread", argument: spreadArg } })
+        }
+      } else if (this.check(TokenType.IDENTIFIER) || 
           this.check(TokenType.KEYWORD) || 
           this.check(TokenType.BOOLEAN) ||
           this.check(TokenType.TYPE_INT) ||
@@ -238,10 +248,20 @@ export class Parser {
     if (this.check(TokenType.RBRACE)) {
       this.advance()
     } else {
-      this.error("Expected '}' to close object literal", brace)
+      this.error("Expected '}' to close object literal", this.peek())
     }
 
     return { kind: "Object", properties }
+  }
+
+  private parseSpread(): Expr {
+    const spread = this.previous()
+    const arg = this.parseExpression(Precedence.LOWEST)
+    if (!arg) {
+      this.error("Expected expression after '...'", spread)
+      return { kind: "Identifier", name: { type: TokenType.IDENTIFIER, value: "error", line: spread.line, column: spread.column } }
+    }
+    return { kind: "Spread", argument: arg }
   }
 
   private parseArrowOrGroup(): Expr {
