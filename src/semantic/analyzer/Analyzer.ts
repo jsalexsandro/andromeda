@@ -155,7 +155,7 @@ export class Analyzer {
     const value = expr.value
 
     if (value === null) {
-      return Primitive.null()
+      return Primitive.unknown()
     }
 
     if (typeof value === "boolean") {
