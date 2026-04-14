@@ -1,0 +1,15 @@
+func process(data, transform) {
+  var result: int = 0
+  var i = 0
+  while (i < 3) {
+    val current: int = data[i]
+    var transformed = transform(current)
+    result = transformed > 10 ? transformed : result ?? 0
+    i += 1
+  }
+  return result
+}
+
+var nums = [2, 5, 8]
+var addTen = (x) => x + 10
+print(process(nums, addTen))

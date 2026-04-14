@@ -1,0 +1,10 @@
+func makeGreeter(prefix) {
+  return (name) => {
+    var display = name ?? "stranger"
+    return prefix + " " + display
+  }
+}
+
+var greet = makeGreeter("Hello")
+print(greet(null))
+print(greet("Ana"))
