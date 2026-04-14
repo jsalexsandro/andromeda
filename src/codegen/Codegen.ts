@@ -49,6 +49,24 @@ export class Codegen {
         return this.visitBreakStmt(node)
       case "ContinueStmt":
         return this.visitContinueStmt(node)
+      case "Group":
+        return this.visitGroup(node)
+      case "Member":
+        return this.visitMember(node)
+      case "Index":
+        return this.visitIndex(node)
+      case "Call":
+        return this.visitCall(node)
+      case "FunctionStmt":
+        return this.visitFunctionStmt(node)
+      case "ReturnStmt":
+        return this.visitReturnStmt(node)
+      case "Conditional":
+        return this.visitConditional(node)
+      case "NullishCoalescing":
+        return this.visitNullishCoalescing(node)
+      case "ArrowFunction":
+        return this.visitArrowFunction(node)
 
       default:
         throw new Error(`Codegen: unsupported node kind '${node.kind}'`)
@@ -184,5 +202,104 @@ export class Codegen {
 
   visitContinueStmt(_node: Stmt & { kind: "ContinueStmt" }): void {
     this.ctx.writer.writeLine("continue;")
+  }
+
+  visitGroup(node: Expr & { kind: "Group"; expression: Expr }): void {
+    this.ctx.writer.write("(")
+    this.visit(node.expression)
+    this.ctx.writer.write(")")
+  }
+
+  visitMember(node: Expr & { kind: "Member"; object: Expr; property: any }): void {
+    this.visit(node.object)
+    this.ctx.writer.write(".")
+    this.ctx.writer.write(node.property.name.value as string)
+  }
+
+  visitIndex(node: Expr & { kind: "Index"; object: Expr; index: Expr }): void {
+    this.visit(node.object)
+    this.ctx.writer.write("[")
+    this.visit(node.index)
+    this.ctx.writer.write("]")
+  }
+
+  visitCall(node: Expr & { kind: "Call"; callee: Expr; args: Expr[] }): void {
+    this.visit(node.callee)
+    this.ctx.writer.write("(")
+    for (let i = 0; i < node.args.length; i++) {
+      if (i > 0) {
+        this.ctx.writer.write(", ")
+      }
+      this.visit(node.args[i])
+    }
+    this.ctx.writer.write(")")
+  }
+
+  visitFunctionStmt(node: Stmt & { kind: "FunctionStmt"; name: any; params: any[]; returnType?: any; body: Stmt }): void {
+    this.ctx.writer.write("function ")
+    this.ctx.writer.write(node.name.value as string)
+    this.ctx.writer.write("(")
+    
+    for (let i = 0; i < node.params.length; i++) {
+      if (i > 0) {
+        this.ctx.writer.write(", ")
+      }
+      this.ctx.writer.write(node.params[i].name.value as string)
+    }
+    
+    this.ctx.writer.write(") ")
+    this.visit(node.body)
+  }
+
+  visitReturnStmt(node: Stmt & { kind: "ReturnStmt"; value?: Expr }): void {
+    this.ctx.writer.write("return")
+    if (node.value) {
+      this.ctx.writer.write(" ")
+      this.visit(node.value)
+    }
+    this.ctx.writer.writeLine(";")
+  }
+
+  visitConditional(node: Expr & { kind: "Conditional"; condition: Expr; consequent: Expr; alternate: Expr }): void {
+    this.visit(node.condition)
+    this.ctx.writer.write(" ? ")
+    this.visit(node.consequent)
+    this.ctx.writer.write(" : ")
+    this.visit(node.alternate)
+  }
+
+  visitNullishCoalescing(node: Expr & { kind: "NullishCoalescing"; left: Expr; right: Expr }): void {
+    this.visit(node.left)
+    this.ctx.writer.write(" ?? ")
+    this.visit(node.right)
+  }
+
+  visitArrowFunction(node: Expr & { kind: "ArrowFunction"; params: any[]; body: Expr | Stmt }): void {
+    this.ctx.writer.write("(")
+    for (let i = 0; i < node.params.length; i++) {
+      if (i > 0) {
+        this.ctx.writer.write(", ")
+      }
+      this.ctx.writer.write(node.params[i].name.value as string)
+    }
+    this.ctx.writer.write(") => ")
+    
+    if (node.body.kind === "BlockStmt") {
+      this.ctx.writer.write("{ ")
+      for (const stmt of node.body.statements) {
+        if (stmt.kind === "ReturnStmt") {
+          this.ctx.writer.write("return")
+          if (stmt.value) {
+            this.ctx.writer.write(" ")
+            this.visit(stmt.value)
+          }
+        } else {
+          this.visit(stmt)
+        }
+      }
+      this.ctx.writer.write(" }")
+    } else {
+      this.visit(node.body)
+    }
   }
 }

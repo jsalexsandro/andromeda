@@ -229,8 +229,10 @@ export class Parser {
         }
       } else if (this.check(TokenType.STRING)) {
         key = this.advance().value as string
-        this.advance()
-        value = this.parseExpression(Precedence.LOWEST)
+        if (this.check(TokenType.COLON)) {
+          this.advance()
+          value = this.parseExpression(Precedence.LOWEST)
+        }
       } else {
         this.error("Expected property name", this.peek())
         break
@@ -666,6 +668,20 @@ export class Parser {
         return true
       }
     }
+    // Also support KEYWORD (like 'val', 'if', etc.) and TYPE_* as keys
+    if (this.tokens[i]?.type === TokenType.KEYWORD || 
+        this.tokens[i]?.type === TokenType.TYPE_INT ||
+        this.tokens[i]?.type === TokenType.TYPE_FLOAT ||
+        this.tokens[i]?.type === TokenType.TYPE_BOOL ||
+        this.tokens[i]?.type === TokenType.TYPE_STRING ||
+        this.tokens[i]?.type === TokenType.TYPE_VOID ||
+        this.tokens[i]?.type === TokenType.BOOLEAN ||
+        this.tokens[i]?.type === TokenType.NULL) {
+      i++
+      if (this.tokens[i]?.type === TokenType.COLON) {
+        return true
+      }
+    }
     if (this.tokens[i]?.type === TokenType.STRING) {
       i++
       if (this.tokens[i]?.type === TokenType.COLON) {
@@ -969,8 +985,17 @@ export class Parser {
       let paramType: Token | undefined
       if (this.check(TokenType.COLON)) {
         this.advance() // consume :
-        const typeToken = this.advance()
-        paramType = typeToken
+        const typeInfo = this.parseTypeAnnotation()
+        if (typeInfo && typeInfo.dimensions && typeInfo.dimensions > 0) {
+          paramType = typeInfo.base
+        } else {
+          paramType = typeInfo?.base
+        }
+        if (typeInfo && typeInfo.dimensions > 0) {
+          for (let d = 0; d < typeInfo.dimensions; d++) {
+            this.check(TokenType.LBRACKET)
+          }
+        }
       }
 
       params.push({ name: paramName, type: paramType, isRest })

@@ -137,7 +137,15 @@ export function main() {
       process.exit(1)
     }
 
-    console.log(`\nAST (${ast.length} statements):\n`)
+    console.log(`\nTokens (${tokens.length}):\n`)
+    for (const token of tokens) {
+      if (token && token.type) {
+        console.log(`${token.type.toString().padEnd(22)} | ${JSON.stringify(token.value)}`)
+      }
+    }
+
+    console.log(`\n---\n`)
+    console.log(`AST (${ast.length} statements):\n`)
     console.log(JSON.stringify(ast, null, 2))
 
   } else {

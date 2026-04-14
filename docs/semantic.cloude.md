@@ -89,6 +89,11 @@ FASE 4 — DECLARATIONS
         checar: variável existe → erro se não
         checar: variável é val/const → erro "imutável"
         checar: tipo do valor bate com tipo da variável
+        
+        Atibuição ++ --
+        Concantenação de strings "" + "" | var_str + var_2_str
+        var_str += ""
+        
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -156,6 +161,8 @@ FASE 6 — FUNÇÕES
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+
+
 FASE 7 — EXPRESSÕES COMPOSTAS
 │
 ├── 24. MemberExpression
@@ -187,10 +194,14 @@ FASE 8 — ESTRUTURAS DE DADOS
 ├── 29. ObjectLiteral
 │       inferir tipo de cada campo
 │       retornar: tipo estrutural { campo: tipo, ... }
+        retornar: se for tipado verificar tipos,
+        erros como: access member invalid
 │
 └── 30. SpreadExpression
         checar: argumento é array (em array/call)
         checar: argumento é object (em object)
+
+[feito ate aqui]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

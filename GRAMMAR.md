@@ -495,6 +495,31 @@ print()
 myFunc(arg1, arg2)
 ```
 
+### 8.11 Rest Parameters
+```
+RestParams → "..." Identifier (":" Type)?
+```
+- Parâmetros rest收集 múltiplos argumentos em um array
+- Sintaxe: `...args` ou `...args: string[]`
+- Deve ser o último parâmetro da função
+
+#### Exemplos:
+```andromeda
+func printAll(...values) { }
+func sum(...nums: int[]) { }
+func greet(name: string, ...messages: string[]) { }
+
+// Uso
+printAll()
+printAll(1, 2, 3)
+sum(1, 2, 5)
+greet("John", "hello", "world")
+```
+
+#### Validações:
+- Rest parameter deve ser o último parâmetro
+- Tipo é validado para cada argumento passado
+
 ### 8.10 Arrow Functions
 ```
 ArrowFunction → "(" (Param ("," Param)*)? ")" (":" Type)? "=>" (Expression | Block)
@@ -578,6 +603,11 @@ Arrays inferem o tipo dos elementos:
 | INVALID_MEMBER_ACCESS | Acesso a propriedade em tipo não-objeto |
 | UNKNOWN_PROPERTY | Tentativa de acessar campo inexistente |
 | INVALID_SPREAD | Spread de tipo incompatível (não é array/objeto) |
+| ARGUMENT_COUNT_MISMATCH | Número de argumentos incompatível com parâmetros da função |
+| INVALID_CALL | Tentativa de chamar tipo que não é função |
+| MISSING_RETURN | Função com retorno explícito mas não retorna valor |
+| INVALID_RETURN | Statement return fora de função |
+| INVALID_CONTINUE | Continue fora de loop |
 
 ---
 
@@ -642,6 +672,8 @@ Arrays inferem o tipo dos elementos:
 | 1.0.12 | 2026-04-13 | **MemberExpression Semantic**, **Member Assignment**, **Index Type Validation** |
 | 1.0.13 | 2026-04-13 | **Bracket Notation on Objects**, index/key type validation |
 | 1.0.14 | 2026-04-13 | **Spread Operator**: arrays, objects, function calls |
+| 1.0.15 | 2026-04-14 | **Rest Parameters**: `...args`, type support, validation |
+| 1.0.16 | 2026-04-14 | **Argument Count Validation**: validates function call arguments |
 
 ---
 

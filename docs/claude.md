@@ -32,7 +32,12 @@ FASE 3 — EXPRESSÕES COMPOSTAS
 │
 ├── 14. Assignment              x = 10
 |       Atribuição composta: (x += 1, x -= 1, *=, /= , %=)
-├── 15. CallExpression          fn(a, b) [TUDO ATE AQUI TA FITO]
+        Atibuição ++ --
+        Concantenação de strings "" + "" | var_str + var_2_str
+        var_str += ""
+        
+        
+├── 15. CallExpression          fn(a, b) 
 
 ├── 16. MemberExpression        obj.prop (falta o semantic)   - Requer OBJECTS
 ├── 17. IndexExpression         arr[0]  (falta o semantic) - Requer ARRAYS
@@ -55,6 +60,8 @@ FASE 5 — ESTRUTURAS DE DADOS
 └── 26. SpreadExpression        ...expr
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ate aqui feito]
 
 FASE 6 — CONTROLE AVANÇADO
 │

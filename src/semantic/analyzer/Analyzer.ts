@@ -561,29 +561,64 @@ export class Analyzer {
 
     const paramTypes = calleeType.params
     const minParams = paramTypes.length
+    const hasRestParam = minParams > 0 && TypeChecker.isArray(paramTypes[minParams - 1])
 
     const isVariadicBuiltin = calleeName === "print" && 
       paramTypes.length === 1 && 
       TypeChecker.isArray(paramTypes[0])
 
     if (!isVariadicBuiltin) {
-      if (argTypes.length > minParams && !calleeName) {
-        this.report(
-          "ARGUMENT_COUNT_MISMATCH",
-          `expected ${minParams} arguments but got ${argTypes.length}`,
-          line,
-          column
-        )
-      }
-
-      for (let i = 0; i < Math.min(argTypes.length, minParams); i++) {
-        if (!TypeChecker.isAssignableTo(argTypes[i], paramTypes[i])) {
+      if (hasRestParam) {
+        const restParamType = (paramTypes[minParams - 1] as any).elementType || Primitive.any()
+        for (let i = 0; i < argTypes.length; i++) {
+          if (i < minParams - 1) {
+            if (!TypeChecker.isAssignableTo(argTypes[i], paramTypes[i])) {
+              this.report(
+                "TYPE_MISMATCH",
+                `argument ${i + 1}: expected '${TypeChecker.toString(paramTypes[i])}' but got '${TypeChecker.toString(argTypes[i])}'`,
+                line,
+                column
+              )
+            }
+          } else {
+            if (!TypeChecker.isAssignableTo(argTypes[i], restParamType)) {
+              this.report(
+                "TYPE_MISMATCH",
+                `argument ${i + 1}: expected '${TypeChecker.toString(restParamType)}' but got '${TypeChecker.toString(argTypes[i])}'`,
+                line,
+                column
+              )
+            }
+          }
+        }
+      } else {
+        if (argTypes.length > minParams) {
           this.report(
-            "TYPE_MISMATCH",
-            `argument ${i + 1}: expected '${TypeChecker.toString(paramTypes[i])}' but got '${TypeChecker.toString(argTypes[i])}'`,
+            "ARGUMENT_COUNT_MISMATCH",
+            `expected ${minParams} arguments but got ${argTypes.length}`,
             line,
             column
           )
+        }
+
+        if (argTypes.length < minParams) {
+          this.report(
+            "ARGUMENT_COUNT_MISMATCH",
+            `expected ${minParams} arguments but got ${argTypes.length}`,
+            line,
+            column
+          )
+        }
+
+        for (let i = 0; i < Math.min(argTypes.length, minParams); i++) {
+          if (!TypeChecker.isAssignableTo(argTypes[i], paramTypes[i])) {
+            this.report(
+              "TYPE_MISMATCH",
+              `argument ${i + 1}: expected '${TypeChecker.toString(paramTypes[i])}' but got '${TypeChecker.toString(argTypes[i])}'`,
+              line,
+              column
+            )
+          }
         }
       }
     }
@@ -632,6 +667,7 @@ export class Analyzer {
   }
 
   visitIndex(expr: any): AndroType {
+    const [line, column] = this.getLineColumn(expr.object)
     const objectType = this.analyzeExpression(expr.object)
     const indexType = this.analyzeExpression(expr.index)
 
@@ -881,9 +917,14 @@ export class Analyzer {
 
     // Return function type
     const paramTypes = (expr.params || []).map((p: any) => {
-      return p.type
+      let paramType = p.type
         ? this.resolveTypeAnnotation(p.type)
         : Primitive.unknown()
+      
+      if (p.isRest) {
+        paramType = Array.of(paramType)
+      }
+      return paramType
     })
 
     const returnType = expr.returnType
@@ -1072,9 +1113,14 @@ export class Analyzer {
 
     // Build function type for symbol table
     const paramTypes = (stmt.params || []).map((p: any) => {
-      return p.type
+      let paramType = p.type
         ? this.resolveTypeAnnotation(p.type)
         : Primitive.unknown()
+      
+      if (p.isRest) {
+        paramType = Array.of(paramType)
+      }
+      return paramType
     })
 
     // Check for duplicate function name
