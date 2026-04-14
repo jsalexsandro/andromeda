@@ -1,9 +1,6 @@
 import * as fs from 'fs'
 import { Lexer } from './lexer/lexer'
 import { Parser } from './parser/parser'
-import { SemanticAnalyzer } from './semantic'
-import { Analyzer } from './semantic/analyzer'
-import { Codegen, CodegenContext } from './codegen'
 
 function showHelp() {
   console.log(`Andromeda Language CLI v1.0.0`)
@@ -94,35 +91,7 @@ export function main() {
       process.exit(1)
     }
 
-    console.log(`> Syntax pass completed: AST generated with ${ast.length} statements.`)
-
-    console.time("semantic")
-    const analyzer = new Analyzer()
-    analyzer.enterGlobalScope()
-    analyzer.analyzeProgram(ast)
-    analyzer.exitGlobalScope()
-    console.timeEnd("semantic")
-
-    if (analyzer.hasErrors()) {
-      console.log("\nSemantic errors:")
-      for (const err of analyzer.getErrors()) {
-        console.log(`  line ${err.line}, col ${err.column}: ${err.message}`)
-      }
-      process.exit(1)
-    }
-
-    if (genJs) {
-      console.log(`> Semantic pass completed: validation successful.`)
-      console.log(`> Generating JavaScript...\n`)
-
-      console.time("codegen")
-      const cg = new Codegen(new CodegenContext())
-      const js = cg.generate(ast)
-      console.timeEnd("codegen")
-
-      console.log("--- Generated JavaScript ---\n")
-      console.log(js)
-    }
+  
 
   } else if (isAst) {
     console.log(`[Andromeda] Parsing ${filename}...`)

@@ -1,3 +1,0 @@
-var oct: { name: string, id: int } = {
-  name: ""
-}
