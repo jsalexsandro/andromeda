@@ -149,39 +149,42 @@ export class Parser {
     }
 
     const elements: Expr[] = []
+    let foundClosingBracket = false
 
     if (this.check(TokenType.RBRACKET)) {
       this.advance()
+      foundClosingBracket = true
       return { kind: "Array", elements }
     }
 
     while (!this.isAtEnd()) {
-      // Check for end of array BEFORE parsing expression
-      if (this.check(TokenType.RBRACKET)) break
-
-      if (this.check(TokenType.SPREAD)) {
-        this.advance()
-        const arg = this.parseExpression(Precedence.LOWEST)
-        if (arg) elements.push({ kind: "Spread", argument: arg })
-      } else {
-        const elem = this.parseExpression(Precedence.LOWEST)
-        if (elem) elements.push(elem)
+      const elem = this.parseExpression(Precedence.LOWEST)
+      if (elem) {
+        elements.push(elem)
       }
 
-      // After parsing element, check if we're done
-      if (this.check(TokenType.RBRACKET)) break
-
-      // Must have comma to continue
-      if (!this.check(TokenType.COMMA)) {
-        this.error("Expected ',' or ']' in array literal", this.peek())
+      if (this.check(TokenType.RBRACKET)) {
+        this.advance()
+        foundClosingBracket = true
         break
       }
-      this.advance()
+
+      if (this.check(TokenType.COMMA)) {
+        this.advance()
+        if (this.check(TokenType.RBRACKET)) {
+          this.advance()
+          foundClosingBracket = true
+          break
+        }
+      } else {
+        if (!this.isAtEnd()) {
+          this.error("Expected ',' or ']' after array element", this.peek())
+        }
+        break
+      }
     }
 
-    if (this.check(TokenType.RBRACKET)) {
-      this.advance()
-    } else {
+    if (!foundClosingBracket && !this.isAtEnd()) {
       this.error("Expected ']' to close array literal", bracket)
     }
 
@@ -513,6 +516,11 @@ export class Parser {
   }
 
   private parseIndex(left: Expr): Expr | null {
+    if (!left) {
+      this.error("Expected expression before '['", this.peek())
+      return null
+    }
+
     const indexExpr = this.parseExpression(Precedence.LOWEST)
 
     if (!indexExpr) {
@@ -590,14 +598,14 @@ export class Parser {
   }
 
   public parse(): Stmt[] {
+    this.errors.errors = [] // Clear errors from previous parse
     const statements: Stmt[] = []
     while (!this.isAtEnd()) {
       try {
         const stmt = this.parseStatement()
         if (stmt) statements.push(stmt)
-      } catch (e) {
-        // On error, skip to next token and continue parsing
-        this.advance()
+      } catch (e: any) {
+        this.synchronize()
       }
     }
     return statements
@@ -741,6 +749,7 @@ export class Parser {
   }
 
   private parseBlockStatement(): Stmt {
+    const lbrace = this.previous() // Track opening brace for error reporting
     this.advance() // consume {
     const statements: Stmt[] = []
 
@@ -752,7 +761,7 @@ export class Parser {
     if (this.check(TokenType.RBRACE)) {
       this.advance() // consume }
     } else {
-      this.error("Expected '}' to close block", this.peek())
+      this.error("Expected '}' to close block", lbrace)
     }
 
     return { kind: "BlockStmt", statements }
@@ -916,9 +925,10 @@ export class Parser {
   private parseIfStatement(): Stmt {
     this.advance() // consume if
 
-    // Parse condition: if (condition)
     if (this.peek().type !== TokenType.LPAREN) {
       this.error("Expected '(' after 'if'", this.peek())
+      this.synchronize()
+      return { kind: "BlockStmt", statements: [] }
     }
     this.advance() // consume (
     const condition = this.parseExpression(Precedence.LOWEST)
@@ -926,28 +936,27 @@ export class Parser {
       this.advance() // consume )
     } else {
       this.error("Expected ')' after condition", this.peek())
+      this.synchronize()
+      return { kind: "BlockStmt", statements: [] }
     }
 
-    // Parse then branch
     let thenBranch: Stmt
     if (this.peek().type === TokenType.LBRACE) {
       thenBranch = this.parseBlockStatement()
     } else {
-      thenBranch = this.parseStatement() || { kind: "ExpressionStmt", expression: { kind: "Literal", value: null } }
+      thenBranch = this.parseStatement() || { kind: "BlockStmt", statements: [] }
     }
 
-    // Check for else
     let elseBranch: Stmt | undefined
     if (this.peek().type === TokenType.KEYWORD && this.peek().value === 'else') {
-      this.advance() // consume else
+      this.advance()
 
       if (this.peek().type === TokenType.KEYWORD && this.peek().value === 'if') {
-        // else if - recursive
         elseBranch = this.parseIfStatement()
       } else if (this.peek().type === TokenType.LBRACE) {
         elseBranch = this.parseBlockStatement()
       } else {
-        elseBranch = this.parseStatement() || { kind: "ExpressionStmt", expression: { kind: "Literal", value: null } }
+        elseBranch = this.parseStatement() || { kind: "BlockStmt", statements: [] }
       }
     }
 
@@ -962,9 +971,10 @@ export class Parser {
   private parseWhileStatement(): Stmt {
     this.advance() // consume while
 
-    // Parse condition: while (condition)
     if (this.peek().type !== TokenType.LPAREN) {
       this.error("Expected '(' after 'while'", this.peek())
+      this.synchronize()
+      return { kind: "BlockStmt", statements: [] }
     }
     this.advance() // consume (
     const condition = this.parseExpression(Precedence.LOWEST)
@@ -972,14 +982,15 @@ export class Parser {
       this.advance() // consume )
     } else {
       this.error("Expected ')' after condition", this.peek())
+      this.synchronize()
+      return { kind: "BlockStmt", statements: [] }
     }
 
-    // Parse body
     let body: Stmt
     if (this.peek().type === TokenType.LBRACE) {
       body = this.parseBlockStatement()
     } else {
-      body = this.parseStatement() || { kind: "ExpressionStmt", expression: { kind: "Literal", value: null } }
+      body = this.parseStatement() || { kind: "BlockStmt", statements: [] }
     }
 
     return {
