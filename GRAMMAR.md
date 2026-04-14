@@ -587,7 +587,19 @@ Arrays inferem o tipo dos elementos:
 [[1, 2], [3, 4]]    → int[][]
 ```
 
-### 9.4 Erros Semânticos Detectados
+### 9.4 Null Literal Type Inference
+
+O literal `null` é tratado como `unknown` para permitir reatribuição:
+```andromeda
+var result = null      // infere: unknown
+result = 10            // OK: unknown ← int
+result = "hello"       // OK: unknown ← string
+result = [1, 2, 3]    // OK: unknown ← int[]
+```
+
+Isso permite padrões comuns onde uma variável é inicializada com `null` e depois recebe valores de tipos diferentes.
+
+### 9.5 Erros Semânticos Detectados
 
 | Código | Descrição |
 |--------|----------|
