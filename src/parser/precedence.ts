@@ -2,6 +2,7 @@ import { TokenType } from '../lexer/types'
 
 export enum Precedence {
   LOWEST = 1,
+  SPREAD,      // ... (lower than LOWEST to stop expression parsing)
   ASSIGN,      // =
   CONDITIONAL, // ?:
   NULLISH,     // ??
@@ -45,6 +46,7 @@ export const TokenPrecedence: Record<string, Precedence> = {
   [TokenType.DOT]: Precedence.MEMBER,
   [TokenType.INCREMENT]: Precedence.POSTFIX,
   [TokenType.DECREMENT]: Precedence.POSTFIX,
+  [TokenType.SPREAD]: Precedence.SPREAD,
   [TokenType.COMMA]: Precedence.LOWEST,
 }
 

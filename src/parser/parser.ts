@@ -656,6 +656,10 @@ export class Parser {
     if (this.tokens[i]?.type === TokenType.RBRACE) {
       return true
     }
+    // Check for spread operator as start of object: {...a}
+    if (this.tokens[i]?.type === TokenType.SPREAD) {
+      return true
+    }
     if (this.tokens[i]?.type === TokenType.IDENTIFIER) {
       i++
       if (this.tokens[i]?.type === TokenType.COLON) {
