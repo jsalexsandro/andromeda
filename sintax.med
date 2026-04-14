@@ -19,3 +19,104 @@ while (is == false){
 func name(n: string): string {
     
 }
+
+
+
+
+const N:   int = 5
+const INF: int = 999999
+const MAX_EDGES: int = 10
+
+// Grafo com arrays paralelos: from, to, weight
+val eFrom:   int[] = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
+val eTo:     int[] = [1, 2, 2, 3, 3, 4, 0, 4, 0, 3]
+val eWeight: int[] = [2, 4, 1, 7, 3, 5, 0, 1, 8, 2]
+
+var dist:    int[]  = [INF, INF, INF, INF, INF]
+var visited: bool[] = [false, false, false, false, false]
+
+func minDist(): int {
+  var best: int = -1
+  var i: int = 0
+  while (i < N) {
+    if (visited[i] == false) {
+      if (best == -1) {
+        best = i
+      } else {
+        if (dist[i] < dist[best]) {
+          best = i
+        }
+      }
+    }
+    i += 1
+  }
+  return best
+}
+
+func dijkstra(start: int): void {
+  dist[start] = 0
+  var step: int = 0
+  while (step < N) {
+    val u: int = minDist()
+    if (u == -1) {
+      return null
+    }
+    visited[u] = true
+    var e: int = 0
+    while (e < MAX_EDGES) {
+      if (eFrom[e] == u) {
+        val candidate: int = dist[u] + eWeight[e]
+        if (candidate < dist[eTo[e]]) {
+          dist[eTo[e]] = candidate
+        }
+      }
+      e += 1
+    }
+    step += 1
+  }
+}
+
+dijkstra(0)
+
+var i: int = 0
+while (i < N) {
+  print(dist[i])
+  i += 1
+}
+// [0, 2, 3, 6, 7]
+
+var obj = { name: "jony" }
+print(obj.name)
+print(obj["name"])
+
+var objs: {name: string}[] = [{name: "Jenny"}]
+
+print(objs[0].name)
+
+var ob_name = objs[0].name == "Jenny" ? "Sim" : "Não" // ternario
+var super_ternay = objs.name != "James" ? objs.name == "Jenny" ? "Se chama Jenny" : "Outro nome" : "Outro"
+
+var identity = (x: int): int => x
+var makeArray = (): int[] => [1, 2, 3]
+var makeMatrix = (): int[][] => [[1, 2], [3, 4]]
+var double = (arr: int[]): int[] => [arr[0] * 2, arr[1] * 2]
+
+const doubish = !!!false
+
+var ising = doubish ?? {}
+
+
+func fn(...args) { }           // rest parameters
+func fn_2(...args: string) { }    // com tipo
+
+
+var numbers = [0, 1, 2]
+
+print(...numbers)
+print([...numbers])
+
+
+const usuario = { nome: "Ana", idade: 25 }
+const endereco = { cidade: "São Paulo" }
+const perfilCompleto = { ...usuario, ...endereco }
+// Resultado: { nome: "Ana", idade: 25, cidade: "São Paulo" }
