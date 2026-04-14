@@ -1166,7 +1166,7 @@ export class Analyzer {
     for (const param of stmt.params || []) {
       const paramName = param.name.value as string
       const paramType = param.type
-        ? TypeChecker.fromKeyword(param.type.value as string) || Primitive.unknown()
+        ? this.resolveTypeAnnotation(param.type)
         : Primitive.unknown()
 
       const symbol: SymbolDefinition = {

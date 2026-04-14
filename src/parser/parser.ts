@@ -1022,20 +1022,10 @@ export class Parser {
         break
       }
 
-      let paramType: Token | undefined
+      let paramType: any = undefined
       if (this.check(TokenType.COLON)) {
         this.advance() // consume :
-        const typeInfo = this.parseTypeAnnotation()
-        if (typeInfo && typeInfo.dimensions && typeInfo.dimensions > 0) {
-          paramType = typeInfo.base
-        } else {
-          paramType = typeInfo?.base
-        }
-        if (typeInfo && typeInfo.dimensions > 0) {
-          for (let d = 0; d < typeInfo.dimensions; d++) {
-            this.check(TokenType.LBRACKET)
-          }
-        }
+        paramType = this.parseTypeAnnotation()
       }
 
       params.push({ name: paramName, type: paramType, isRest })
