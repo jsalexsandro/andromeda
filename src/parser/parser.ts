@@ -140,7 +140,14 @@ export class Parser {
   }
 
   private parseArrayLiteral(): Expr {
-    const bracket = this.previous()
+    const bracket = this.previous().type === TokenType.LBRACKET 
+      ? this.previous() 
+      : this.peek()
+    
+    if (this.previous().type !== TokenType.LBRACKET) {
+      this.advance() // consume [
+    }
+
     const elements: Expr[] = []
 
     if (this.check(TokenType.RBRACKET)) {
@@ -151,10 +158,6 @@ export class Parser {
     while (!this.isAtEnd()) {
       // Check for end of array BEFORE parsing expression
       if (this.check(TokenType.RBRACKET)) break
-      if (this.check(TokenType.COMMA)) {
-        this.advance() // consume trailing comma
-        break
-      }
 
       if (this.check(TokenType.SPREAD)) {
         this.advance()
@@ -612,6 +615,15 @@ export class Parser {
       return this.parseBlockStatement()
     }
 
+    // Array literal: [
+    if (token?.type === TokenType.LBRACKET) {
+      if (this.looksLikeArrayLiteral()) {
+        this.advance() // consume [
+        const expr = this.parseArrayLiteral()
+        return { kind: "ExpressionStmt", expression: expr }
+      }
+    }
+
     // Variable declarations: var, val, const
     if (token?.type === TokenType.KEYWORD) {
       const keyword = token.value as string
@@ -699,6 +711,30 @@ export class Parser {
       }
     }
     if (this.tokens[i]?.type === TokenType.RBRACE) {
+      return true
+    }
+    return false
+  }
+
+  private looksLikeArrayLiteral(): boolean {
+    let i = this.current + 1
+    if (this.tokens[i]?.type === TokenType.RBRACKET) {
+      return true
+    }
+    if (this.tokens[i]?.type === TokenType.SPREAD) {
+      return true
+    }
+    if (this.tokens[i]?.type === TokenType.NUMBER ||
+        this.tokens[i]?.type === TokenType.STRING ||
+        this.tokens[i]?.type === TokenType.BOOLEAN ||
+        this.tokens[i]?.type === TokenType.NULL ||
+        this.tokens[i]?.type === TokenType.LBRACKET ||
+        this.tokens[i]?.type === TokenType.LBRACE ||
+        this.tokens[i]?.type === TokenType.IDENTIFIER ||
+        this.tokens[i]?.type === TokenType.MINUS ||
+        this.tokens[i]?.type === TokenType.PLUS ||
+        this.tokens[i]?.type === TokenType.NOT ||
+        this.tokens[i]?.type === TokenType.LPAREN) {
       return true
     }
     return false
@@ -1079,6 +1115,13 @@ export class Parser {
 
     // Left associativity loop
     while (!this.isAtEnd() && precedence < getPrecedence(this.peek().type)) {
+      // Special case: if we see [ but it looks like an array literal, don't treat as index
+      if (this.peek().type === TokenType.LBRACKET) {
+        if (this.looksLikeArrayLiteral()) {
+          return left // Array literal is separate expression, stop here
+        }
+      }
+
       const infix = this.infixParselets.get(this.peek().type)
       if (!infix) {
         return left
