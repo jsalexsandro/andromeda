@@ -34,4 +34,5 @@ export const TYPES_NATIVE = [
   'bool',
   'string',
   'void',
+  'any',
 ]

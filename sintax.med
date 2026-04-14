@@ -1,0 +1,21 @@
+var name: string = "Jonny"
+var year = 10 // inferência de tipo (year é int para sempre)
+var is = true
+var pi = 3.14
+
+var nullable = null
+
+val s = 2 // val é imutavel.
+
+
+if (is){
+    
+}
+
+while (is == false){
+
+}
+
+func name(n: string): string {
+    
+}

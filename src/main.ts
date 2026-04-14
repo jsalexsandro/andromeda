@@ -86,12 +86,10 @@ export function main() {
     const ast = parser.parse()
     console.timeEnd("parser")
 
-    if (parser.errors.hasErrors()) {
+if (parser.errors.hasErrors()) {
       parser.errors.renderAll()
       process.exit(1)
     }
-
-  
 
   } else if (isAst) {
     console.log(`[Andromeda] Parsing ${filename}...`)

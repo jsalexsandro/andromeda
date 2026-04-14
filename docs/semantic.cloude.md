@@ -5,6 +5,23 @@
 ```
 FASE 1 — INFRAESTRUTURA BASE
 │       (sem isso nada funciona)
+
+  semantic/
+    index.ts← entry point, exporta o analisador
+    SemanticAnalyzer.ts← orquestra tudo, visita cada nó
+    
+    scope/← gerenciamento de escopo
+      Symbol.ts← definição de símbolo (nome, tipo, mutável)
+      Scope.ts← escopo único (map de símbolos + parent)
+      ScopeManager.ts← push/pop, lookup em cadeia
+    
+    types/← sistema de tipos
+   
+    checkers/← um arquivo por domínio
+    
+    errors/
+      SemanticError.ts← tipo de erro + localização
+      ErrorMessages.ts← todas as mensagens formatadas
 │
 ├── 1. Symbol
 │       { name, type, kind, mutable, line, column }
@@ -28,7 +45,7 @@ FASE 2 — SISTEMA DE TIPOS BASE
 │
 ├── 5. TypeKind enum
 │       INT, FLOAT, STRING, BOOLEAN,
-│       NULL, VOID, ANY, UNKNOWN
+│       NULL, VOID, ANY
 │
 ├── 6. Type interface
 │       primitive  → TypeKind
@@ -73,18 +90,27 @@ FASE 4 — DECLARATIONS
 ├── 12. VariableDeclaration
         var -> mutable: true
 │       val  → mutable: false
-
-        PARSER: (essa função é do parser e ele ja faz)
-          val sem pre definição de tipo -> error
-          (ex: val n: string = "") -> ok, tipo informado
-          (ex: val n = "") -> error (val requer tipo informado)
-          
-          
 │       const → mutable: false (alias)
 │       checar: nome já existe no escopo atual → erro
 │       checar: tipo anotado bate com valor → erro
 │       registrar no escopo atual
 │
+
+
+> 12.1 AnotationTypes
+      Em determinado caso -> após ":" é um tipagem
+      esses casos são:l
+      var name: string = ''
+      func name() : string {}
+      em parametros:
+      (name: string)
+      em arrow functions:
+      (): int => 2
+      cosnt pow = (x: int): int => x * 
+      
+      
+> 
+
 └── 13. Assignment
         checar: variável existe → erro se não
         checar: variável é val/const → erro "imutável"

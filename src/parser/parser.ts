@@ -770,13 +770,11 @@ export class Parser {
       return null
     }
     
-    // Check for type annotation
+    // Check for type annotation (optional in parser)
     let typeAnnotation: { base: Token; dimensions: number } | undefined
     if (this.peek().type === TokenType.COLON) {
       this.advance() // consume colon
       typeAnnotation = this.parseTypeAnnotation()
-    } else if (keyword === 'val') {
-      this.error(`Type annotation is required for 'val' declarations`, nameToken)
     }
     
     // Check for initializer
