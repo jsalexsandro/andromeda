@@ -815,14 +815,44 @@ export class Parser {
   }
 
   private parseTypeAnnotation(): any {
+    // Check for function type: (int) => int or ((int) => int)
+    if (this.check(TokenType.LPAREN)) {
+      const funcType = this.parseFunctionTypeAnnotation()
+      
+      // Handle optional wrapping parens: ((int) => int)[]
+      // After parsing the function type, if next is ')' and then '[', it's wrapped
+      if (this.check(TokenType.RPAREN)) {
+        this.advance() // consume the wrapping )
+        // Now check for array dimensions
+        while (this.check(TokenType.LBRACKET)) {
+          this.advance()
+          if (!this.check(TokenType.RBRACKET)) {
+            this.error("Expected ']' after '[' in type annotation", this.peek())
+            break
+          }
+          this.advance()
+          funcType.dimensions = (funcType.dimensions || 0) + 1
+        }
+        return funcType
+      }
+      
+      // Check for array dimensions directly after function type: (int) => int[]
+      while (this.check(TokenType.LBRACKET)) {
+        this.advance()
+        if (!this.check(TokenType.RBRACKET)) {
+          this.error("Expected ']' after '[' in type annotation", this.peek())
+          break
+        }
+        this.advance()
+        funcType.dimensions = (funcType.dimensions || 0) + 1
+      }
+      
+      return funcType
+    }
+
     // Check for tuple type: [int, string]
     if (this.check(TokenType.LBRACKET)) {
       return this.parseTupleTypeAnnotation()
-    }
-
-    // Check for function type: (int) => int
-    if (this.check(TokenType.LPAREN)) {
-      return this.parseFunctionTypeAnnotation()
     }
 
     // Check for object type annotation: { name: string, age: int }
@@ -830,6 +860,7 @@ export class Parser {
       return this.parseObjectTypeAnnotation()
     }
 
+    // Base type
     const baseType = this.advance()
     const validTypes = [
       TokenType.IDENTIFIER,
@@ -847,8 +878,9 @@ export class Parser {
       return undefined
     }
 
-    // Parse dimensions: int[][] etc
-    let dimensions = 0
+    let type = { base: baseType, dimensions: 0 }
+
+    // Parse dimensions: int[][], etc
     while (this.check(TokenType.LBRACKET)) {
       this.advance()
       if (!this.check(TokenType.RBRACKET)) {
@@ -856,10 +888,10 @@ export class Parser {
         break
       }
       this.advance()
-      dimensions++
+      type.dimensions++
     }
 
-    return { base: baseType, dimensions }
+    return type
   }
 
   private parseTupleTypeAnnotation(): any {
@@ -918,6 +950,14 @@ export class Parser {
     }
     this.advance() // consume )
 
+    // Check for immediate => (not wrapped)
+    let isWrapped = false
+    if (this.check(TokenType.RPAREN)) {
+      // This is wrapped like ((int) => int) - need extra )
+      isWrapped = true
+      this.advance() // consume the extra )
+    }
+
     // Expect =>
     if (!this.check(TokenType.ARROW)) {
       this.error("Expected '=>' in function type", this.peek())
@@ -931,7 +971,8 @@ export class Parser {
     return {
       kind: "FunctionType",
       params,
-      returnType
+      returnType,
+      isWrapped
     }
   }
 
