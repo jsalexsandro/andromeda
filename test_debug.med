@@ -1,0 +1,2 @@
+// Test tuple with array of function
+val test1: [(int) => void][] = []

@@ -1052,7 +1052,9 @@ export class Parser {
       }
     }
 
-    return { kind: "TupleType", elements }
+    // Parse array dimensions after tuple: [int, string][]
+    const tupleType = { kind: "TupleType", elements }
+    return this.parseArrayDimensions(tupleType)
   }
 
   private parseFunctionTypeAnnotation(): any {

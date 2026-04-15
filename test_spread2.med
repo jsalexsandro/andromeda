@@ -1,0 +1,6 @@
+// 2. Chamada de função com spread, ternário e múltiplos unários
+// O desafio é não confundir o '...' com o início de um tipo ou erro
+val result = func(
+    ...cond ? [!!true, - - -5] : [...[!!!false]], 
+    { [key]: !!(a ?? b) } 
+)

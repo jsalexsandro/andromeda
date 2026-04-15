@@ -1,10 +1,10 @@
+// 1. Definição de um tipo que é um array de tuplas de funções 
+// que retornam objetos com métodos que retornam tipos any
+val godMode: [ ((int, string) => { run: () => any })[] ][] = []
+
 // 3. O "Inception" de Arrow Functions
-// Uma arrow function que retorna outra, que retorna outra, 
-// usada como valor em um objeto, dentro de um array.
 val brainMelter = [
-    { 
-        deep: (x: int) => (y: int) => (z: int): int => x + y + z 
-    }
+    { deep: (x: int) => (y: int) => (z: int): int => x + y + z }
 ]
 
 // 4. Acesso e Execução
