@@ -1,17 +1,34 @@
-// Test wrapped function type in array
-val fnArray: ((int) => int)[] = [x => x * 2]
+// ========== All Function Type Cases ==========
 
-// Also test simple function type in array
-val simpleArray: (int) => int[] = x => [x]
+// 1. Basic function type: (int) => int
+val fn1: (int) => int = x => x * 2
 
-// Test function type returning function: () => (int) => int
+// 2. Function returning function: () => (int) => int
 val curried: () => (int) => int = () => x => x + 1
 
-// Test function with function param: ((int) => int) => int
+// 3. Array of functions: ((int) => int)[]
+val fnArray: ((int) => int)[] = [x => x * 2, x => x + 1]
+
+// 4. Function returning array: (int) => int[]
+val toArray: (int) => int[] = x => [x, x * 2]
+
+// 5. Function with function parameter: ((int) => int) => int
 val applyFn: ((int) => int) => int = f => f(1)
 
-// Test object with function fields: {name: string, fn: (int) => int}
+// 6. Object with function fields
 val obj: {name: string, fn: (int) => int} = {
   name: "test",
   fn: x => x + 1
 }
+
+// 7. Previously NOT supported: both wrapped
+val compose: ((int) => int) => ((int) => int) = f => f
+
+// 8. Empty params: () => int
+val emptyParams: () => int = () => 42
+
+// 9. Multi-param: (int, string) => bool
+val multi: (int, string) => bool = (x, s) => x > 0
+
+// 10. Nested: (int) => (string) => (bool) => int
+val tripleNested: (int) => (string) => (bool) => int = a => b => c => a
