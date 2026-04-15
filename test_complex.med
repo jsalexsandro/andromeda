@@ -1,0 +1,103 @@
+// ========== Basic Types ==========
+val a: int = 1
+val b: string = "hello"
+val c: bool = true
+val d: float = 1.5
+val e: any = "anything"
+val f: null = null
+
+// ========== Array Types ==========
+val arr1: int[] = [1, 2, 3]
+val arr2: string[] = ["a", "b"]
+val arr3: int[][] = [[1, 2], [3, 4]]
+val arr4: int[][][] = [[[1]]]
+
+// ========== Object Types ==========
+val obj1: {} = {}
+val obj2: {name: string} = {name: "John"}
+val obj3: {name: string, age: int} = {name: "John", age: 30}
+val obj4: {user: {name: string}} = {user: {name: "John"}}
+val obj5: {items: int[], count: int} = {items: [1, 2], count: 5}
+
+// ========== Array of Objects ==========
+val users: {name: string}[] = [{name: "Alice"}, {name: "Bob"}]
+val matrix: {cells: int[][]}[] = [{cells: [[1]]}]
+
+// ========== Tuple Types ==========
+val tuple1: [int, string] = [1, "two"]
+val tuple2: [int, string, bool] = [1, "two", true]
+
+// ========== Function Types - Basic ==========
+val fn1: (int) => int = x => x * 2
+val fn2: (string) => string = s => s + "!"
+val fn3: (int, string) => bool = (x, s) => x > 0
+
+// ========== Function Types - Empty Params ==========
+val fn4: () => int = () => 42
+val fn5: () => string = () => "hello"
+val fn6: () => int[] = () => [1, 2, 3]
+
+// ========== Function Types - Return Array ==========
+val fn7: (int) => int[] = x => [x, x * 2]
+
+// ========== Function Types - Return Function ==========
+val fn9: () => (int) => int = () => x => x + 1
+val fn10: () => (string) => string = () => s => s + "!"
+
+// ========== Function Types - Wrapped Parameter ==========
+val fn11: ((int) => int) => int = f => f(1)
+val fn12: ((string) => bool) => bool = f => f("test")
+
+// ========== Function Types - Both Wrapped ==========
+val fn15: ((int) => int) => ((int) => int) = f => f
+val fn16: ((string) => string) => ((int) => int) = f => x => 0
+
+// ========== Function Types - Nested ==========
+val fn17: (int) => (string) => int = a => b => a
+val fn18: (int) => (string) => (bool) => int = a => b => c => a
+
+// ========== Function Types - Array of Wrapped ==========
+val fn19: ((int) => int)[] = [x => x * 2, x => x + 1]
+val fn20: ((string) => string)[] = [s => s + "a", s => s + "b"]
+
+// ========== Function Types - Array of Function with Params ==========
+val fn21: ((int, int) => int)[] = [(a, b) => a + b, (a, b) => a * b]
+
+// ========== Function Types - Object with Function Fields ==========
+val fn22: {fn: (int) => int, name: string} = {fn: x => x + 1, name: "test"}
+val fn23: {apply: ((int) => int), result: int} = {apply: x => x * 2, result: 10}
+
+// ========== Function Types - Object Array with Functions ==========
+val fn24: {name: string, run: (int) => int}[] = [
+  {name: "double", run: x => x * 2},
+  {name: "triple", run: x => x * 3}
+]
+
+// ========== Mixed Complex Types ==========
+val fn25: (() => int[]) => ((int) => int)[] = fn => [x => fn()[0] + x]
+
+// ========== Function with function params (using func keyword) ==========
+func applyInt(f: (int) => int, x: int): int {
+  return f(x)
+}
+
+func applyStr(f: (string) => string, s: string): string {
+  return f(s)
+}
+
+func double(x: int): int {
+  return x * 2
+}
+
+// ========== Nested function declarations ==========
+func higherOrder(fn: (int) => int): (int) => int {
+  return fn
+}
+
+func returnsFn(): (int) => int {
+  return x => x + 1
+}
+
+// ========== Test the functions ==========
+val result1 = applyInt(double, 5)
+val result2 = returnsFn()
