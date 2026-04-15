@@ -1,0 +1,10 @@
+// Ternário aninhado na parte "else" e "then"
+val status = (user == null) 
+    ? "Desconectado" 
+    : (user.admin ?? false) 
+        ? "Admin: " + user.name 
+        : "User: " + (user.nickname ?? "Anon")
+
+// Coalescência nula com arrays e objetos vazios
+val settings = preferences ?? metadata ?? { theme: "dark" }
+val firstTag = tags[0] ?? defaultTags[0] ?? "none" 
