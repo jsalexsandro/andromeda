@@ -129,3 +129,22 @@ val obj: {name: string, fn: (int) => int} = {
   name: "test",
   fn: (x: int): int => x + 1
 }
+
+// ========== Advanced Function Types ==========
+// Function returning function: () => (int) => int
+val curried: () => (int) => int = () => x => x + 1
+
+// Function type in array: ((int) => int)[]
+val fnArray: ((int) => int)[] = [x => x * 2, x => x + 1]
+
+// Function returning array: (int) => int[]
+val toArray: (int) => int[] = x => [x, x * 2]
+
+// Function with function parameter: ((int) => int) => int
+val applyFn: ((int) => int) => int = f => f(1)
+
+// Object with function fields using advanced types
+val handlers: {name: string, callback: (int) => int}[] = [
+  { name: "double", callback: x => x * 2 },
+  { name: "triple", callback: x => x * 3 }
+]

@@ -1,1 +1,17 @@
-val n = 2
+// Test wrapped function type in array
+val fnArray: ((int) => int)[] = [x => x * 2]
+
+// Also test simple function type in array
+val simpleArray: (int) => int[] = x => [x]
+
+// Test function type returning function: () => (int) => int
+val curried: () => (int) => int = () => x => x + 1
+
+// Test function with function param: ((int) => int) => int
+val applyFn: ((int) => int) => int = f => f(1)
+
+// Test object with function fields: {name: string, fn: (int) => int}
+val obj: {name: string, fn: (int) => int} = {
+  name: "test",
+  fn: x => x + 1
+}

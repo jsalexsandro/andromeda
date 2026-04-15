@@ -815,15 +815,76 @@ export class Parser {
   }
 
   private parseTypeAnnotation(): any {
-    // Check for function type: (int) => int or ((int) => int)
+    // Check for function type: (int) => int or ((int) => int) or ((int) => int)[]
     if (this.check(TokenType.LPAREN)) {
-      const funcType = this.parseFunctionTypeAnnotation()
+      // Peek ahead to detect wrapped function type: ((...))
+      let lookahead = this.current + 1
+      let parenDepth = 1
+      let foundWrapped = false
       
-      // Handle optional wrapping parens: ((int) => int)[]
-      // After parsing the function type, if next is ')' and then '[', it's wrapped
-      if (this.check(TokenType.RPAREN)) {
-        this.advance() // consume the wrapping )
-        // Now check for array dimensions
+      while (lookahead < this.tokens.length) {
+        const tok = this.tokens[lookahead]
+        if (tok.type === TokenType.LPAREN) {
+          parenDepth++
+        } else if (tok.type === TokenType.RPAREN) {
+          parenDepth--
+          if (parenDepth === 0) {
+            // Found matching ) for the first (
+            if (lookahead + 1 < this.tokens.length) {
+              const after = this.tokens[lookahead + 1]
+              // Wrapped only if followed by [ (array)
+              if (after.type === TokenType.LBRACKET) {
+                foundWrapped = true
+              }
+            }
+            break
+          }
+        }
+        lookahead++
+      }
+      
+      if (foundWrapped) {
+        // Parse wrapped: ((int) => int) or ((int) => int)[]
+        this.advance() // consume first (
+        this.advance() // consume second (
+        
+        // Parse parameters
+        const params: any[] = []
+        if (!this.check(TokenType.RPAREN)) {
+          while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
+            const paramType = this.parseTypeAnnotation()
+            params.push(paramType)
+            if (this.check(TokenType.COMMA)) {
+              this.advance()
+            } else if (!this.check(TokenType.RPAREN)) {
+              break
+            }
+          }
+        }
+        
+        if (!this.check(TokenType.RPAREN)) {
+          this.error("Expected ')' in function type", this.peek())
+          return undefined
+        }
+        this.advance() // consume )
+        
+        // Expect =>
+        if (!this.check(TokenType.ARROW)) {
+          this.error("Expected '=>' in function type", this.peek())
+          return undefined
+        }
+        this.advance() // consume =>
+        
+        // Parse return type
+        const returnType = this.parseTypeAnnotation()
+        
+        // Consume wrapping )
+        if (this.check(TokenType.RPAREN)) {
+          this.advance()
+        }
+        
+        // Parse array dimensions: ((int) => int)[]
+        let dimensions = 0
         while (this.check(TokenType.LBRACKET)) {
           this.advance()
           if (!this.check(TokenType.RBRACKET)) {
@@ -831,12 +892,23 @@ export class Parser {
             break
           }
           this.advance()
-          funcType.dimensions = (funcType.dimensions || 0) + 1
+          dimensions++
         }
-        return funcType
+        
+        return {
+          kind: "FunctionType",
+          params,
+          returnType,
+          isWrapped: true,
+          dimensions
+        }
       }
       
-      // Check for array dimensions directly after function type: (int) => int[]
+      // Not wrapped - parse as regular function type (int) => int
+      const funcType = this.parseFunctionTypeAnnotation()
+      
+      // Parse array dimensions after function type: (int) => int[]
+      let dimensions = 0
       while (this.check(TokenType.LBRACKET)) {
         this.advance()
         if (!this.check(TokenType.RBRACKET)) {
@@ -844,7 +916,11 @@ export class Parser {
           break
         }
         this.advance()
-        funcType.dimensions = (funcType.dimensions || 0) + 1
+        dimensions++
+      }
+      
+      if (dimensions > 0) {
+        funcType.dimensions = dimensions
       }
       
       return funcType
@@ -968,14 +1044,6 @@ export class Parser {
     }
     this.advance() // consume )
 
-    // Check for immediate => (not wrapped)
-    let isWrapped = false
-    if (this.check(TokenType.RPAREN)) {
-      // This is wrapped like ((int) => int) - need extra )
-      isWrapped = true
-      this.advance() // consume the extra )
-    }
-
     // Expect =>
     if (!this.check(TokenType.ARROW)) {
       this.error("Expected '=>' in function type", this.peek())
@@ -983,14 +1051,35 @@ export class Parser {
     }
     this.advance() // consume =>
 
-    // Parse return type
-    const returnType = this.parseTypeAnnotation()
+    // Parse return type - could be another function type or regular type
+    let returnType: any
+    
+    if (this.check(TokenType.LPAREN)) {
+      // Could be function type like (int) => int or wrapped like ((int) => int)
+      const funcReturn = this.parseFunctionTypeAnnotation()
+      returnType = funcReturn
+    } else {
+      returnType = this.parseTypeAnnotation()
+    }
+
+    // Parse array dimensions after function type: (int) => int[]
+    let dimensions = 0
+    while (this.check(TokenType.LBRACKET)) {
+      this.advance()
+      if (!this.check(TokenType.RBRACKET)) {
+        this.error("Expected ']' after '[' in type annotation", this.peek())
+        break
+      }
+      this.advance()
+      dimensions++
+    }
 
     return {
       kind: "FunctionType",
       params,
       returnType,
-      isWrapped
+      isWrapped: false,
+      dimensions
     }
   }
 
