@@ -238,6 +238,60 @@ val withArr: {items: int[], name: string} = {items: [1, 2], name: "test"}
 val users: {name: string}[] = [{name: "Alice"}, {name: "Bob"}]
 ```
 
+### 7.2 Type Annotations
+
+```
+Type          → BaseType ArrayDimension*
+BaseType     → "int" | "float" | "bool" | "string" | "void" | "any" | "null" | Identifier
+ArrayDimension → "[" "]"
+FunctionType → "(" (Type ("," Type)*)? ")" "=>" Type
+```
+
+#### Base Types:
+```
+int       → números inteiros
+float     → números decimais
+bool      → true ou false
+string    → texto
+void      → sem retorno
+any       → qualquer tipo
+null      → nulo
+```
+
+#### Function Types (Type Annotations):
+```
+(int) => int           // parâmetro int, retorna int
+(int, string) => bool  // múltiplos parâmetros
+() => int              // sem parâmetros
+(int) => int[]         // retorna array
+(int) => (string) => string  // retorna função
+((int) => int) => int  // parâmetro é função
+((int) => int)[]       // array de funções
+```
+
+### Exemplos de Type Annotations:
+```andromeda
+// Variáveis
+val fn: (int) => int = x => x * 2
+val curried: () => (int) => int = () => x => x + 1
+val fnArray: ((int) => int)[] = [x => x * 2]
+
+// Funções
+func apply(f: ((int) => int), x: int): int = f(x)
+func map(fn: (int) => int, arr: int[]): int[] = arr.map(fn)
+
+// Objects com campos de função
+val obj: {name: string, fn: (int) => int} = {
+  name: "test",
+  fn: x => x + 1
+}
+
+// Array de objects com funções
+val handlers: {name: string, callback: (int) => int}[] = [
+  { name: "double", callback: x => x * 2 }
+]
+```
+
 ---
 
 ## 8. Statements
@@ -686,6 +740,7 @@ Isso permite padrões comuns onde uma variável é inicializada com `null` e dep
 | 1.0.14 | 2026-04-13 | **Spread Operator**: arrays, objects, function calls |
 | 1.0.15 | 2026-04-14 | **Rest Parameters**: `...args`, type support, validation |
 | 1.0.16 | 2026-04-14 | **Argument Count Validation**: validates function call arguments |
+| 1.0.17 | 2026-04-15 | **Function Types**: (int) => int, function parameters, arrays of functions |
 
 ---
 
@@ -730,9 +785,19 @@ Isso permite padrões comuns onde uma variável é inicializada com `null` e dep
 - [x] CallExpression Semantic validation
 - [x] **Spread Operator**: `[...arr]`, `{...obj}`, `fn(...args)`
 
+### Function Types
+- [x] Basic Function Types: `(int) => int`
+- [x] Multi-parameter: `(int, string) => bool`
+- [x] No parameters: `() => int`
+- [x] Function returning Array: `(int) => int[]`
+- [x] Function returning Function: `() => (int) => int`
+- [x] Function with function parameter: `((int) => int) => int`
+- [x] Array of Functions: `((int) => int)[]`
+- [x] Object with function fields: `{name: string, fn: (int) => int}`
+
 ---
 
-## Em Desenvolvimento (Planejado)
+## Parcialmente Implementado
 
 - [ ] ForStatement
 - [ ] Androx (sintaxe JSX nativa)
