@@ -1,0 +1,9 @@
+// O "Boss Final" dos tipos de função
+val compose: ((int) => int, (int) => int) => (int) => int = 
+    (f: (int) => int, g: (int) => int): (int) => int => 
+        (x: int): int => f(g(x))
+
+// Array de funções que retornam objetos complexos
+val factories: ((string) => {id: int, data: string[]})[] = [
+    (s: string) => { id: 1, data: [s] }
+] 

@@ -366,15 +366,64 @@ export class Parser {
     return this.parseArrowBodyWithReturnType(params, returnType)
   }
 
+  private isObjectTypeAnnotation(lbracePos: number): boolean {
+    // Look ahead from lbrace position to check if it's { key: type } or { key: expr }
+    let i = lbracePos + 1
+    
+    // Skip empty
+    if (!this.tokens[i] || this.tokens[i].type === TokenType.RBRACE) return false
+    
+    // Get the key (identifier)
+    const keyToken = this.tokens[i]
+    if (!keyToken || (keyToken.type !== TokenType.IDENTIFIER && keyToken.type !== TokenType.KEYWORD)) {
+      return false
+    }
+    i++
+    
+    // Must have colon
+    if (!this.tokens[i] || this.tokens[i].type !== TokenType.COLON) {
+      return false
+    }
+    i++
+    
+    // After colon, check if it's a type
+    const afterColon = this.tokens[i]?.type
+    const typeTokens = [
+      TokenType.TYPE_INT, TokenType.TYPE_FLOAT, TokenType.TYPE_BOOL,
+      TokenType.TYPE_STRING, TokenType.TYPE_VOID, TokenType.TYPE_ANY,
+      TokenType.NULL
+    ]
+    
+    return typeTokens.includes(afterColon)
+  }
+
   private parseArrowBody(params: { name: Token; type?: { base: Token; dimensions: number }; isRest?: boolean }[]): Expr {
-    // Arrow body can be expression or block
+    // Arrow body can be expression, block, or object literal
     if (this.check(TokenType.LBRACE)) {
-      // Block body: () => { return x }
-      const body = this.parseBlockStatement()
-      return {
-        kind: "ArrowFunction",
-        params,
-        body
+      // Check if it's an object type annotation like {id: int} - that's invalid for body
+      if (this.isObjectTypeAnnotation(this.current)) {
+        this.error("Expected expression after '=>'", this.peek())
+        return { kind: "Literal", value: null }
+      }
+      
+      // Try to parse as object literal first
+      const savedPos = this.current
+      try {
+        const objLiteral = this.parseObjectLiteral()
+        return {
+          kind: "ArrowFunction",
+          params,
+          body: objLiteral
+        }
+      } catch (e) {
+        // Restore position and try as block
+        this.current = savedPos
+        const body = this.parseBlockStatement()
+        return {
+          kind: "ArrowFunction",
+          params,
+          body
+        }
       }
     } else {
       // Expression body: () => x + 1
@@ -392,15 +441,34 @@ export class Parser {
   }
 
   private parseArrowBodyWithReturnType(params: { name: Token; type?: { base: Token; dimensions: number }; isRest?: boolean }[], returnType: { base: Token; dimensions: number } | undefined): Expr {
-    // Arrow body can be expression or block
+    // Arrow body can be expression, block, or object literal
     if (this.check(TokenType.LBRACE)) {
-      // Block body: () => { return x }
-      const body = this.parseBlockStatement()
-      return {
-        kind: "ArrowFunction",
-        params,
-        returnType,
-        body
+      // Check if it's an object type annotation like {id: int} - that's invalid for body
+      if (this.isObjectTypeAnnotation(this.current)) {
+        this.error("Expected expression after '=>'", this.peek())
+        return { kind: "Literal", value: null }
+      }
+      
+      // Try to parse as object literal first
+      const savedPos = this.current
+      try {
+        const objLiteral = this.parseObjectLiteral()
+        return {
+          kind: "ArrowFunction",
+          params,
+          returnType,
+          body: objLiteral
+        }
+      } catch (e) {
+        // Restore position and try as block
+        this.current = savedPos
+        const body = this.parseBlockStatement()
+        return {
+          kind: "ArrowFunction",
+          params,
+          returnType,
+          body
+        }
       }
     } else {
       // Expression body: () => x + 1
