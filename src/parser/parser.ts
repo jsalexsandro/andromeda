@@ -1114,11 +1114,12 @@ export class Parser {
 
     // Left associativity loop
     while (!this.isAtEnd() && precedence < getPrecedence(this.peek().type)) {
-      // Special case: if we see [ but it looks like an array literal and there's no left value, 
+      // Special case: if we see [ but it looks like an array literal and left is a literal,
       // don't treat as index. This handles standalone arrays like "[1, 2, 3]" in expression statements.
-      if (this.peek().type === TokenType.LBRACKET && left && left.kind !== "Identifier") {
-        if (this.looksLikeArrayLiteral()) {
-          return left // Array literal is separate expression, stop here
+      if (this.peek().type === TokenType.LBRACKET && left) {
+        const isLiteralLeft = left.kind === 'Array' || left.kind === 'Object' || left.kind === 'Literal'
+        if (isLiteralLeft && this.looksLikeArrayLiteral()) {
+          return left
         }
       }
 
