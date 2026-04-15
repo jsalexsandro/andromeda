@@ -3,9 +3,8 @@ var year = 10 // inferência de tipo (year é int para sempre)
 var is = true
 var pi = 3.14
 
+// Variables for complex tests
 var nullable = null
-
-val s = 2 // val é imutavel.
 
 
 if (is){
@@ -148,3 +147,82 @@ val handlers: {name: string, callback: (int) => int}[] = [
   { name: "double", callback: x => x * 2 },
   { name: "triple", callback: x => x * 3 }
 ]
+
+// ========== Deep Nested Function Types ==========
+// Function returning function returning object: (int) => (string) => {x: int}
+val deepNested: (int) => (string) => {x: int} = a => b => { x: a }
+
+// Both wrapped: ((int) => int) => ((int) => int)
+val compose: ((int) => int) => ((int) => int) = f => f
+
+// Array of wrapped functions: ((string) => bool)[]
+val boolFns: ((string) => bool)[] = [s => s != "", s => s.length > 0]
+
+// Object with tuple of functions
+val registry: { hooks: [(int) => void, (string) => bool], active: bool } = {
+  hooks: [(n: int) => {}, (s: string) => true],
+  active: !!!false
+}
+
+// ========== Function Returning Object ==========
+// Arrow function returning object (must distinguish from block)
+val returnObj: (string) => {id: int} = s => { id: 1 }
+
+// Callback with object parameter and function return
+val handler: {
+  onSuccess: ({data: string, code: int}) => (bool) => { status: string }
+} = {
+  onSuccess: (obj) => (b) => ({ status: "ok" })
+}
+
+// ========== Complex Logic & Precedence ==========
+// Ternary with nullish chaining
+val status = (user == null)
+  ? "Desconectado"
+  : (user.admin ?? false)
+    ? "Admin: " + user.name
+    : "User: " + (user.nickname ?? "Anon")
+
+// Nullish with arrays and objects
+val settings = preferences ?? metadata ?? { theme: "dark" }
+val firstTag = tags[0] ?? defaultTags[0] ?? "none"
+
+// Nested ternary "Schrödinger"
+val nested = cond1 ? cond2 ? cond3 ? a : b : c : d
+
+// Mixed nullish + ternary
+val complexLogic = a ?? b ?? c ? d ?? e : f ? g : h ?? i ?? j
+
+// ========== Chained Access ==========
+const data = {
+  users: [
+    {
+      config: () => ({ env: "prod" }),
+      tags: ["admin", "staff"]
+    }
+  ]
+}
+
+val env = data.users[0].config().env
+val isStaff = data.users[0].tags[1] == "staff"
+val updated = { ...data.users[0], lastLogin: "2026-04-15" }
+
+// ========== Unary & Spread ==========
+val logic = !!!(true ?? false)
+val list: int[] = [1, 2, 3]
+val megaList = [...[...[...list, ...list], 4], 5]
+
+// ========== Bizarre Nested Types ==========
+val system: {
+  layers: {
+    nodes: {
+      getValue: () => int[]
+    }[]
+  }[]
+} = { layers: [] }
+
+val result = system.layers[0].nodes[5].getValue()[0]
+
+// ========== Tuple Types ==========
+val tuple: [int, string, bool] = [1, "two", true]
+val tupleOfFuncs: [(int) => int, (string) => string] = [x => x * 2, s => s + "!"]
