@@ -497,12 +497,24 @@ export class Parser {
   }
 
   private parseMember(left: Expr): Expr | null {
-    // Note: advance() was already called by parseExpression before calling this parselet
     // DOT has already been consumed, current now points to property token
-
     const property = this.peek()
 
-    if (property.type !== TokenType.IDENTIFIER) {
+    // Allow IDENTIFIER, KEYWORD, and TYPE_* as property names (like object keys)
+    const validPropertyTypes = [
+      TokenType.IDENTIFIER,
+      TokenType.KEYWORD,
+      TokenType.TYPE_INT,
+      TokenType.TYPE_FLOAT,
+      TokenType.TYPE_BOOL,
+      TokenType.TYPE_STRING,
+      TokenType.TYPE_VOID,
+      TokenType.TYPE_ANY,
+      TokenType.BOOLEAN,
+      TokenType.NULL
+    ]
+
+    if (!validPropertyTypes.includes(property.type)) {
       this.errors.report("Expected property name after '.'", property)
       return null
     }
