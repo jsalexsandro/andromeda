@@ -815,46 +815,40 @@ export class Parser {
   }
 
   private parseTypeAnnotation(): any {
-    let objectType: any = null
+    // Check for tuple type: [int, string]
+    if (this.check(TokenType.LBRACKET)) {
+      return this.parseTupleTypeAnnotation()
+    }
+
+    // Check for function type: (int) => int
+    if (this.check(TokenType.LPAREN)) {
+      return this.parseFunctionTypeAnnotation()
+    }
 
     // Check for object type annotation: { name: string, age: int }
     if (this.check(TokenType.LBRACE)) {
-      objectType = this.parseObjectTypeAnnotation()
-    } else {
-      const baseType = this.advance()
-      const validTypes = [
-        TokenType.IDENTIFIER,
-        TokenType.KEYWORD,
-        TokenType.TYPE_INT,
-        TokenType.TYPE_FLOAT,
-        TokenType.TYPE_BOOL,
-        TokenType.TYPE_STRING,
-        TokenType.TYPE_VOID,
-        TokenType.TYPE_ANY,
-        TokenType.NULL
-      ]
-      if (!validTypes.includes(baseType.type)) {
-        this.error(`Expected type after ':'`, baseType)
-        return undefined
-      }
-
-      // Parse dimensions: int[][] etc
-      let dimensions = 0
-      while (this.check(TokenType.LBRACKET)) {
-        this.advance()
-        if (!this.check(TokenType.RBRACKET)) {
-          this.error("Expected ']' after '[' in type annotation", this.peek())
-          break
-        }
-        this.advance()
-        dimensions++
-      }
-
-      return { base: baseType, dimensions }
+      return this.parseObjectTypeAnnotation()
     }
 
-    // Handle array of objects: {name: string}[]
-    let dimsFromArray = 0
+    const baseType = this.advance()
+    const validTypes = [
+      TokenType.IDENTIFIER,
+      TokenType.KEYWORD,
+      TokenType.TYPE_INT,
+      TokenType.TYPE_FLOAT,
+      TokenType.TYPE_BOOL,
+      TokenType.TYPE_STRING,
+      TokenType.TYPE_VOID,
+      TokenType.TYPE_ANY,
+      TokenType.NULL
+    ]
+    if (!validTypes.includes(baseType.type)) {
+      this.error(`Expected type after ':'`, baseType)
+      return undefined
+    }
+
+    // Parse dimensions: int[][] etc
+    let dimensions = 0
     while (this.check(TokenType.LBRACKET)) {
       this.advance()
       if (!this.check(TokenType.RBRACKET)) {
@@ -862,14 +856,83 @@ export class Parser {
         break
       }
       this.advance()
-      dimsFromArray++
+      dimensions++
     }
 
-    if (dimsFromArray > 0) {
-      objectType.dimensions = dimsFromArray
+    return { base: baseType, dimensions }
+  }
+
+  private parseTupleTypeAnnotation(): any {
+    this.advance() // consume [
+    const elements: any[] = []
+
+    if (this.check(TokenType.RBRACKET)) {
+      this.advance()
+      return { kind: "TupleType", elements }
     }
 
-    return objectType
+    while (!this.isAtEnd() && !this.check(TokenType.RBRACKET)) {
+      // Parse each element type (recursive call)
+      const elemType = this.parseTypeAnnotation()
+      if (elemType) {
+        elements.push(elemType)
+      }
+
+      if (this.check(TokenType.RBRACKET)) {
+        this.advance()
+        break
+      }
+
+      if (this.check(TokenType.COMMA)) {
+        this.advance()
+      } else {
+        this.error("Expected ',' in tuple type", this.peek())
+        break
+      }
+    }
+
+    return { kind: "TupleType", elements }
+  }
+
+  private parseFunctionTypeAnnotation(): any {
+    this.advance() // consume (
+    const params: any[] = []
+
+    if (!this.check(TokenType.RPAREN)) {
+      while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
+        // Parse parameter type
+        const paramType = this.parseTypeAnnotation()
+        params.push(paramType)
+
+        if (this.check(TokenType.COMMA)) {
+          this.advance()
+        } else if (!this.check(TokenType.RPAREN)) {
+          break
+        }
+      }
+    }
+
+    if (!this.check(TokenType.RPAREN)) {
+      this.error("Expected ')' in function type", this.peek())
+      return undefined
+    }
+    this.advance() // consume )
+
+    // Expect =>
+    if (!this.check(TokenType.ARROW)) {
+      this.error("Expected '=>' in function type", this.peek())
+      return undefined
+    }
+    this.advance() // consume =>
+
+    // Parse return type
+    const returnType = this.parseTypeAnnotation()
+
+    return {
+      kind: "FunctionType",
+      params,
+      returnType
+    }
   }
 
   private parseObjectTypeAnnotation(): any {
