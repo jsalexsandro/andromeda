@@ -857,7 +857,25 @@ export class Parser {
 
     // Check for object type annotation: { name: string, age: int }
     if (this.check(TokenType.LBRACE)) {
-      return this.parseObjectTypeAnnotation()
+      const objectType = this.parseObjectTypeAnnotation()
+      
+      // Parse array dimensions after object type: {name: string}[]
+      let dimensions = 0
+      while (this.check(TokenType.LBRACKET)) {
+        this.advance()
+        if (!this.check(TokenType.RBRACKET)) {
+          this.error("Expected ']' after '[' in type annotation", this.peek())
+          break
+        }
+        this.advance()
+        dimensions++
+      }
+      
+      if (dimensions > 0) {
+        objectType.dimensions = dimensions
+      }
+      
+      return objectType
     }
 
     // Base type
