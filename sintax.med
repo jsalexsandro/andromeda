@@ -94,7 +94,7 @@ var objs: {name: string}[] = [{name: "Jenny"}]
 print(objs[0].name)
 
 var ob_name = objs[0].name == "Jenny" ? "Sim" : "Não" // ternario
-var super_ternay = objs.name != "James" ? objs.name == "Jenny" ? "Se chama Jenny" : "Outro nome" : "Outro"
+var super_ternay = objs[0].name != "James" ? objs[0].name == "Jenny" ? "Se chama Jenny" : "Outro nome" : "Outro"
 
 var identity = (x: int): int => x
 var makeArray = (): int[] => [1, 2, 3]

@@ -23,6 +23,10 @@
 FASE 2 — STATEMENTS SIMPLES
 │
 ├── 9.  VariableDeclaration     val x = expr
+        9.1  suporte a tipagem (any, null, [int, string, float, bool])
+        9.2 Criar o ParserTypeAnotation (dependendo o contexto após ":" é um tipagem )
+
+
 ├── 10. BlockStatement          { ... }
 ├── 11. IfStatement             if/else
 ├── 12. WhileStatement          while
@@ -61,14 +65,17 @@ FASE 5 — ESTRUTURAS DE DADOS
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[ate aqui feito]
+
 
 FASE 6 — CONTROLE AVANÇADO
 │
-├── 27. ForStatement            for (val i = 0; ...)
+├── 
 ├── 28. BreakStatement          break
 └── 29. ContinueStatement       continue
 
+[ate aqui feito]
+
+27. ForStatement            for (val i = 0; ...)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 FASE 7 — CLASSES
