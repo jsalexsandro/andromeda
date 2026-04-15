@@ -704,6 +704,10 @@ readNumber(): Token {
       return { type: TokenType.TYPE_VOID, value: 'void', line: this.line, column: startColumn }
     }
 
+    if (ident === 'any') {
+      return { type: TokenType.TYPE_ANY, value: 'any', line: this.line, column: startColumn }
+    }
+
     // OTIMIZAÇÃO: Set.has() é O(1) vs Array.includes() que é O(n)
     const isKeyword = KEYWORDS_SET.has(ident)
     const type = isKeyword ? TokenType.KEYWORD : TokenType.IDENTIFIER

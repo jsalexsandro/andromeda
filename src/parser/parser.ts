@@ -817,7 +817,9 @@ export class Parser {
         TokenType.TYPE_FLOAT,
         TokenType.TYPE_BOOL,
         TokenType.TYPE_STRING,
-        TokenType.TYPE_VOID
+        TokenType.TYPE_VOID,
+        TokenType.TYPE_ANY,
+        TokenType.NULL
       ]
       if (!validTypes.includes(baseType.type)) {
         this.error(`Expected type after ':'`, baseType)
