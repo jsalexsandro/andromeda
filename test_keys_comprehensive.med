@@ -1,0 +1,63 @@
+// ========== COMPREHENSIVE KEY TESTS ==========
+
+// --- All supported key types ---
+
+// 1. Identifier
+val id = { name: "Alice", age: 30 }
+
+// 2. String simple
+val str = { "name": "Bob", "age": 25 }
+
+// 3. String with special chars
+val special = { "hello world": 1, "a-b": 2, "a.b": 3 }
+
+// 4. Number (positive integers)
+val num = { 0: "a", 1: "b", 100: "c" }
+
+// 5. Boolean key (treated as identifier)
+val boolKey = { true: 1, false: 0 }
+
+// 6. Null key
+val nullKey = { null: "isNull" }
+
+// 7. Mixed all types
+val mixed = { 
+  id: 1, 
+  "string": 2, 
+  0: 3,
+  true: 4,
+  null: 5
+}
+
+// --- Key access patterns ---
+val access1 = id.name
+val access2 = id["name"]
+val access3 = str["string"]
+val access4 = num[0]
+val access5 = mixed[true]
+
+// --- Nested accesses ---
+val nested = { a: { b: { c: 1 } } }
+val deep1 = nested.a.b.c
+val deep2 = nested["a"]["b"]["c"]
+val deep3 = nested.a["b"].c
+
+// --- Function parameter ---
+func get(obj, key) { return obj[key] }
+val fn = get(mixed, "string")
+
+// --- In array literal ---
+val inArr = [{ id: 1 }, { id: 2 }]
+val fromArr = inArr[0].id
+val fromArr2 = inArr[0]["id"]
+
+// --- Spread ---
+val base = { a: 1 }
+val spread = { ...base, b: 2 }
+val spreadStr = { ...base, "b": 3 }
+
+// --- Computed via variable (not yet supported) ---
+// var keyVar = "computed"
+val viaVar = { "computed": 1 }
+
+print("Comprehensive key tests passed!")

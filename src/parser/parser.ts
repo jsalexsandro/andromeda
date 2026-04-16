@@ -239,6 +239,17 @@ export class Parser {
           this.advance()
           value = this.parseExpression(Precedence.LOWEST)
         }
+      } else if (this.check(TokenType.NUMBER)) {
+        const numToken = this.advance()
+        const numValue = numToken.value as number
+        key = String(numValue)
+
+        if (this.check(TokenType.COLON)) {
+          this.advance()
+          value = this.parseExpression(Precedence.LOWEST)
+        } else {
+          value = { kind: "Identifier", name: { type: TokenType.IDENTIFIER, value: key, line: brace.line, column: brace.column } }
+        }
       } else {
         this.error("Expected property name", this.peek())
         break

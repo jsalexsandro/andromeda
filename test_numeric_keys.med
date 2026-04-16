@@ -1,0 +1,19 @@
+// ========== NUMERIC KEY TESTS ==========
+
+// Numeric keys as number
+val numObj = { 0: "zero", 1: "one", 2: "two" }
+val val0 = numObj[0]
+val val1 = numObj[1]
+
+// Access via bracket notation
+val access0 = numObj[0]
+val access1 = numObj[1]
+
+// Mixed with string keys
+val mixed = { 0: "a", name: "Alice", 1: "b" }
+
+// Access both
+val fromNum = mixed[0]
+val fromStr = mixed["name"]
+
+print("Numeric keys tests passed!")
