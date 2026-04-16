@@ -1,0 +1,18 @@
+// ========== UNION TYPES - EDGE CASES ==========
+
+// --- BASIC UNION TYPES ---
+val nullableString: string | null = null
+val nullableInt: int | null = 42
+
+// --- MULTIPLE TYPES ---
+val multiUnion: string | null | bool = true
+val triUnion: int | string | null = "hello"
+
+// --- ARRAY & FUNCTION ---
+val arrayUnion: int[] | string[] = [1, 2, 3]
+func getStringOrNull(): string | null { return null }
+
+// --- EXPRESSIONS ---
+val ternaryUnion = true ? "yes" : null
+
+print("Union edge cases passed!")

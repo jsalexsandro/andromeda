@@ -1,0 +1,60 @@
+// ========== UNION TYPES - TYPE ANNOTATIONS ==========
+
+// --- BASIC UNION TYPES ---
+val nullableString: string | null = null
+val nullableInt: int | null = 42
+val nullableBool: bool | null = true
+
+// --- MULTIPLE TYPES UNION ---
+val multiUnion: string | null | bool = true
+val triUnion: int | string | null = "hello"
+val quadUnion: int | string | bool | null = false
+
+// --- UNION WITH ARRAYS ---
+val arrayUnion: int[] | string[] = [1, 2, 3]
+val arrayUnion2: string[] | int[] | null = null
+
+// --- UNION WITH OBJECTS ---
+val objUnion1: { name: string } = { name: "Alice" }
+val objUnion2: { age: int } = { age: 30 }
+
+// --- UNION IN FUNCTION PARAMETERS ---
+func acceptString(a: string | null) {}
+func acceptMulti(a: int | string | bool) {}
+func acceptArray(a: int[] | string[] | null) {}
+
+// --- UNION IN FUNCTION RETURN ---
+func getStringOrNull(): string | null { return null }
+func getIntOrStringOrNull(): int | string | null { return "hello" }
+
+// --- UNION EXPRESSIONS (without type annotation) ---
+val ternaryUnion = true ? "yes" : null
+val nullishUnion = value ?? null
+
+// --- ARRAYS & OBJECTS ---
+val arr = [1, 2, 3]
+val simpleObj = { name: "Alice", age: 30 }
+
+// --- INDEX ACCESS ---
+val elem = arr[0]
+
+// --- MEMBER ACCESS ---
+val nameAccess = simpleObj.name
+
+// --- FUNCTION CALL ---
+func getUser() { return { name: "Alice" } }
+val fromFn = getUser()
+
+// --- ARROW FUNCTION ---
+val getValue: () => string | null = () => "hello"
+val arrowResult = getValue()
+
+// --- COMPARISONS ---
+val cmp = 1 == 2
+
+// --- LOGICAL ---
+val andResult = true && false
+val orResult = true || false
+val notResult = !!!true
+
+print("Union types tests passed!")

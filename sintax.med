@@ -268,3 +268,32 @@ val arrow = (...args) => args
 // Spread in call
 func f(a, b, c) {}
 f(...a)
+
+// ========== Union Types ==========
+// Basic union: string or null
+val nullable: string | null = null
+val nullableInt: int | null = 42
+
+// Multiple types union
+val multiType: string | null | bool = true
+val triUnion: int | string | null = "hello"
+val quadUnion: int | string | bool | null = false
+
+// Union with arrays
+val arrayUnion: int[] | string[] = [1, 2, 3]
+val arrayUnion2: string[] | null = null
+
+// Union in function parameter
+func acceptUnion(a: string | null) {}
+func acceptMulti(a: int | string | bool) {}
+
+// Union in function return
+func getOrNull(): string | null { return null }
+func getMulti(): int | string | null { return "hello" }
+
+// Union with parentheses and arrays
+val parenArray: (int | string)[] = [1, "two", 3]
+val parenMulti: (int | string | bool)[] = [1, "two", true]
+
+// Function returning union
+val getValue: () => string | null = () => "hello"
