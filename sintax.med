@@ -226,3 +226,45 @@ val result = system.layers[0].nodes[5].getValue()[0]
 // ========== Tuple Types ==========
 val tuple: [int, string, bool] = [1, "two", true]
 val tupleOfFuncs: [(int) => int, (string) => string] = [x => x * 2, s => s + "!"]
+
+// ========== Object Keys (String & Numeric) ==========
+// String keys
+val withString = { "name": "Alice", "age": 30, "hello world": true }
+// Numeric keys (positive integers)
+val withNumber = { 0: "zero", 1: "one", 100: "hundred" }
+// Mixed keys
+val mixed = { name: "Bob", "type": "user", 0: "a", 1: "b" }
+
+// ========== Object Key Access ==========
+// Dot notation
+val name = obj.name
+// Bracket notation
+val byString = obj["name"]
+// Bracket with number
+val byNumber = withNumber[0]
+// Bracket with variable
+val key = "name"
+val byVar = obj[key]
+
+// ========== Spread Operators ==========
+// Array spread
+val a = [1, 2, 3]
+val b = [4, 5]
+val merged = [...a, ...b]
+val prepend = [...b, ...a]
+val insert = [0, ...a, 99]
+
+// Object spread
+val obj1 = { a: 1, b: 2 }
+val obj2 = { b: 3, c: 4 }
+val objMerge = { ...obj1, ...obj2 }
+val objNew = { ...obj1, d: 5 }
+
+// Rest parameters
+func sum(...nums: int[]): int { return 0 }
+// Rest in arrow
+val arrow = (...args) => args
+
+// Spread in call
+func f(a, b, c) {}
+f(...a)
