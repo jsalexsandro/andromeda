@@ -158,8 +158,15 @@ export interface VariableStmt {
   kind: "VariableStmt"
   declarationType: "var" | "val" | "const"
   name: Token
-  typeAnnotation?: { base: Token; dimensions: number }
+  typeAnnotation?: TypeAnnotation
   initializer?: Expr
+}
+
+export interface TypeAnnotation {
+  base?: Token
+  dimensions: number
+  types?: TypeAnnotation[]
+  kind?: "UnionType"
 }
 
 export interface BreakStmt {
@@ -180,7 +187,7 @@ export interface FunctionStmt {
   kind: "FunctionStmt"
   name: Token
   params: FunctionStmtParam[]
-  returnType?: Token
+  returnType?: TypeAnnotation
   body: BlockStmt
   async?: boolean
 }
@@ -255,8 +262,8 @@ export interface ClassMethod {
 
 export interface ArrowFunctionExpr {
   kind: "ArrowFunction"
-  params: { name: Token; type?: { base: Token; dimensions: number }; isRest?: boolean }[]
-  returnType?: { base: Token; dimensions: number }
+  params: { name: Token; type?: TypeAnnotation; isRest?: boolean }[]
+  returnType?: TypeAnnotation
   body: Expr | Stmt
   async?: boolean
 }
