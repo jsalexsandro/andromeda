@@ -1,5 +1,4 @@
-// ========== NOT SUPPORTED YET ==========
-// Nested wrapped function types: both parameter and return are wrapped
-// This case currently fails to parse
-
-val compose: ((int) => int) => ((int) => int) = f => f
+// Function returning union
+const a: int | { name: string }[] =2
+func a(s: float | int): int | string {
+}

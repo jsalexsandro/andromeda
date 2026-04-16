@@ -23,9 +23,13 @@
 FASE 2 — STATEMENTS SIMPLES
 │
 ├── 9.  VariableDeclaration     val x = expr
-        9.1  suporte a tipagem (any, null, [int, string, float, bool])
+        9.1  suporte a tipagem (any, null, [int, string, float, bool], ou qualuqer_tipo -> o semantic verifica se é valido)
         9.2 Criar o ParserTypeAnotation (dependendo o contexto após ":" é um tipagem )
-
+        9.3 Suporte a objetos types e arrays types { name: string, values: string[] } ou string[] int[][]
+        9.4 Adicionar suporte a union types (string | null)
+        9.5 adicionar supoerte a uninion multiples types string | null | bool
+      
+      (isso já está muito bom)
 
 ├── 10. BlockStatement          { ... }
 ├── 11. IfStatement             if/else
@@ -49,7 +53,10 @@ FASE 3 — EXPRESSÕES COMPOSTAS
 └── 19. NullishCoalescing       a ?? b
 
 FASE 4 — FUNÇÕES
-│
+│   -> suporte a tipagem reaproveitar o ParserTypeAnotation, tanto para tipagem de parametos e funções
+    funções sem nomeação que usam o nome da varivel
+    const pow = func(x: int): int = { return x * x }
+    
 ├── 20. ArgumentList            (a: int, b: string)
 ├── 21. FunctionStatement       func foo() {}
 ├── 22. ReturnStatement         return expr
@@ -126,3 +133,8 @@ FASE 12 — ICEX (por último)
 ├── 47. Children expressão      <div>{name}</div>
 ├── 48. Children aninhado       <div><span/></div>
 └── 49. Object em atributo      <div style={{color:"red"}}>
+
+
+FASE 13:
+  Desconstrutores
+  default params
