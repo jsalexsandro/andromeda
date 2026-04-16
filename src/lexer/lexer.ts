@@ -840,7 +840,7 @@ readNumber(): Token {
           this.readChar()
           return { type: TokenType.OR, value: '||', line: this.line, column: startColumn }
         }
-        return { type: TokenType.OPERATOR, value: '|', line: this.line, column: startColumn }
+        return { type: TokenType.PIPE, value: '|', line: this.line, column: startColumn }
       
       case '(':
         this.readChar()

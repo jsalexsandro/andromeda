@@ -42,6 +42,7 @@ export enum TokenType {
   MODULO_EQUAL = 'MODULO_EQUAL',
   AND = 'AND',
   OR = 'OR',
+  PIPE = 'PIPE',
   NOT = 'NOT',
   QUESTION = 'QUESTION',
   QUESTION_QUESTION = 'QUESTION_QUESTION',

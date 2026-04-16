@@ -894,6 +894,23 @@ export class Parser {
   }
 
   private parseTypeAnnotation(): any {
+    // Parse the first type
+    const firstType = this.parseUnionMember()
+
+    // Check for union operator: |
+    if (this.check(TokenType.PIPE)) {
+      const types = [firstType]
+      while (this.check(TokenType.PIPE)) {
+        this.advance() // consume |
+        types.push(this.parseUnionMember())
+      }
+      return { kind: "UnionType", types }
+    }
+
+    return firstType
+  }
+
+  private parseUnionMember(): any {
     // 1. Function Type or Parenthesized: ( ...
     if (this.check(TokenType.LPAREN)) {
       return this.parseFunctionOrParenthesizedType()
@@ -907,7 +924,6 @@ export class Parser {
     // 3. Object Type: { key: type }
     if (this.check(TokenType.LBRACE)) {
       const objectType = this.parseObjectTypeAnnotation()
-      // Parse array dimensions after object type: {name: string}[]
       return this.parseArrayDimensions(objectType)
     }
 
