@@ -1,4 +1,0 @@
-// Function returning union
-const a: int | { name: string }[] =2
-func a(s: float | int): int | string {
-}

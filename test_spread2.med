@@ -1,7 +1,0 @@
-// 2. Chamada de função com spread, ternário e múltiplos unários
-// O desafio é não confundir o '...' com o início de um tipo ou erro
-val result = 2
-func a(){
-  return ...cond ? [!!true, - - -5] : [...[!!!false]]
-    
-}
