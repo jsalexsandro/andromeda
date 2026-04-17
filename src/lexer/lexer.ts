@@ -975,14 +975,6 @@ readNumber(): Token {
       return { type: TokenType.BOOLEAN_TYPE, value: 'bool', line: this.line, column: startColumn }
     }
 
-    if (ident === 'bigint') {
-      return { type: TokenType.BIGINT_TYPE, value: 'bigint', line: this.line, column: startColumn }
-    }
-
-    if (ident === 'symbol') {
-      return { type: TokenType.SYMBOL_TYPE, value: 'symbol', line: this.line, column: startColumn }
-    }
-
     if (ident === 'undefined') {
       return { type: TokenType.UNDEFINED_TYPE, value: 'undefined', line: this.line, column: startColumn }
     }

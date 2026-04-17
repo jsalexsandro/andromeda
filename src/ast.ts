@@ -306,8 +306,6 @@ export type TypeNode =
   | FloatTypeNode
   | StringTypeNode
   | BoolTypeNode
-  | BigIntTypeNode
-  | SymbolTypeNode
   | UndefinedTypeNode
   | NullTypeNode
   | VoidTypeNode
@@ -345,14 +343,6 @@ export interface StringTypeNode {
 
 export interface BoolTypeNode {
   kind: "BoolType"
-}
-
-export interface BigIntTypeNode {
-  kind: "BigIntType"
-}
-
-export interface SymbolTypeNode {
-  kind: "SymbolType"
 }
 
 export interface UndefinedTypeNode {
