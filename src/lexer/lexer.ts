@@ -22,6 +22,8 @@ const CC_QUESTION = 63
 const CC_OPENPAREN = 40, CC_CLOSEPAREN = 41
 const CC_COMMA = 44
 const CC_LBRACKET = 91, CC_RBRACKET = 93
+const CC_f = 102, CC_F = 70
+const CC_7 = 55
 
 // ============ OTIMIZAÇÕES: Set for O(1) lookup ============
 const KEYWORDS_SET = new Set(KEYWORDS)
@@ -131,6 +133,104 @@ readNumber(): Token {
     const startColumn = this.column
     const start = this.position
 
+    // Check for hex literal (0x or 0X)
+    if (this.ch === '0' && (this.peek() === 'x' || this.peek() === 'X')) {
+      const startHex = this.position
+      this.readChar() // consume '0'
+      this.readChar() // consume 'x' or 'X'
+      
+      let hexValue = ''
+      let hasValidDigit = false
+      
+      while (this.isHexDigit(this.ch)) {
+        hexValue += this.ch
+        hasValidDigit = true
+        this.readChar()
+      }
+      
+      // Check for identifier immediately after hex (like 0xABCDEFgh)
+      if (this.isLetter() || this.ch === '_' || this.ch === '$') {
+        // Consume the rest as identifier - this is a syntax error case
+        while (this.isLetter() || this.isDigit() || this.ch === '_' || this.ch === '$') {
+          this.readChar()
+        }
+        const ident = this.input.slice(startHex, this.position)
+        return { type: TokenType.ERROR, value: `invalid hex literal: ${ident}`, line: this.line, column: startColumn }
+      }
+      
+      if (!hasValidDigit) {
+        return { type: TokenType.ERROR, value: 'hexadecimal digit expected', line: this.line, column: startColumn }
+      }
+      
+      const numValue = parseInt(hexValue, 16)
+      return { type: TokenType.NUMBER, value: numValue, line: this.line, column: startColumn }
+    }
+
+    // Check for binary literal (0b or 0B)
+    if (this.ch === '0' && (this.peek() === 'b' || this.peek() === 'B')) {
+      const startBin = this.position
+      this.readChar() // consume '0'
+      this.readChar() // consume 'b' or 'B'
+      
+      let binValue = ''
+      let hasValidDigit = false
+      
+      while (this.ch === '0' || this.ch === '1') {
+        binValue += this.ch
+        hasValidDigit = true
+        this.readChar()
+      }
+      
+      // Check for invalid digits (like 0b123)
+      if ((this.isDigit() && this.ch !== '0' && this.ch !== '1') || this.isLetter() || this.ch === '_' || this.ch === '$') {
+        while (this.isLetter() || this.isDigit() || this.ch === '_' || this.ch === '$') {
+          this.readChar()
+        }
+        const ident = this.input.slice(startBin, this.position)
+        return { type: TokenType.ERROR, value: `invalid binary literal: ${ident}`, line: this.line, column: startColumn }
+      }
+      
+      if (!hasValidDigit) {
+        return { type: TokenType.ERROR, value: 'binary digit expected', line: this.line, column: startColumn }
+      }
+      
+      const numValue = parseInt(binValue, 2)
+      return { type: TokenType.NUMBER, value: numValue, line: this.line, column: startColumn }
+    }
+
+    // Check for octal literal (0o or 0O)
+    if (this.ch === '0' && (this.peek() === 'o' || this.peek() === 'O')) {
+      const startOct = this.position
+      this.readChar() // consume '0'
+      this.readChar() // consume 'o' or 'O'
+      
+      let octValue = ''
+      let hasValidDigit = false
+      
+      while (this.isOctalDigit(this.ch)) {
+        octValue += this.ch
+        hasValidDigit = true
+        this.readChar()
+      }
+      
+      // Check for invalid digits
+      if ((this.isDigit() && !this.isOctalDigit(this.ch)) || this.isLetter() || this.ch === '_' || this.ch === '$') {
+        while (this.isLetter() || this.isDigit() || this.ch === '_' || this.ch === '$') {
+          this.readChar()
+        }
+        const ident = this.input.slice(startOct, this.position)
+        return { type: TokenType.ERROR, value: `invalid octal literal: ${ident}`, line: this.line, column: startColumn }
+      }
+      
+      if (!hasValidDigit) {
+        return { type: TokenType.ERROR, value: 'octal digit expected', line: this.line, column: startColumn }
+      }
+      
+      const numValue = parseInt(octValue, 8)
+      return { type: TokenType.NUMBER, value: numValue, line: this.line, column: startColumn }
+    }
+
+    // Regular decimal number
     while (this.isDigit()) {
       this.readChar()
     }
@@ -148,9 +248,47 @@ readNumber(): Token {
         while (this.isDigit()) {
           this.readChar()
         }
+        
+        // Check for exponential notation
+        if (this.ch === 'e' || this.ch === 'E') {
+          this.readChar()
+          if (this.ch === '+' || this.ch === '-') {
+            this.readChar()
+          }
+          if (!this.isDigit()) {
+            return { type: TokenType.ERROR, value: 'digit expected in exponent', line: this.line, column: startColumn }
+          }
+          while (this.isDigit()) {
+            this.readChar()
+          }
+        }
+        
         const numStr = this.input.slice(start, this.position)
         return { type: TokenType.NUMBER, value: parseFloat(numStr), line: this.line, column: startColumn }
       }
+    }
+
+    // Check for exponential notation without decimal
+    if (this.ch === 'e' || this.ch === 'E') {
+      this.readChar()
+      if (this.ch === '+' || this.ch === '-') {
+        this.readChar()
+      }
+      if (!this.isDigit()) {
+        return { type: TokenType.ERROR, value: 'digit expected in exponent', line: this.line, column: startColumn }
+      }
+      while (this.isDigit()) {
+        this.readChar()
+      }
+      const numStr = this.input.slice(start, this.position)
+      return { type: TokenType.NUMBER, value: parseFloat(numStr), line: this.line, column: startColumn }
+    }
+
+    // Check for leading zeros (like 007 or 0123) - potential octal without prefix
+    if (this.position - start > 1 && this.input[start] === '0') {
+      const numStr = this.input.slice(start, this.position)
+      // Emit warning but still parse as decimal
+      return { type: TokenType.ERROR, value: `invalid number: leading zeros not allowed (${numStr})`, line: this.line, column: startColumn }
     }
 
     const numStr = this.input.slice(start, this.position)
@@ -295,6 +433,8 @@ readNumber(): Token {
   }
 
   escapeSequence(quote: string): string | null {
+    const startColumn = this.column
+    
     switch (this.ch) {
       case '"':
         this.readChar()
@@ -311,6 +451,9 @@ readNumber(): Token {
       case 't':
         this.readChar()
         return '\t'
+      case 'r':
+        this.readChar()
+        return '\r'
       case '`':
         this.readChar()
         return '`'
@@ -323,9 +466,66 @@ readNumber(): Token {
       case '}':
         this.readChar()
         return '}'
+      case 'b':
+        this.readChar()
+        return '\b'
+      case 'f':
+        this.readChar()
+        return '\f'
+      case 'v':
+        this.readChar()
+        return '\v'
+      case '0':
+        this.readChar()
+        return '\0'
+      case 'x':
+        this.readChar()
+        return this.readHexEscape(2, startColumn)
+      case 'u':
+        this.readChar()
+        return this.readUnicodeEscape(startColumn)
       default:
         return null
     }
+  }
+
+  private readHexEscape(length: number, startColumn: number): string | null {
+    let hex = ''
+    for (let i = 0; i < length; i++) {
+      if (this.isHexDigit(this.ch)) {
+        hex += this.ch
+        this.readChar()
+      } else {
+        return null // Invalid hex escape
+      }
+    }
+    return String.fromCharCode(parseInt(hex, 16))
+  }
+
+  private readUnicodeEscape(startColumn: number): string | null {
+    // Check for { } Unicode escape (modern syntax)
+    if (this.ch === '{') {
+      this.readChar()
+      let hex = ''
+      while (this.ch !== '}' && this.ch !== '') {
+        if (this.isHexDigit(this.ch)) {
+          hex += this.ch
+          this.readChar()
+        } else {
+          return null
+        }
+      }
+      if (this.ch !== '}') {
+        return null
+      }
+      this.readChar()
+      const codePoint = parseInt(hex, 16)
+      if (codePoint > 0x10FFFF) return null // Invalid code point
+      return String.fromCodePoint(codePoint)
+    }
+    
+    // Check for 4-digit Unicode escape
+    return this.readHexEscape(4, startColumn)
   }
 
   readTemplateString(): Token[] {
@@ -451,6 +651,15 @@ readNumber(): Token {
       return { type: TokenType.EOF, value: null, line: this.line, column: this.column }
     }
 
+    // Check for invalid/unknown characters
+    const charCode = this.input.charCodeAt(this.position)
+    if (charCode < 32 && charCode !== 9 && charCode !== 10 && charCode !== 13) {
+      // Skip invalid control characters but report error
+      const invalidChar = this.ch
+      this.readChar()
+      return { type: TokenType.ERROR, value: `invalid character: ${invalidChar.charCodeAt(0).toString(16)}`, line: this.line, column: this.column - 1 }
+    }
+
     if (this.ch === '$' && this.peek() === '`') {
       const result = this.readTemplateString()
       return result[0] ?? { type: TokenType.EOF, value: null, line: this.line, column: this.column }
@@ -499,8 +708,28 @@ readNumber(): Token {
       return val
     }
 
+    // Skip whitespace
     while (this.ch === ' ' || this.ch === '\t' || this.ch === '\n' || this.ch === '\r') {
       this.readChar()
+    }
+
+    // Check for HTML comment inside tag
+    if (this.ch === '<' && this.peek() === '!') {
+      this.readChar() // consume '<'
+      this.readChar() // consume '!'
+      if (this.ch === '-' && this.peek() === '-') {
+        this.readChar() // consume '-'
+        this.readChar() // consume '-'
+        // Skip until -->
+        while (this.ch !== '' && !(this.ch === '-' && this.peek() === '-')) {
+          this.readChar()
+        }
+        if (this.ch === '-') {
+          this.readChar()
+          this.readChar()
+        }
+        return this.readAndroxTagMode() // Continue parsing
+      }
     }
 
     if (this.ch === '>') {
@@ -518,6 +747,42 @@ readNumber(): Token {
       return { type: TokenType.ANDROX_SELF_CLOSE, value: tagName, line: this.line, column: startColumn }
     }
 
+    // Handle spread operator {...props} in attributes
+    if (this.ch === '.' && this.peek() === '.' && this.input[this.position + 2] === '.') {
+      return this.readOperator() // Returns SPREAD token
+    }
+
+    // Handle opening brace for spread or expression in tag
+    if (this.ch === '{') {
+      const startPos = this.position
+      this.readChar()
+      // Check if it's a spread {...}
+      if (this.ch === '.' && this.peek() === '.' && this.input[this.position + 2] === '.') {
+        this.readChar()
+        this.readChar()
+        this.readChar()
+        // Now we should have identifier after ...
+        if (this.isLetter()) {
+          const identStart = this.position
+          let ident = ''
+          while (this.isLetter() || this.isDigit() || this.ch === '_' || this.ch === '$') {
+            ident += this.ch
+            this.readChar()
+          }
+          // Check for closing brace
+          if (this.ch === '}') {
+            this.readChar()
+            return { type: TokenType.ANDROX_SPREAD_ATTR, value: ident, line: this.line, column: startColumn }
+          }
+        }
+        // Fall back to just returning spread
+        this.position = startPos
+        this.readChar()
+      }
+      // Not a spread, return expression open
+      return { type: TokenType.ANDROX_EXPR_OPEN, value: '{', line: this.line, column: startColumn }
+    }
+
     if (this.isLetter()) {
       let attrName = ''
       while (this.isLetter() || this.isDigit() || this.ch === '-' || this.ch === '_') {
@@ -525,6 +790,7 @@ readNumber(): Token {
         this.readChar()
       }
 
+      // Skip whitespace after attribute name
       while (this.ch === ' ' || this.ch === '\t') {
         this.readChar()
       }
@@ -728,6 +994,22 @@ readNumber(): Token {
   isDigit(): boolean {
     const c = this.input.charCodeAt(this.position)
     return c >= CC_0 && c <= CC_9
+  }
+
+  isHexDigit(ch: string): boolean {
+    const c = ch.charCodeAt(0)
+    return (c >= CC_0 && c <= CC_9) || 
+           (c >= CC_a && c <= CC_f) || 
+           (c >= CC_A && c <= CC_F)
+  }
+
+  isOctalDigit(ch: string): boolean {
+    const c = ch.charCodeAt(0)
+    return c >= CC_0 && c <= CC_7
+  }
+
+  isBinaryDigit(ch: string): boolean {
+    return ch === '0' || ch === '1'
   }
 
   readOperator(): Token {
