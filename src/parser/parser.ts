@@ -24,7 +24,6 @@ export class Parser {
   }
 
   private registerParselets() {
-    // Literals
     this.prefixParselets.set(TokenType.IDENTIFIER, this.parseIdentifier.bind(this))
     this.prefixParselets.set(TokenType.NUMBER, this.parseNumber.bind(this))
     this.prefixParselets.set(TokenType.STRING, this.parseString.bind(this))
@@ -32,21 +31,16 @@ export class Parser {
     this.prefixParselets.set(TokenType.NULL, this.parseNull.bind(this))
     this.prefixParselets.set(TokenType.LPAREN, this.parseGroup.bind(this))
 
-    // Unary operators
     this.prefixParselets.set(TokenType.MINUS, this.parseUnary.bind(this))
     this.prefixParselets.set(TokenType.PLUS, this.parseUnary.bind(this))
     this.prefixParselets.set(TokenType.NOT, this.parseUnary.bind(this))
 
-    // Arrow functions (x => x + 1)
     this.prefixParselets.set(TokenType.LPAREN, this.parseArrowOrGroup.bind(this))
 
-    // Array literal [1, 2, 3]
     this.prefixParselets.set(TokenType.LBRACKET, this.parseArrayLiteral.bind(this))
 
-    // Spread operator ...
     this.prefixParselets.set(TokenType.SPREAD, this.parseSpread.bind(this))
 
-    // Assignment operators (= and compound: +=, -=, *=, /=, %=)
     this.infixParselets.set(TokenType.ASSIGN, this.parseAssignment.bind(this))
     this.infixParselets.set(TokenType.PLUS_EQUAL, this.parseAssignment.bind(this))
     this.infixParselets.set(TokenType.MINUS_EQUAL, this.parseAssignment.bind(this))
@@ -54,14 +48,12 @@ export class Parser {
     this.infixParselets.set(TokenType.SLASH_EQUAL, this.parseAssignment.bind(this))
     this.infixParselets.set(TokenType.MODULO_EQUAL, this.parseAssignment.bind(this))
 
-    // Arithmetic operators
     this.infixParselets.set(TokenType.PLUS, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.MINUS, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.STAR, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.SLASH, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.MODULO, this.parseBinary.bind(this))
 
-    // Comparison operators
     this.infixParselets.set(TokenType.EQUAL, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.NOT_EQUAL, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.LESS_THAN, this.parseBinary.bind(this))
@@ -69,41 +61,30 @@ export class Parser {
     this.infixParselets.set(TokenType.LESS_EQUAL, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.GREATER_EQUAL, this.parseBinary.bind(this))
 
-    // Logical operators
     this.infixParselets.set(TokenType.AND, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.OR, this.parseBinary.bind(this))
 
-    // Ternary operator (?:)
     this.infixParselets.set(TokenType.QUESTION, this.parseTernary.bind(this))
 
-    // Nullish coalescing (??)
     this.infixParselets.set(TokenType.QUESTION_QUESTION, this.parseNullish.bind(this))
 
-    // Function call
     this.infixParselets.set(TokenType.LPAREN, this.parseCall.bind(this))
 
-    // Member access (.)
     this.infixParselets.set(TokenType.DOT, this.parseMember.bind(this))
 
-    // Index access ([])
     this.infixParselets.set(TokenType.LBRACKET, this.parseIndex.bind(this))
 
-    // Object literal { key: value }
     this.prefixParselets.set(TokenType.LBRACE, this.parseObjectLiteral.bind(this))
 
-    // Postfix increment/decrement
     this.infixParselets.set(TokenType.INCREMENT, this.parsePostfixIncrement.bind(this))
     this.infixParselets.set(TokenType.DECREMENT, this.parsePostfixDecrement.bind(this))
   }
 
-  // --- LITERAL PARSELETS ---
-
   private parseIdentifier(): Expr {
     const name = this.previous()
 
-    // Check for arrow function: x => expr (without parentheses)
     if (this.check(TokenType.ARROW)) {
-      this.advance() // consume =>
+      this.advance()
       const params = [{ name }]
       return this.parseArrowBody(params)
     }
@@ -133,7 +114,6 @@ export class Parser {
     if (this.check(TokenType.RPAREN)) {
       this.advance()
     } else {
-      // Report error at the lparen position since we lost track of the closing paren
       this.error(`Expected ')' to close group starting at line ${lparen.line}`, lparen)
     }
     return { kind: "Group", expression: expr }
@@ -145,7 +125,7 @@ export class Parser {
       : this.peek()
     
     if (this.previous().type !== TokenType.LBRACKET) {
-      this.advance() // consume [
+      this.advance()
     }
 
     const elements: Expr[] = []
@@ -209,7 +189,6 @@ export class Parser {
       let key: string | null = null
       let value: Expr | null = null
 
-      // Check for spread operator first
       if (this.check(TokenType.SPREAD)) {
         this.advance()
         const spreadArg = this.parseExpression(Precedence.LOWEST)
@@ -288,116 +267,97 @@ export class Parser {
   }
 
   private parseArrowOrGroup(): Expr {
-    // Save position to backtrack if needed
     const startPos = this.current
 
-    // Try to parse as arrow function first
     const arrow = this.tryParseArrowFunction()
     if (arrow) {
       return arrow
     }
 
-    // Not an arrow function, backtrack and parse as group
     this.current = startPos
     return this.parseGroup()
   }
 
   private tryParseArrowFunction(): Expr | null {
-    // We're after consuming '(', so check for params
     const params: { name: Token; type?: { base: Token; dimensions: number } }[] = []
 
-    // Empty params: () => expr or (): int[] => expr
     if (this.check(TokenType.RPAREN)) {
-      this.advance() // consume )
+      this.advance()
       
-      // Optional return type annotation: ): int[] =>
       let returnType: { base: Token; dimensions: number } | undefined
       if (this.check(TokenType.COLON)) {
-        this.advance() // consume :
+        this.advance()
         returnType = this.parseTypeAnnotation()
       }
       
       if (!this.check(TokenType.ARROW)) {
-        return null // Not an arrow function
+        return null
       }
-      this.advance() // consume =>
+      this.advance()
       return this.parseArrowBodyWithReturnType(params, returnType)
     }
 
-    // Parse parameters
     while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
-      // Check for rest operator
       let isRest = false
       if (this.check(TokenType.SPREAD)) {
-        this.advance() // consume ...
+        this.advance()
         isRest = true
       }
 
-      // Must be identifier
       if (this.peek().type !== TokenType.IDENTIFIER) {
         return null
       }
 
-      const paramName = this.advance() // consume identifier
+      const paramName = this.advance()
 
-      // Optional type annotation
       let paramType: { base: Token; dimensions: number } | undefined
       if (this.check(TokenType.COLON)) {
-        this.advance() // consume :
+        this.advance()
         paramType = this.parseTypeAnnotation()
       }
 
       params.push({ name: paramName, type: paramType, isRest })
 
-      // Comma or end
       if (this.check(TokenType.COMMA)) {
-        this.advance() // consume ,
+        this.advance()
       }
     }
 
-    // Expect )
     if (!this.check(TokenType.RPAREN)) {
       return null
     }
-    this.advance() // consume )
+    this.advance()
 
-    // Optional return type annotation: x): int[] =>
     let returnType: { base: Token; dimensions: number } | undefined
     if (this.check(TokenType.COLON)) {
-      this.advance() // consume :
+      this.advance()
       returnType = this.parseTypeAnnotation()
     }
 
-    // Expect =>
     if (!this.check(TokenType.ARROW)) {
       return null
     }
-    this.advance() // consume =>
+    this.advance()
 
     return this.parseArrowBodyWithReturnType(params, returnType)
   }
 
   private isObjectTypeAnnotation(lbracePos: number): boolean {
-    // Look ahead from lbrace position to check if it's { key: type } or { key: expr }
     let i = lbracePos + 1
     
-    // Skip empty
     if (!this.tokens[i] || this.tokens[i].type === TokenType.RBRACE) return false
     
-    // Get the key (identifier)
     const keyToken = this.tokens[i]
     if (!keyToken || (keyToken.type !== TokenType.IDENTIFIER && keyToken.type !== TokenType.KEYWORD)) {
       return false
     }
     i++
     
-    // Must have colon
     if (!this.tokens[i] || this.tokens[i].type !== TokenType.COLON) {
       return false
     }
     i++
     
-    // After colon, check if it's a type
     const afterColon = this.tokens[i]?.type
     const typeTokens = [
       TokenType.TYPE_INT, TokenType.TYPE_FLOAT, TokenType.TYPE_BOOL,
@@ -408,17 +368,57 @@ export class Parser {
     return typeTokens.includes(afterColon)
   }
 
+  private looksLikeBlockStatement(): boolean {
+    let i = this.current + 1
+    const token = this.tokens[i]
+    if (!token) return false
+    
+    if (token.type === TokenType.RBRACE) return false
+    
+    if (token.type === TokenType.KEYWORD) {
+      const keywords = ['if', 'while', 'for', 'return', 'var', 'val', 'const', 'func', 'break', 'continue']
+      if (keywords.includes(token.value as string)) return true
+    }
+    
+    if (token.type === TokenType.IDENTIFIER) {
+      i++
+      const nextToken = this.tokens[i]
+      if (nextToken && nextToken.type === TokenType.LPAREN) return true
+      if (nextToken && nextToken.type === TokenType.LBRACE) return true
+      if (nextToken && nextToken.type === TokenType.COLON) return false
+      if (nextToken && nextToken.type === TokenType.COMMA) return true
+      if (nextToken && nextToken.type === TokenType.ASSIGN) return true
+    }
+    
+    if (token.type === TokenType.NUMBER || token.type === TokenType.STRING || 
+        token.type === TokenType.BOOLEAN || token.type === TokenType.NULL) {
+      i++
+      const nextToken = this.tokens[i]
+      if (nextToken && nextToken.type === TokenType.SEMICOLON) return true
+      if (nextToken && nextToken.type === TokenType.RBRACE) return true
+    }
+    
+    return false
+  }
+
   private parseArrowBody(params: { name: Token; type?: { base: Token; dimensions: number }; isRest?: boolean }[]): Expr {
-    // Arrow body can be expression, block, or object literal
     if (this.check(TokenType.LBRACE)) {
-      // Check if it's an object type annotation like {id: int} - that's invalid for body
       if (this.isObjectTypeAnnotation(this.current)) {
         this.error("Expected expression after '=>'", this.peek())
         return { kind: "Literal", value: null }
       }
       
-      // Try to parse as object literal first
+      if (this.looksLikeBlockStatement()) {
+        const body = this.parseBlockStatement()
+        return {
+          kind: "ArrowFunction",
+          params,
+          body
+        }
+      }
+      
       const savedPos = this.current
+      const savedErrorsLength = this.errors.errors.length
       try {
         const objLiteral = this.parseObjectLiteral()
         return {
@@ -427,8 +427,8 @@ export class Parser {
           body: objLiteral
         }
       } catch (e) {
-        // Restore position and try as block
         this.current = savedPos
+        this.errors.errors = this.errors.errors.slice(0, savedErrorsLength)
         const body = this.parseBlockStatement()
         return {
           kind: "ArrowFunction",
@@ -437,7 +437,6 @@ export class Parser {
         }
       }
     } else {
-      // Expression body: () => x + 1
       const body = this.parseExpression(Precedence.LOWEST)
       if (!body) {
         this.error("Expected expression after '=>'", this.peek())
@@ -452,16 +451,24 @@ export class Parser {
   }
 
   private parseArrowBodyWithReturnType(params: { name: Token; type?: { base: Token; dimensions: number }; isRest?: boolean }[], returnType: { base: Token; dimensions: number } | undefined): Expr {
-    // Arrow body can be expression, block, or object literal
     if (this.check(TokenType.LBRACE)) {
-      // Check if it's an object type annotation like {id: int} - that's invalid for body
       if (this.isObjectTypeAnnotation(this.current)) {
         this.error("Expected expression after '=>'", this.peek())
         return { kind: "Literal", value: null }
       }
       
-      // Try to parse as object literal first
+      if (this.looksLikeBlockStatement()) {
+        const body = this.parseBlockStatement()
+        return {
+          kind: "ArrowFunction",
+          params,
+          returnType,
+          body
+        }
+      }
+      
       const savedPos = this.current
+      const savedErrorsLength = this.errors.errors.length
       try {
         const objLiteral = this.parseObjectLiteral()
         return {
@@ -471,8 +478,8 @@ export class Parser {
           body: objLiteral
         }
       } catch (e) {
-        // Restore position and try as block
         this.current = savedPos
+        this.errors.errors = this.errors.errors.slice(0, savedErrorsLength)
         const body = this.parseBlockStatement()
         return {
           kind: "ArrowFunction",
@@ -482,7 +489,6 @@ export class Parser {
         }
       }
     } else {
-      // Expression body: () => x + 1
       const body = this.parseExpression(Precedence.LOWEST)
       if (!body) {
         this.error("Expected expression after '=>'", this.peek())
@@ -503,7 +509,7 @@ export class Parser {
     if (!right) {
       this.error(`Expected expression after '${operator.value}'`, operator)
       return { kind: "Literal", value: null }
-}
+    }
     return { kind: "Unary", operator, right }
   }
 
@@ -544,13 +550,11 @@ export class Parser {
   private parseCall(left: Expr): Expr | null {
     const args: Expr[] = []
 
-    // Check for empty call like fn() or fn()
     if (this.check(TokenType.RPAREN)) {
-      this.advance() // consume )
+      this.advance()
       return { kind: "Call", callee: left, args }
     }
 
-    // Parse arguments
     while (!this.isAtEnd()) {
       const arg = this.parseExpression(Precedence.LOWEST)
       if (arg) {
@@ -558,14 +562,14 @@ export class Parser {
       }
 
       if (this.check(TokenType.RPAREN)) {
-        this.advance() // consume )
+        this.advance()
         break
       }
 
       if (!this.check(TokenType.COMMA)) {
         break
       }
-      this.advance() // consume comma
+      this.advance()
 
       if (this.isAtEnd()) {
         break
@@ -576,10 +580,8 @@ export class Parser {
   }
 
   private parseMember(left: Expr): Expr | null {
-    // DOT has already been consumed, current now points to property token
     const property = this.peek()
 
-    // Allow IDENTIFIER, KEYWORD, and TYPE_* as property names (like object keys)
     const validPropertyTypes = [
       TokenType.IDENTIFIER,
       TokenType.KEYWORD,
@@ -598,7 +600,7 @@ export class Parser {
       return null
     }
 
-    this.advance() // consume property identifier
+    this.advance()
     return {
       kind: "Member",
       object: left,
@@ -624,24 +626,22 @@ export class Parser {
       return null
     }
 
-    this.advance() // consume RBRACKET
+    this.advance()
     return { kind: "Index", object: left, index: indexExpr }
   }
 
   private parseTernary(left: Expr): Expr | null {
-    // current is now the '?' token (already consumed)
     const consequent = this.parseExpression(Precedence.LOWEST)
     if (!consequent) {
       this.error("Expected expression after '?'", this.peek())
       return null
     }
 
-    // Expect ':'
     if (!this.check(TokenType.COLON)) {
       this.error("Expected ':' after '?' expression", this.peek())
       return null
     }
-    this.advance() // consume ':'
+    this.advance()
 
     const alternate = this.parseExpression(Precedence.CONDITIONAL)
     if (!alternate) {
@@ -658,7 +658,6 @@ export class Parser {
   }
 
   private parseNullish(left: Expr): Expr | null {
-    // current is now the '??' token (already consumed)
     const right = this.parseExpression(Precedence.NULLISH)
     if (!right) {
       this.error("Expected expression after '??'", this.peek())
@@ -689,7 +688,7 @@ export class Parser {
   }
 
   public parse(): Stmt[] {
-    this.errors.errors = [] // Clear errors from previous parse
+    this.errors.errors = []
     const statements: Stmt[] = []
     while (!this.isAtEnd()) {
       try {
@@ -705,7 +704,6 @@ export class Parser {
   private parseStatement(): Stmt | null {
     const token = this.peek()
 
-    // Block statement or Object literal: {
     if (token?.type === TokenType.LBRACE) {
       if (this.looksLikeObjectLiteral()) {
         const expr = this.parseObjectLiteral()
@@ -714,16 +712,14 @@ export class Parser {
       return this.parseBlockStatement()
     }
 
-    // Array literal: [
     if (token?.type === TokenType.LBRACKET) {
       if (this.looksLikeArrayLiteral()) {
-        this.advance() // consume [
+        this.advance()
         const expr = this.parseArrayLiteral()
         return { kind: "ExpressionStmt", expression: expr }
       }
     }
 
-    // Variable declarations: var, val, const
     if (token?.type === TokenType.KEYWORD) {
       const keyword = token.value as string
       if (keyword === 'var' || keyword === 'val' || keyword === 'const') {
@@ -751,14 +747,11 @@ export class Parser {
       }
     }
 
-    // For now everything acts as an expression statement until we implement `func`, `val`, etc.
     const expr = this.parseExpression(Precedence.LOWEST)
     if (!expr) {
-       // if completely invalid token, consume it so we don't infinite loop when testing initially
        this.advance()
        return null
     }
-    // We will consume semi-colons here eventually, but now just pass through
     return { kind: "ExpressionStmt", expression: expr }
   }
 
@@ -767,7 +760,6 @@ export class Parser {
     if (this.tokens[i]?.type === TokenType.RBRACE) {
       return true
     }
-    // Check for spread operator as start of object: {...a}
     if (this.tokens[i]?.type === TokenType.SPREAD) {
       return true
     }
@@ -783,7 +775,6 @@ export class Parser {
         return true
       }
     }
-    // Also support KEYWORD (like 'val', 'if', etc.) and TYPE_* as keys
     if (this.tokens[i]?.type === TokenType.KEYWORD || 
         this.tokens[i]?.type === TokenType.TYPE_INT ||
         this.tokens[i]?.type === TokenType.TYPE_FLOAT ||
@@ -840,8 +831,8 @@ export class Parser {
   }
 
   private parseBlockStatement(): Stmt {
-    const lbrace = this.previous() // Track opening brace for error reporting
-    this.advance() // consume {
+    const lbrace = this.previous()
+    this.advance()
     const statements: Stmt[] = []
 
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
@@ -850,7 +841,7 @@ export class Parser {
     }
 
     if (this.check(TokenType.RBRACE)) {
-      this.advance() // consume }
+      this.advance()
     } else {
       this.error("Expected '}' to close block", lbrace)
     }
@@ -859,10 +850,9 @@ export class Parser {
   }
 
   private parseVariableDeclaration(): Stmt | null {
-    const keywordToken = this.advance() // consume var/val/const
+    const keywordToken = this.advance()
     const keyword = keywordToken.value as string
     
-    // Parse variable name
     const nameToken = this.advance()
     if (nameToken.type !== TokenType.IDENTIFIER) {
       this.error(`Expected variable name after '${keyword}'`, nameToken)
@@ -870,17 +860,15 @@ export class Parser {
       return null
     }
     
-    // Check for type annotation (optional in parser)
     let typeAnnotation: { base: Token; dimensions: number } | undefined
     if (this.peek().type === TokenType.COLON) {
-      this.advance() // consume colon
+      this.advance()
       typeAnnotation = this.parseTypeAnnotation()
     }
     
-    // Check for initializer
     let initializer: Expr | undefined
     if (this.peek().type === TokenType.ASSIGN) {
-      this.advance() // consume =
+      this.advance()
       initializer = this.parseExpression(Precedence.LOWEST)
     }
     
@@ -894,14 +882,12 @@ export class Parser {
   }
 
   private parseTypeAnnotation(): any {
-    // Parse the first type
     const firstType = this.parseUnionMember()
 
-    // Check for union operator: |
     if (this.check(TokenType.PIPE)) {
       const types = [firstType]
       while (this.check(TokenType.PIPE)) {
-        this.advance() // consume |
+        this.advance()
         types.push(this.parseUnionMember())
       }
       return { kind: "UnionType", types }
@@ -911,36 +897,30 @@ export class Parser {
   }
 
   private parseUnionMember(): any {
-    // 1. Function Type or Parenthesized: ( ...
     if (this.check(TokenType.LPAREN)) {
       return this.parseFunctionOrParenthesizedType()
     }
 
-    // 2. Tuple Type: [int, string]
     if (this.check(TokenType.LBRACKET)) {
       return this.parseTupleTypeAnnotation()
     }
 
-    // 3. Object Type: { key: type }
     if (this.check(TokenType.LBRACE)) {
       const objectType = this.parseObjectTypeAnnotation()
       return this.parseArrayDimensions(objectType)
     }
 
-    // 4. Base type with arrays: int[][], etc
     return this.parseBaseTypeWithArrays()
   }
 
   private parseFunctionOrParenthesizedType(): any {
-    this.advance() // consume '('
+    this.advance()
     
-    // Empty params: () => Type
     if (this.check(TokenType.RPAREN)) {
-      this.advance() // consume )
+      this.advance()
       
-      // Check if this is a function type: () => ...
       if (this.check(TokenType.ARROW)) {
-        this.advance() // consume =>
+        this.advance()
         const returnType = this.parseTypeAnnotation()
         return {
           kind: "FunctionType",
@@ -951,11 +931,9 @@ export class Parser {
         }
       }
       
-      // Just grouped type: ()
       return { kind: "TupleType", elements: [] }
     }
 
-    // Parse types inside parentheses
     const types: any[] = []
     while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
       types.push(this.parseTypeAnnotation())
@@ -966,17 +944,14 @@ export class Parser {
       }
     }
 
-    // Expect closing )
     if (!this.check(TokenType.RPAREN)) {
       this.error("Expected ')' in type annotation", this.peek())
       return undefined
     }
-    this.advance() // consume )
+    this.advance()
 
-    // KEY DECISION: What comes after )?
     if (this.check(TokenType.ARROW)) {
-      // It's a Function Type: (params) => returnType
-      this.advance() // consume =>
+      this.advance()
       const returnType = this.parseTypeAnnotation()
       return {
         kind: "FunctionType",
@@ -987,11 +962,8 @@ export class Parser {
       }
     }
 
-    // It's just a grouped type: (int) or ((int) => string)
-    // Could be followed by [] for arrays
     let type = types.length === 1 ? types[0] : { kind: "TupleType", elements: types }
     
-    // Parse array dimensions: (int)[] or (int)[][]
     return this.parseArrayDimensions(type)
   }
 
@@ -1036,7 +1008,6 @@ export class Parser {
 
     let type = { base: baseType, dimensions: 0 }
 
-    // Parse dimensions: int[][], etc
     while (this.check(TokenType.LBRACKET)) {
       this.advance()
       if (!this.check(TokenType.RBRACKET)) {
@@ -1051,7 +1022,7 @@ export class Parser {
   }
 
   private parseTupleTypeAnnotation(): any {
-    this.advance() // consume [
+    this.advance()
     const elements: any[] = []
 
     if (this.check(TokenType.RBRACKET)) {
@@ -1060,7 +1031,6 @@ export class Parser {
     }
 
     while (!this.isAtEnd() && !this.check(TokenType.RBRACKET)) {
-      // Parse each element type (recursive call)
       const elemType = this.parseTypeAnnotation()
       if (elemType) {
         elements.push(elemType)
@@ -1079,18 +1049,16 @@ export class Parser {
       }
     }
 
-    // Parse array dimensions after tuple: [int, string][]
     const tupleType = { kind: "TupleType", elements }
     return this.parseArrayDimensions(tupleType)
   }
 
   private parseFunctionTypeAnnotation(): any {
-    this.advance() // consume (
+    this.advance()
     const params: any[] = []
 
     if (!this.check(TokenType.RPAREN)) {
       while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
-        // Parse parameter type
         const paramType = this.parseTypeAnnotation()
         params.push(paramType)
 
@@ -1106,27 +1074,23 @@ export class Parser {
       this.error("Expected ')' in function type", this.peek())
       return undefined
     }
-    this.advance() // consume )
+    this.advance()
 
-    // Expect =>
     if (!this.check(TokenType.ARROW)) {
       this.error("Expected '=>' in function type", this.peek())
       return undefined
     }
-    this.advance() // consume =>
+    this.advance()
 
-    // Parse return type - could be another function type or regular type
     let returnType: any
     
     if (this.check(TokenType.LPAREN)) {
-      // Could be function type like (int) => int or wrapped like ((int) => int)
       const funcReturn = this.parseFunctionTypeAnnotation()
       returnType = funcReturn
     } else {
       returnType = this.parseTypeAnnotation()
     }
 
-    // Parse array dimensions after function type: (int) => int[]
     let dimensions = 0
     while (this.check(TokenType.LBRACKET)) {
       this.advance()
@@ -1148,7 +1112,7 @@ export class Parser {
   }
 
   private parseObjectTypeAnnotation(): any {
-    this.advance() // consume {
+    this.advance()
     const fields: any[] = []
 
     if (this.check(TokenType.RBRACE)) {
@@ -1157,7 +1121,6 @@ export class Parser {
     }
 
     while (!this.isAtEnd() && !this.check(TokenType.RBRACE)) {
-      // Field name: identifier or keyword
       const validNameTokens = [
         TokenType.IDENTIFIER,
         TokenType.KEYWORD,
@@ -1177,14 +1140,12 @@ export class Parser {
 
       const fieldName = this.advance()
 
-      // Expect colon
       if (!this.check(TokenType.COLON)) {
         this.error("Expected ':' after field name", this.peek())
         break
       }
-      this.advance() // consume :
+      this.advance()
 
-      // Parse field type (recursive for nested types)
       const fieldType = this.parseTypeAnnotation()
 
       fields.push({
@@ -1192,14 +1153,13 @@ export class Parser {
         type: fieldType
       })
 
-      // Check for comma or end
       if (this.check(TokenType.RBRACE)) break
 
       if (!this.check(TokenType.COMMA)) {
         this.error("Expected ',' or '}' in type annotation", this.peek())
         break
       }
-      this.advance() // consume comma
+      this.advance()
     }
 
     if (this.check(TokenType.RBRACE)) {
@@ -1212,17 +1172,17 @@ export class Parser {
   }
 
   private parseIfStatement(): Stmt {
-    this.advance() // consume if
+    this.advance()
 
     if (this.peek().type !== TokenType.LPAREN) {
       this.error("Expected '(' after 'if'", this.peek())
       this.synchronize()
       return { kind: "BlockStmt", statements: [] }
     }
-    this.advance() // consume (
+    this.advance()
     const condition = this.parseExpression(Precedence.LOWEST)
     if (this.check(TokenType.RPAREN)) {
-      this.advance() // consume )
+      this.advance()
     } else {
       this.error("Expected ')' after condition", this.peek())
       this.synchronize()
@@ -1258,17 +1218,17 @@ export class Parser {
   }
 
   private parseWhileStatement(): Stmt {
-    this.advance() // consume while
+    this.advance()
 
     if (this.peek().type !== TokenType.LPAREN) {
       this.error("Expected '(' after 'while'", this.peek())
       this.synchronize()
       return { kind: "BlockStmt", statements: [] }
     }
-    this.advance() // consume (
+    this.advance()
     const condition = this.parseExpression(Precedence.LOWEST)
     if (this.check(TokenType.RPAREN)) {
-      this.advance() // consume )
+      this.advance()
     } else {
       this.error("Expected ')' after condition", this.peek())
       this.synchronize()
@@ -1290,27 +1250,24 @@ export class Parser {
   }
 
   private parseFunctionStatement(): Stmt {
-    this.advance() // consume 'func'
+    this.advance()
 
-    // Parse function name
     const nameToken = this.advance()
     if (nameToken.type !== TokenType.IDENTIFIER) {
       this.error("Expected function name after 'func'", nameToken)
       return { kind: "ExpressionStmt", expression: { kind: "Literal", value: null } }
     }
 
-    // Parse parameters: (
     if (!this.check(TokenType.LPAREN)) {
       this.error("Expected '(' after function name", this.peek())
     }
-    this.advance() // consume (
+    this.advance()
 
-    // Parse parameter list
     const params: any[] = []
     while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
       let isRest = false
       if (this.check(TokenType.SPREAD)) {
-        this.advance() // consume ...
+        this.advance()
         isRest = true
       }
 
@@ -1322,31 +1279,29 @@ export class Parser {
 
       let paramType: any = undefined
       if (this.check(TokenType.COLON)) {
-        this.advance() // consume :
+        this.advance()
         paramType = this.parseTypeAnnotation()
       }
 
       params.push({ name: paramName, type: paramType, isRest })
 
       if (this.check(TokenType.COMMA)) {
-        this.advance() // consume ,
+        this.advance()
       }
     }
 
     if (this.check(TokenType.RPAREN)) {
-      this.advance() // consume )
+      this.advance()
     } else {
       this.error("Expected ')' after parameters", this.peek())
     }
 
-    // Parse return type
     let returnType: { base: Token; dimensions: number } | undefined
     if (this.check(TokenType.COLON)) {
-      this.advance() // consume :
+      this.advance()
       returnType = this.parseTypeAnnotation()
     }
 
-    // Parse body
     let body: any
     if (this.check(TokenType.LBRACE)) {
       body = this.parseBlockStatement()
@@ -1365,15 +1320,12 @@ export class Parser {
   }
 
   private parseReturnStatement(): Stmt {
-    const keyword = this.advance() // consume 'return'
+    const keyword = this.advance()
 
-    // Check if there's an expression after return
     if (this.check(TokenType.RBRACE) || this.isAtEnd()) {
-      // return without value
       return { kind: "ReturnStmt" }
     }
 
-    // Try to parse return value
     const value = this.parseExpression(Precedence.LOWEST)
     if (!value) {
       return { kind: "ReturnStmt" }
@@ -1384,8 +1336,6 @@ export class Parser {
       value
     }
   }
-
-  // --- PRATT EXPRESSION ROOT ---
 
   public parseExpression(precedence: Precedence): Expr | null {
     if (this.isAtEnd()) return null
@@ -1401,10 +1351,7 @@ export class Parser {
     let left = prefix()
     if (!left) return null
 
-    // Left associativity loop
     while (!this.isAtEnd() && precedence < getPrecedence(this.peek().type)) {
-      // Special case: if we see [ but it looks like an array literal and left is a literal,
-      // don't treat as index. This handles standalone arrays like "[1, 2, 3]" in expression statements.
       if (this.peek().type === TokenType.LBRACKET && left) {
         const isLiteralLeft = left.kind === 'Array' || left.kind === 'Object' || left.kind === 'Literal'
         if (isLiteralLeft && this.looksLikeArrayLiteral()) {
@@ -1423,8 +1370,6 @@ export class Parser {
 
     return left
   }
-
-  // --- TOKEN NAVIGATION ---
 
   public peek(): Token {
     return this.tokens[this.current]
@@ -1464,24 +1409,19 @@ export class Parser {
     throw new Error('ParseError')
   }
 
-  // --- ERROR RECOVERY ---
-
   public error(message: string, token: Token) {
     this.errors.report(message, token)
   }
 
   public synchronize() {
-    // Skip tokens until we find a safe recovery point
     while (!this.isAtEnd()) {
       const currentType = this.peek()?.type
 
-      // Found SEMICOLON - safe to continue
       if (currentType === TokenType.SEMICOLON) {
         this.advance()
         return
       }
 
-      // Found keyword that starts a statement - safe to continue
       if (currentType === TokenType.KEYWORD) {
         const val = this.peek().value
         if (['func', 'val', 'const', 'var', 'if', 'for', 'while', 'return', 'class'].includes(val as string)) {
@@ -1489,12 +1429,10 @@ export class Parser {
         }
       }
 
-      // Found start of new expression - safe to continue
       if ([TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN, TokenType.NULL, TokenType.LPAREN, TokenType.LBRACE].includes(currentType)) {
         return
       }
 
-      // Skip this token and try next
       this.advance()
     }
   }
