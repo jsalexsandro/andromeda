@@ -1,0 +1,475 @@
+// =============================================================
+// STRESS TESTS — PARSER DE PRODUÇÃO
+// Cada bloco tem um comentário explicando o que está testando
+// e o resultado esperado.
+// =============================================================
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 1 — PRECEDÊNCIA DE OPERADORES
+// O parser mais fraco vai errar a associatividade aqui.
+// ─────────────────────────────────────────────────────────────
+
+// 1.1 — Encadeamento de comparações com lógico
+val r1 = a + b * c - d / e % f == g && h != i || j
+
+// 1.2 — Unário aninhado com binário
+val r2 = !!!true == false
+val r3 = -(-(-x)) + +y - -z
+
+// 1.3 — Nullish tem menor precedência que ternário
+// Resultado esperado: (a ? b : c) ?? d  — NÃO  a ? b : (c ?? d)
+val r4 = a ? b : c ?? d
+
+// 1.4 — Ternário aninhado à direita (right-associative)
+// Deve parsear como: a ? b : (c ? d : (e ? f : g))
+val r5 = a ? b : c ? d : e ? f : g
+
+// 1.5 — Combinação nullish + ternário + comparação
+val r6 = x == null ? y ?? z : w != null ? w : v ?? "default"
+
+// 1.6 — Negação antes de ternário (unário aplicado ao bool result)
+val r7 = !a ? !b : !!!c ?? !d
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 2 — TIPOS COMPLEXOS
+// Testa o parser de anotações de tipo em situações extremas.
+// ─────────────────────────────────────────────────────────────
+
+// 2.1 — Função que retorna função que retorna função
+val f1: () => () => () => int = () => () => () => 42
+
+// 2.2 — Array de funções que recebem arrays
+val f2: ((int[]) => int[])[] = [arr => arr, arr => arr]
+
+// 2.3 — Função que recebe função e retorna função
+val f3: ((int) => int) => (int) => int = f => x => f(x) + 1
+
+// 2.4 — Union em parâmetro de função dentro de array
+val f4: ((int | string | null) => bool)[] = [x => x != null]
+
+// 2.5 — Objeto com campos de tipos absurdos
+val f5: {
+  parse: (string) => int | null,
+  transform: ((int) => int) => (int[]) => int[],
+  cache: { hits: int, misses: int, store: (string) => void }
+} = {
+  parse: s => null,
+  transform: f => arr => arr,
+  cache: { hits: 0, misses: 0, store: k => {} }
+}
+
+// 2.6 — Tupla com union types
+val f6: [int | null, string | bool, (int) => int | null] = [null, true, x => null]
+
+// 2.7 — Array multidimensional com union
+val f7: (int | string)[][] = [[1, "a"], [2, "b"]]
+
+// 2.8 — Retorno de função com tipo de objeto aninhado
+val f8: () => { data: { items: int[], meta: { count: int } } } = () => {
+  data: { items: [1, 2, 3], meta: { count: 3 } }
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 3 — ARROW FUNCTIONS EXTREMAS
+// Ambiguidade entre bloco `{}` e objeto literal `{}`.
+// ─────────────────────────────────────────────────────────────
+
+// 3.1 — Arrow que retorna objeto (sem parênteses no objeto)
+val g1 = (x: int): {id: int} => { id: x }
+
+// 3.2 — Arrow que retorna arrow que retorna objeto
+val g2 = (a: int) => (b: string) => { id: a, name: b }
+
+// 3.3 — Arrow sem tipo, inferência de objeto
+val g3 = x => { value: x * 2, label: "double" }
+
+// 3.4 — Arrow com rest, retornando array spread
+val g4 = (...args: int[]): int[] => [...args, ...args]
+
+// 3.5 — Arrow imediatamente invocada (IIFE)
+val g5 = ((x: int): int => x * x)(10)
+
+// 3.6 — Arrow passada como argumento para outra arrow IIFE
+val g6 = ((f: (int) => int): int => f(5))(x => x + 1)
+
+// 3.7 — Array de arrows IIFE
+val g7 = [(x => x * 2)(3), (x => x + 1)(4), (x => !!!x)(false)]
+
+// 3.8 — Arrow com parâmetro de objeto desestruturado em tipo
+val g8 = (config: { debug: bool, level: int }): string =>
+  config.debug ? "debug:" + config.level : "prod"
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 4 — ACESSO ENCADEADO BRUTAL
+// MemberExpression + IndexExpression + CallExpression aninhados.
+// ─────────────────────────────────────────────────────────────
+
+// 4.1 — Cadeia longa de acesso
+val h1 = a.b.c.d.e.f.g
+
+// 4.2 — Misto de dot e bracket
+val h2 = a["b"].c[0]["d"].e
+
+// 4.3 — Call no meio da cadeia
+val h3 = a.b().c.d().e[0].f()
+
+// 4.4 — Índice computado com expressão
+val h4 = arr[i + 1][j * 2][k % n]
+
+// 4.5 — Método chamado com spread
+val h5 = obj.fn(...items).map(x => x * 2)[0]
+
+// 4.6 — Acesso encadeado com ternário como índice
+val h6 = matrix[a > b ? 0 : 1][c ?? 0]
+
+// 4.7 — Call result acessado como array
+val h7 = getMatrix()(0)(1)
+
+// 4.8 — Object dentro de array acessado com cadeia
+val h8 = users[0].profile.address["city"].toUpperCase()
+
+// 4.9 — Acesso em resultado de spread
+val h9 = { ...base, extra: 99 }.extra
+
+// 4.10 — Cadeia com nullish em cada passo
+val h10 = a.b ?? c.d ?? e[0] ?? f() ?? "fallback"
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 5 — SPREAD E REST EXTREMOS
+// ─────────────────────────────────────────────────────────────
+
+// 5.1 — Spread multinível em array
+val s1 = [...[...[...[1, 2], 3], 4], 5]
+
+// 5.2 — Spread de chamada de função
+val s2 = [...fn(), ...arr, ...obj.items]
+
+// 5.3 — Spread em objeto aninhado
+val s3 = {
+  ...defaults,
+  ...overrides,
+  nested: { ...defaults.nested, active: true },
+  tags: [...defaults.tags, "extra"]
+}
+
+// 5.4 — Spread com ternário
+val s4 = [...(condition ? a : b), ...(x ?? [])]
+
+// 5.5 — Rest em arrow com tipos
+val s5 = (...args: (int | string)[]): (int | string)[] => [...args, ...args]
+
+// 5.6 — Spread de objeto em chamada
+func configure(opts: { debug: bool, level: int }) {}
+configure({ ...defaults, debug: true })
+configure({ ...a, ...b, ...c, override: "force" })
+
+// 5.7 — Array com spread no meio
+val s7 = [first, ...middle, last, ...extra]
+
+// 5.8 — Spread em retorno de função
+func merge(a: int[], b: int[]): int[] {
+  return [...a, ...b, 0]
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 6 — DECLARAÇÕES VARIADAS MISTURADAS
+// Testa se o parser não confunde const/val/var em contextos
+// onde a expressão do lado direito é complexa.
+// ─────────────────────────────────────────────────────────────
+
+// 6.1 — val com objeto que tem função com tipo complexo
+val decl1: { fn: (int) => int[], data: int[] } = {
+  fn: x => [x, x * 2, x * 3],
+  data: [1, 2, 3]
+}
+
+// 6.2 — const com tupla de funções
+const decl2: [(int) => int, (string) => bool] = [x => x, s => s == "ok"]
+
+// 6.3 — var reatribuída com tipo inferido de expressão complexa
+var counter = 0
+counter += 1
+counter -= 2
+counter *= 3
+counter /= 4
+counter %= 5
+
+// 6.4 — var de objeto mutado
+var state = { count: 0, active: false, label: "init" }
+state.count = state.count + 1
+state.active = !state.active
+state["label"] = "updated"
+
+// 6.5 — Declaração com ternário aninhado como valor
+val decl5 = debug
+  ? verbose ? "debug:verbose" : "debug:normal"
+  : prod    ? "prod:optimized" : "dev"
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 7 — FUNÇÕES COM ASSINATURAS COMPLEXAS
+// ─────────────────────────────────────────────────────────────
+
+// 7.1 — Parâmetros com union types
+func process(input: int | string | null, fallback: int | null): int | null {
+  return null
+}
+
+// 7.2 — Parâmetro de função como argumento
+func apply(fn: (int) => int, value: int): int {
+  return fn(value)
+}
+
+// 7.3 — Retorno de função (higher-order)
+func adder(x: int): (int) => int {
+  return y => x + y
+}
+
+// 7.4 — Múltiplos rest e tipos complexos
+func merge(...sources: {key: string, value: int | string | null}[]): {key: string, value: int | string | null}[] {
+  return sources
+}
+
+// 7.5 — Função que retorna objeto com funções
+func createCounter(initial: int): { inc: () => void, dec: () => void, get: () => int } {
+  return {
+    inc: () => {},
+    dec: () => {},
+    get: () => initial
+  }
+}
+
+// 7.6 — Recursão (testa se o parser não explode no símbolo)
+func fib(n: int): int {
+  if (n <= 1) {
+    return n
+  }
+  return fib(n - 1) + fib(n - 2)
+}
+
+// 7.7 — Função com todos os modificadores
+func everything(
+  a: int,
+  b: string | null,
+  c: (int) => bool,
+  ...rest: int[]
+): { result: int | null, errors: string[] } {
+  return { result: null, errors: [] }
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 8 — EXPRESSÕES EM STATEMENTS (ExpressionStatement)
+// Testa se o parser aceita chamadas e atribuições como statements
+// sem envolvê-las em declaração.
+// ─────────────────────────────────────────────────────────────
+
+// 8.1 — Chamadas simples como statement
+print("hello")
+log(a, b, c)
+arr.push(99)
+
+// 8.2 — Chamada encadeada como statement
+obj.method().chain().execute()
+
+// 8.3 — Chamada com spread como statement
+fn(...args)
+console.log(...items, "extra")
+
+// 8.4 — Atribuição composta como statement
+x += a * b + c
+y -= fn(z) ?? 0
+arr[0] *= 2
+obj.count %= limit
+
+// 8.5 — Increment/decrement como statement
+x++
+y--
+arr[i]++
+obj.count--
+
+
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 9 — LOOPS E CONDICIONAIS ANINHADOS BRUTAIS
+// ─────────────────────────────────────────────────────────────
+
+// 9.1 — if/else if/else aninhado profundo
+if (a == 1) {
+  if (b == 2) {
+    if (c == 3) {
+      print("deep")
+    } else {
+      print("c != 3")
+    }
+  } else if (b == 4) {
+    print("b == 4")
+  } else {
+    print("b other")
+  }
+} else if (a == 2) {
+  print("a == 2")
+} else {
+  print("a other")
+}
+
+// 9.2 — While com break e continue
+var idx = 0
+while (idx < 100) {
+  if (idx % 2 == 0) {
+    idx += 1
+    continue
+  }
+  if (idx > 50) {
+    break
+  }
+  print(idx)
+  idx += 1
+}
+
+// 9.3 — While aninhado
+var i = 0
+while (i < 10) {
+  var j = 0
+  while (j < 10) {
+    if (i == j) {
+      break
+    }
+    j += 1
+  }
+  i += 1
+}
+
+// 9.4 — Condição complexa no while
+while ((a > 0 && b != null) || (c ?? false) == true) {
+  a -= 1
+  b = b ?? "reset"
+}
+
+// 9.5 — Condição com chamada no if
+if (items.length > 0 && validate(items[0]) == true) {
+  process(...items)
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 10 — EDGE CASES QUE COSTUMAM QUEBRAR PARSERS
+// ─────────────────────────────────────────────────────────────
+
+// 10.1 — Objeto vazio vs bloco vazio (ambiguidade clássica)
+val empty1 = {}
+func noop() {}
+val empty2: {} = {}
+
+// 10.2 — Objeto com chave numérica acessado de formas diversas
+val num_obj = { 0: "zero", 1: "one", 2: "two" }
+val v0 = num_obj[0]
+val v1 = num_obj[1 + 0]
+val v2 = num_obj[idx]
+
+// 10.3 — String como chave com espaço
+val weird = { "hello world": 42, "foo bar": true }
+val wv1 = weird["hello world"]
+val wv2 = weird["foo" + " " + "bar"]
+
+// 10.4 — Dupla negação que NÃO é boolean cast (tripla)
+val b1 = !!x      // boolean cast
+val b2 = !!!x     // boolean cast então nega
+val b3 = !!!!x    // double boolean cast
+val b4 = !!!!!x   // double cast então nega
+
+// 10.5 — Ternário como argumento de chamada
+print(a > b ? "maior" : "menor")
+fn(x ?? 0, y ?? 0, z ? 1 : -1)
+
+// 10.6 — Ternário como chave de objeto (valor computado)
+val computed = {
+  label: isAdmin ? "Admin" : "User",
+  level: score > 90 ? "A" : score > 70 ? "B" : "C",
+  active: status == "ok" && !suspended
+}
+
+// 10.7 — Spread em posição de argumento único
+func wrap(arr: int[]): int[] { return arr }
+val wrapped = wrap(...[1, 2, 3])
+
+// 10.8 — Aninhamento de arrays com tipos mistos
+val matrix: (int | null)[][] = [
+  [1, null, 3],
+  [null, 5, null],
+  [7, 8, null]
+]
+
+// 10.9 — Acesso a elemento de array retornado por função
+val first = getItems()[0]
+val last  = getItems()[getItems().length - 1]
+
+// 10.10 — Objeto com valor que é array de objetos com funções
+val registry = {
+  handlers: [
+    { name: "a", fn: (x: int): int => x + 1 },
+    { name: "b", fn: (x: int): int => x * 2 },
+    { name: "c", fn: (x: int): int => x - 1 }
+  ],
+  default: (x: int): int => x
+}
+val result = registry.handlers[1].fn(10)
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 11 — PROGRAMA COMPLETO (INTEGRAÇÃO)
+// Um algoritmo real para testar o parser de ponta a ponta.
+// ─────────────────────────────────────────────────────────────
+
+// Merge sort funcional sem mutação de array
+const EMPTY: int[] = []
+
+func merge_sorted(left: int[], right: int[]): int[] {
+  if (left.length == 0) { return right }
+  if (right.length == 0) { return left }
+
+  val leftHead  = left[0]
+  val rightHead = right[0]
+
+  if (leftHead <= rightHead) {
+    return [leftHead, ...merge_sorted(left.slice(1), right)]
+  }
+  return [rightHead, ...merge_sorted(left, right.slice(1))]
+}
+
+func merge_sort(arr: int[]): int[] {
+  if (arr.length <= 1) { return arr }
+
+  val mid   = arr.length / 2
+  val left  = merge_sort(arr.slice(0, mid))
+  val right = merge_sort(arr.slice(mid))
+
+  return merge_sorted(left, right)
+}
+
+val unsorted: int[] = [5, 3, 8, 1, 9, 2, 7, 4, 6, 0]
+val sorted   = merge_sort(unsorted)
+print(...sorted)
+// Esperado: 0 1 2 3 4 5 6 7 8 9
+
+
+// ─────────────────────────────────────────────────────────────
+// BLOCO 12 — CASOS QUE DEVEM GERAR ERRO (SE VOCÊ TIVER ERROS)
+// Descomente um de cada vez para verificar recuperação de erro.
+// ─────────────────────────────────────────────────────────────
+
+// val bad1 = { key: }                  // valor faltando
+// val bad2 = [1, 2, ]                  // trailing comma (se não suportar)
+// val bad3 = a ? b                     // ternário incompleto
+// val bad4: int | = 5                  // union incompleta
+// func bad5(a: int,): void {}          // trailing comma em params
+// val bad6 = a ?? ?? b                 // dois nullish seguidos
+// val bad7 = ...x                      // spread fora de contexto
+// val bad8: () => = () => 1            // tipo sem return type

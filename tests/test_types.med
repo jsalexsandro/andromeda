@@ -1,0 +1,6 @@
+var x: int = 10
+var y: float = 1.5
+var z: string = "hello"
+var b: bool = true
+var a: any = null
+var u: undefined = undefined

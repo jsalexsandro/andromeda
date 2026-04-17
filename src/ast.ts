@@ -158,15 +158,8 @@ export interface VariableStmt {
   kind: "VariableStmt"
   declarationType: "var" | "val" | "const"
   name: Token
-  typeAnnotation?: TypeAnnotation
+  type?: TypeNode
   initializer?: Expr
-}
-
-export interface TypeAnnotation {
-  base?: Token
-  dimensions: number
-  types?: TypeAnnotation[]
-  kind?: "UnionType"
 }
 
 export interface BreakStmt {
@@ -179,7 +172,6 @@ export interface ContinueStmt {
 
 export interface FunctionStmtParam {
   name: Token
-  type?: Token
   isRest?: boolean
 }
 
@@ -187,7 +179,6 @@ export interface FunctionStmt {
   kind: "FunctionStmt"
   name: Token
   params: FunctionStmtParam[]
-  returnType?: TypeAnnotation
   body: BlockStmt
   async?: boolean
 }
@@ -253,8 +244,7 @@ export interface ClassProperty {
 
 export interface ClassMethod {
   name: string
-  params: { name: Token; type?: Token }[]
-  returnType?: Token
+  params: { name: Token }[]
   body: BlockStmt
   visibility: "public" | "private" | "protected" | null
   isStatic: boolean
@@ -262,8 +252,7 @@ export interface ClassMethod {
 
 export interface ArrowFunctionExpr {
   kind: "ArrowFunction"
-  params: { name: Token; type?: TypeAnnotation; isRest?: boolean }[]
-  returnType?: TypeAnnotation
+  params: { name: Token; isRest?: boolean }[]
   body: Expr | Stmt
   async?: boolean
 }
@@ -306,4 +295,201 @@ export interface AwaitExpr {
 export interface SpreadExpr {
   kind: "Spread"
   argument: Expr
+}
+
+// ========================================
+// TypeNode - AST de Tipos (igual TypeScript)
+// ========================================
+
+export type TypeNode =
+  | IntTypeNode
+  | FloatTypeNode
+  | StringTypeNode
+  | BoolTypeNode
+  | BigIntTypeNode
+  | SymbolTypeNode
+  | UndefinedTypeNode
+  | NullTypeNode
+  | VoidTypeNode
+  | AnyTypeNode
+  | UnknownTypeNode
+  | ObjectTypeNode
+  | TypeReference
+  | ArrayTypeNode
+  | TupleTypeNode
+  | UnionTypeNode
+  | IntersectionTypeNode
+  | FunctionTypeNode
+  | ObjectLiteralTypeNode
+  | ParenthesizedTypeNode
+  | TypeOperatorNode
+  | TypePredicateNode
+  | TypeQueryNode
+  | ConditionalTypeNode
+  | TypeParameterNode
+  | MappedTypeNode
+  | IndexedAccessTypeNode
+  | ImportTypeNode
+
+export interface IntTypeNode {
+  kind: "IntType"
+}
+
+export interface FloatTypeNode {
+  kind: "FloatType"
+}
+
+export interface StringTypeNode {
+  kind: "StringType"
+}
+
+export interface BoolTypeNode {
+  kind: "BoolType"
+}
+
+export interface BigIntTypeNode {
+  kind: "BigIntType"
+}
+
+export interface SymbolTypeNode {
+  kind: "SymbolType"
+}
+
+export interface UndefinedTypeNode {
+  kind: "UndefinedType"
+}
+
+export interface NullTypeNode {
+  kind: "NullType"
+}
+
+export interface VoidTypeNode {
+  kind: "VoidType"
+}
+
+export interface AnyTypeNode {
+  kind: "AnyType"
+}
+
+export interface UnknownTypeNode {
+  kind: "UnknownType"
+}
+
+export interface ObjectTypeNode {
+  kind: "ObjectType"
+}
+
+export interface TypeReference {
+  kind: "TypeReference"
+  typeName: Token
+  typeArguments?: TypeNode[]
+}
+
+export interface ArrayTypeNode {
+  kind: "ArrayType"
+  elementType: TypeNode
+  degrees: number
+}
+
+export interface TupleTypeNode {
+  kind: "TupleType"
+  elements: TupleTypeElement[]
+}
+
+export interface TupleTypeElement {
+  name?: string
+  type: TypeNode
+  isOptional?: boolean
+}
+
+export interface UnionTypeNode {
+  kind: "UnionType"
+  types: TypeNode[]
+}
+
+export interface IntersectionTypeNode {
+  kind: "IntersectionType"
+  types: TypeNode[]
+}
+
+export interface FunctionTypeNode {
+  kind: "FunctionType"
+  parameters: FunctionParameter[]
+  returnType: TypeNode
+}
+
+export interface FunctionParameter {
+  name: Token
+  type: TypeNode
+  isOptional?: boolean
+  isRest?: boolean
+}
+
+export interface ObjectLiteralTypeNode {
+  kind: "ObjectLiteralType"
+  members: TypeElement[]
+}
+
+export interface TypeElement {
+  name: string
+  type: TypeNode
+  isOptional?: boolean
+  isReadonly?: boolean
+}
+
+export interface ParenthesizedTypeNode {
+  kind: "ParenthesizedType"
+  type: TypeNode
+}
+
+export interface TypeOperatorNode {
+  kind: "TypeOperator"
+  operator: "keyof" | "readonly" | "unique"
+  type: TypeNode
+}
+
+export interface TypePredicateNode {
+  kind: "TypePredicate"
+  parameterName: Token
+  type?: TypeNode
+}
+
+export interface TypeQueryNode {
+  kind: "TypeQuery"
+  typeName: Token
+}
+
+export interface ConditionalTypeNode {
+  kind: "ConditionalType"
+  checkType: TypeNode
+  extendsType: TypeNode
+  trueType: TypeNode
+  falseType: TypeNode
+}
+
+export interface TypeParameterNode {
+  kind: "TypeParameter"
+  name: Token
+  constraint?: TypeNode
+  default?: TypeNode
+}
+
+export interface MappedTypeNode {
+  kind: "MappedType"
+  typeParameter: TypeParameterNode
+  type?: TypeNode
+  isReadonly?: boolean
+  isOptional?: boolean
+}
+
+export interface IndexedAccessTypeNode {
+  kind: "IndexedAccessType"
+  objectType: TypeNode
+  indexType: TypeNode
+}
+
+export interface ImportTypeNode {
+  kind: "ImportType"
+  path: Token
+  qualifier?: Token
 }

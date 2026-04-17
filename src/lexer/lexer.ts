@@ -938,6 +938,9 @@ readNumber(): Token {
 
     const ident = this.input.slice(start, this.position)  // OTIMIZAÇÃO: slice único em vez de concatenação
 
+    // ========================================
+    // Boolean Literals
+    // ========================================
     if (ident === 'true') {
       return { type: TokenType.BOOLEAN, value: true, line: this.line, column: startColumn }
     }
@@ -946,34 +949,78 @@ readNumber(): Token {
       return { type: TokenType.BOOLEAN, value: false, line: this.line, column: startColumn }
     }
 
+    // ========================================
+    // Null Literal
+    // ========================================
     if (ident === 'null') {
       return { type: TokenType.NULL, value: null, line: this.line, column: startColumn }
     }
 
+    // ========================================
+    // Type Keywords - Primitive Types
+    // ========================================
     if (ident === 'int') {
-      return { type: TokenType.TYPE_INT, value: 'int', line: this.line, column: startColumn }
+      return { type: TokenType.INT_TYPE, value: 'int', line: this.line, column: startColumn }
     }
 
     if (ident === 'float') {
-      return { type: TokenType.TYPE_FLOAT, value: 'float', line: this.line, column: startColumn }
-    }
-
-    if (ident === 'bool') {
-      return { type: TokenType.TYPE_BOOL, value: 'bool', line: this.line, column: startColumn }
+      return { type: TokenType.FLOAT_TYPE, value: 'float', line: this.line, column: startColumn }
     }
 
     if (ident === 'string') {
-      return { type: TokenType.TYPE_STRING, value: 'string', line: this.line, column: startColumn }
+      return { type: TokenType.STRING_TYPE, value: 'string', line: this.line, column: startColumn }
+    }
+
+    if (ident === 'bool') {
+      return { type: TokenType.BOOLEAN_TYPE, value: 'bool', line: this.line, column: startColumn }
+    }
+
+    if (ident === 'bigint') {
+      return { type: TokenType.BIGINT_TYPE, value: 'bigint', line: this.line, column: startColumn }
+    }
+
+    if (ident === 'symbol') {
+      return { type: TokenType.SYMBOL_TYPE, value: 'symbol', line: this.line, column: startColumn }
+    }
+
+    if (ident === 'undefined') {
+      return { type: TokenType.UNDEFINED_TYPE, value: 'undefined', line: this.line, column: startColumn }
     }
 
     if (ident === 'void') {
-      return { type: TokenType.TYPE_VOID, value: 'void', line: this.line, column: startColumn }
+      return { type: TokenType.VOID_TYPE, value: 'void', line: this.line, column: startColumn }
     }
 
     if (ident === 'any') {
-      return { type: TokenType.TYPE_ANY, value: 'any', line: this.line, column: startColumn }
+      return { type: TokenType.ANY_TYPE, value: 'any', line: this.line, column: startColumn }
     }
 
+    if (ident === 'unknown') {
+      return { type: TokenType.UNKNOWN_TYPE, value: 'unknown', line: this.line, column: startColumn }
+    }
+
+    if (ident === 'object') {
+      return { type: TokenType.OBJECT_TYPE, value: 'object', line: this.line, column: startColumn }
+    }
+
+    // ========================================
+    // Type Operators
+    // ========================================
+    if (ident === 'keyof') {
+      return { type: TokenType.KEYOF, value: 'keyof', line: this.line, column: startColumn }
+    }
+
+    if (ident === 'typeof') {
+      return { type: TokenType.TYPEOF, value: 'typeof', line: this.line, column: startColumn }
+    }
+
+    if (ident === 'readonly') {
+      return { type: TokenType.READONLY, value: 'readonly', line: this.line, column: startColumn }
+    }
+
+    // ========================================
+    // Regular Keywords and Identifiers
+    // ========================================
     // OTIMIZAÇÃO: Set.has() é O(1) vs Array.includes() que é O(n)
     const isKeyword = KEYWORDS_SET.has(ident)
     const type = isKeyword ? TokenType.KEYWORD : TokenType.IDENTIFIER

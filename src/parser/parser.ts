@@ -1,6 +1,6 @@
 import { Token, TokenType } from '../lexer/types'
 import { ErrorHandler } from './error'
-import { Expr, Stmt } from '../ast'
+import { Expr, Stmt, TypeNode } from '../ast'
 import { Precedence, getPrecedence } from './precedence'
 
 type PrefixParselet = () => Expr | null;
@@ -198,11 +198,6 @@ export class Parser {
       } else if (this.check(TokenType.IDENTIFIER) || 
           this.check(TokenType.KEYWORD) || 
           this.check(TokenType.BOOLEAN) ||
-          this.check(TokenType.TYPE_INT) ||
-          this.check(TokenType.TYPE_FLOAT) ||
-          this.check(TokenType.TYPE_BOOL) ||
-          this.check(TokenType.TYPE_STRING) ||
-          this.check(TokenType.TYPE_VOID) ||
           this.check(TokenType.NULL)) {
         key = this.advance().value as string
 
@@ -279,22 +274,16 @@ export class Parser {
   }
 
   private tryParseArrowFunction(): Expr | null {
-    const params: { name: Token; type?: { base: Token; dimensions: number } }[] = []
+    const params: { name: Token; isRest?: boolean }[] = []
 
     if (this.check(TokenType.RPAREN)) {
       this.advance()
-      
-      let returnType: { base: Token; dimensions: number } | undefined
-      if (this.check(TokenType.COLON)) {
-        this.advance()
-        returnType = this.parseTypeAnnotation()
-      }
       
       if (!this.check(TokenType.ARROW)) {
         return null
       }
       this.advance()
-      return this.parseArrowBodyWithReturnType(params, returnType)
+      return this.parseArrowBody(params)
     }
 
     while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
@@ -309,14 +298,7 @@ export class Parser {
       }
 
       const paramName = this.advance()
-
-      let paramType: { base: Token; dimensions: number } | undefined
-      if (this.check(TokenType.COLON)) {
-        this.advance()
-        paramType = this.parseTypeAnnotation()
-      }
-
-      params.push({ name: paramName, type: paramType, isRest })
+      params.push({ name: paramName, isRest })
 
       if (this.check(TokenType.COMMA)) {
         this.advance()
@@ -328,44 +310,16 @@ export class Parser {
     }
     this.advance()
 
-    let returnType: { base: Token; dimensions: number } | undefined
-    if (this.check(TokenType.COLON)) {
-      this.advance()
-      returnType = this.parseTypeAnnotation()
-    }
-
     if (!this.check(TokenType.ARROW)) {
       return null
     }
     this.advance()
 
-    return this.parseArrowBodyWithReturnType(params, returnType)
+    return this.parseArrowBody(params)
   }
 
   private isObjectTypeAnnotation(lbracePos: number): boolean {
-    let i = lbracePos + 1
-    
-    if (!this.tokens[i] || this.tokens[i].type === TokenType.RBRACE) return false
-    
-    const keyToken = this.tokens[i]
-    if (!keyToken || (keyToken.type !== TokenType.IDENTIFIER && keyToken.type !== TokenType.KEYWORD)) {
-      return false
-    }
-    i++
-    
-    if (!this.tokens[i] || this.tokens[i].type !== TokenType.COLON) {
-      return false
-    }
-    i++
-    
-    const afterColon = this.tokens[i]?.type
-    const typeTokens = [
-      TokenType.TYPE_INT, TokenType.TYPE_FLOAT, TokenType.TYPE_BOOL,
-      TokenType.TYPE_STRING, TokenType.TYPE_VOID, TokenType.TYPE_ANY,
-      TokenType.NULL
-    ]
-    
-    return typeTokens.includes(afterColon)
+    return false
   }
 
   private looksLikeBlockStatement(): boolean {
@@ -401,13 +355,8 @@ export class Parser {
     return false
   }
 
-  private parseArrowBody(params: { name: Token; type?: { base: Token; dimensions: number }; isRest?: boolean }[]): Expr {
+private parseArrowBody(params: { name: Token; isRest?: boolean }[]): Expr {
     if (this.check(TokenType.LBRACE)) {
-      if (this.isObjectTypeAnnotation(this.current)) {
-        this.error("Expected expression after '=>'", this.peek())
-        return { kind: "Literal", value: null }
-      }
-      
       if (this.looksLikeBlockStatement()) {
         const body = this.parseBlockStatement()
         return {
@@ -450,57 +399,14 @@ export class Parser {
     }
   }
 
-  private parseArrowBodyWithReturnType(params: { name: Token; type?: { base: Token; dimensions: number }; isRest?: boolean }[], returnType: { base: Token; dimensions: number } | undefined): Expr {
-    if (this.check(TokenType.LBRACE)) {
-      if (this.isObjectTypeAnnotation(this.current)) {
-        this.error("Expected expression after '=>'", this.peek())
-        return { kind: "Literal", value: null }
-      }
-      
-      if (this.looksLikeBlockStatement()) {
-        const body = this.parseBlockStatement()
-        return {
-          kind: "ArrowFunction",
-          params,
-          returnType,
-          body
-        }
-      }
-      
-      const savedPos = this.current
-      const savedErrorsLength = this.errors.errors.length
-      try {
-        const objLiteral = this.parseObjectLiteral()
-        return {
-          kind: "ArrowFunction",
-          params,
-          returnType,
-          body: objLiteral
-        }
-      } catch (e) {
-        this.current = savedPos
-        this.errors.errors = this.errors.errors.slice(0, savedErrorsLength)
-        const body = this.parseBlockStatement()
-        return {
-          kind: "ArrowFunction",
-          params,
-          returnType,
-          body
-        }
-      }
-    } else {
-      const body = this.parseExpression(Precedence.LOWEST)
-      if (!body) {
-        this.error("Expected expression after '=>'", this.peek())
-        return { kind: "Literal", value: null }
-      }
-      return {
-        kind: "ArrowFunction",
-        params,
-        returnType,
-        body
-      }
+private parseAssignment(left: Expr): Expr | null {
+    const operator = this.previous()
+    const value = this.parseExpression(Precedence.LOWEST)
+    if (!value) {
+      this.error(`Expected expression after '${operator.value}'`, operator)
+      return null
     }
+    return { kind: "Assign", name: left, value, operator }
   }
 
   private parseUnary(): Expr {
@@ -521,30 +427,6 @@ export class Parser {
   private parsePostfixDecrement(left: Expr): Expr {
     const operator = this.previous()
     return { kind: "Unary", operator, right: left }
-  }
-
-  private isAtExpressionStart(): boolean {
-    if (this.current === 0) return true
-    const prev = this.tokens[this.current - 1]
-    const startTypes = [
-      TokenType.LPAREN, TokenType.LBRACE, TokenType.LBRACKET,
-      TokenType.COMMA, TokenType.ASSIGN, TokenType.COLON,
-      TokenType.AND, TokenType.OR, TokenType.EQUAL, TokenType.NOT_EQUAL,
-      TokenType.LESS_THAN, TokenType.GREATER_THAN, TokenType.LESS_EQUAL,
-      TokenType.GREATER_EQUAL, TokenType.PLUS, TokenType.MINUS,
-      TokenType.STAR, TokenType.SLASH, TokenType.MODULO
-    ]
-    return startTypes.includes(prev.type)
-  }
-
-  private parseAssignment(left: Expr): Expr | null {
-    const operator = this.previous()
-    const value = this.parseExpression(Precedence.LOWEST)
-    if (!value) {
-      this.error(`Expected expression after '${operator.value}'`, operator)
-      return null
-    }
-    return { kind: "Assign", name: left, value, operator }
   }
 
   private parseCall(left: Expr): Expr | null {
@@ -585,12 +467,6 @@ export class Parser {
     const validPropertyTypes = [
       TokenType.IDENTIFIER,
       TokenType.KEYWORD,
-      TokenType.TYPE_INT,
-      TokenType.TYPE_FLOAT,
-      TokenType.TYPE_BOOL,
-      TokenType.TYPE_STRING,
-      TokenType.TYPE_VOID,
-      TokenType.TYPE_ANY,
       TokenType.BOOLEAN,
       TokenType.NULL
     ]
@@ -776,11 +652,6 @@ export class Parser {
       }
     }
     if (this.tokens[i]?.type === TokenType.KEYWORD || 
-        this.tokens[i]?.type === TokenType.TYPE_INT ||
-        this.tokens[i]?.type === TokenType.TYPE_FLOAT ||
-        this.tokens[i]?.type === TokenType.TYPE_BOOL ||
-        this.tokens[i]?.type === TokenType.TYPE_STRING ||
-        this.tokens[i]?.type === TokenType.TYPE_VOID ||
         this.tokens[i]?.type === TokenType.BOOLEAN ||
         this.tokens[i]?.type === TokenType.NULL) {
       i++
@@ -860,10 +731,10 @@ export class Parser {
       return null
     }
     
-    let typeAnnotation: { base: Token; dimensions: number } | undefined
-    if (this.peek().type === TokenType.COLON) {
-      this.advance()
-      typeAnnotation = this.parseTypeAnnotation()
+    // Parse type annotation (ex: : string)
+    const typeAnnotation = this.parseTypeAnnotation()
+    if (typeAnnotation) {
+      console.log('[TypeDebug] Variable type annotation:', JSON.stringify(typeAnnotation))
     }
     
     let initializer: Expr | undefined
@@ -876,303 +747,9 @@ export class Parser {
       kind: "VariableStmt",
       declarationType: keyword as "var" | "val" | "const",
       name: nameToken,
-      typeAnnotation,
+      type: typeAnnotation,
       initializer
     }
-  }
-
-  private parseTypeAnnotation(): any {
-    const firstType = this.parseUnionMember()
-
-    if (this.check(TokenType.PIPE)) {
-      const types = [firstType]
-      while (this.check(TokenType.PIPE)) {
-        this.advance()
-        types.push(this.parseUnionMember())
-      }
-      return { kind: "UnionType", types }
-    }
-
-    return firstType
-  }
-
-  private parseUnionMember(): any {
-    if (this.check(TokenType.LPAREN)) {
-      return this.parseFunctionOrParenthesizedType()
-    }
-
-    if (this.check(TokenType.LBRACKET)) {
-      return this.parseTupleTypeAnnotation()
-    }
-
-    if (this.check(TokenType.LBRACE)) {
-      const objectType = this.parseObjectTypeAnnotation()
-      return this.parseArrayDimensions(objectType)
-    }
-
-    return this.parseBaseTypeWithArrays()
-  }
-
-  private parseFunctionOrParenthesizedType(): any {
-    this.advance()
-    
-    if (this.check(TokenType.RPAREN)) {
-      this.advance()
-      
-      if (this.check(TokenType.ARROW)) {
-        this.advance()
-        const returnType = this.parseTypeAnnotation()
-        return {
-          kind: "FunctionType",
-          params: [],
-          returnType,
-          isWrapped: false,
-          dimensions: 0
-        }
-      }
-      
-      return { kind: "TupleType", elements: [] }
-    }
-
-    const types: any[] = []
-    while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
-      if (this.check(TokenType.IDENTIFIER) && this.peekNext()?.type === TokenType.COLON) {
-        this.advance()
-        this.advance()
-      }
-      types.push(this.parseTypeAnnotation())
-      if (this.check(TokenType.COMMA)) {
-        this.advance()
-      } else if (!this.check(TokenType.RPAREN)) {
-        break
-      }
-    }
-
-    if (!this.check(TokenType.RPAREN)) {
-      this.error("Expected ')' in type annotation", this.peek())
-      return undefined
-    }
-    this.advance()
-
-    if (this.check(TokenType.ARROW)) {
-      this.advance()
-      const returnType = this.parseTypeAnnotation()
-      return {
-        kind: "FunctionType",
-        params: types,
-        returnType,
-        isWrapped: false,
-        dimensions: 0
-      }
-    }
-
-    let type = types.length === 1 ? types[0] : { kind: "TupleType", elements: types }
-    
-    return this.parseArrayDimensions(type)
-  }
-
-  private parseArrayDimensions(type: any): any {
-    let result = type
-    
-    while (this.check(TokenType.LBRACKET)) {
-      this.advance()
-      if (!this.check(TokenType.RBRACKET)) {
-        this.error("Expected ']' after '[' in type annotation", this.peek())
-        break
-      }
-      this.advance()
-      
-      if (result.dimensions !== undefined) {
-        result.dimensions++
-      } else {
-        result = { ...result, dimensions: 1 }
-      }
-    }
-    
-    return result
-  }
-
-  private parseBaseTypeWithArrays(): any {
-    const baseType = this.advance()
-    const validTypes = [
-      TokenType.IDENTIFIER,
-      TokenType.KEYWORD,
-      TokenType.TYPE_INT,
-      TokenType.TYPE_FLOAT,
-      TokenType.TYPE_BOOL,
-      TokenType.TYPE_STRING,
-      TokenType.TYPE_VOID,
-      TokenType.TYPE_ANY,
-      TokenType.NULL
-    ]
-    if (!validTypes.includes(baseType.type)) {
-      this.error(`Expected type after ':'`, baseType)
-      return undefined
-    }
-
-    let type = { base: baseType, dimensions: 0 }
-
-    while (this.check(TokenType.LBRACKET)) {
-      this.advance()
-      if (!this.check(TokenType.RBRACKET)) {
-        this.error("Expected ']' after '[' in type annotation", this.peek())
-        break
-      }
-      this.advance()
-      type.dimensions++
-    }
-
-    return type
-  }
-
-  private parseTupleTypeAnnotation(): any {
-    this.advance()
-    const elements: any[] = []
-
-    if (this.check(TokenType.RBRACKET)) {
-      this.advance()
-      return { kind: "TupleType", elements }
-    }
-
-    while (!this.isAtEnd() && !this.check(TokenType.RBRACKET)) {
-      const elemType = this.parseTypeAnnotation()
-      if (elemType) {
-        elements.push(elemType)
-      }
-
-      if (this.check(TokenType.RBRACKET)) {
-        this.advance()
-        break
-      }
-
-      if (this.check(TokenType.COMMA)) {
-        this.advance()
-      } else {
-        this.error("Expected ',' in tuple type", this.peek())
-        break
-      }
-    }
-
-    const tupleType = { kind: "TupleType", elements }
-    return this.parseArrayDimensions(tupleType)
-  }
-
-  private parseFunctionTypeAnnotation(): any {
-    this.advance()
-    const params: any[] = []
-
-    if (!this.check(TokenType.RPAREN)) {
-      while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
-        const paramType = this.parseTypeAnnotation()
-        params.push(paramType)
-
-        if (this.check(TokenType.COMMA)) {
-          this.advance()
-        } else if (!this.check(TokenType.RPAREN)) {
-          break
-        }
-      }
-    }
-
-    if (!this.check(TokenType.RPAREN)) {
-      this.error("Expected ')' in function type", this.peek())
-      return undefined
-    }
-    this.advance()
-
-    if (!this.check(TokenType.ARROW)) {
-      this.error("Expected '=>' in function type", this.peek())
-      return undefined
-    }
-    this.advance()
-
-    let returnType: any
-    
-    if (this.check(TokenType.LPAREN)) {
-      const funcReturn = this.parseFunctionTypeAnnotation()
-      returnType = funcReturn
-    } else {
-      returnType = this.parseTypeAnnotation()
-    }
-
-    let dimensions = 0
-    while (this.check(TokenType.LBRACKET)) {
-      this.advance()
-      if (!this.check(TokenType.RBRACKET)) {
-        this.error("Expected ']' after '[' in type annotation", this.peek())
-        break
-      }
-      this.advance()
-      dimensions++
-    }
-
-    return {
-      kind: "FunctionType",
-      params,
-      returnType,
-      isWrapped: false,
-      dimensions
-    }
-  }
-
-  private parseObjectTypeAnnotation(): any {
-    this.advance()
-    const fields: any[] = []
-
-    if (this.check(TokenType.RBRACE)) {
-      this.advance()
-      return { kind: "ObjectType", fields }
-    }
-
-    while (!this.isAtEnd() && !this.check(TokenType.RBRACE)) {
-      const validNameTokens = [
-        TokenType.IDENTIFIER,
-        TokenType.KEYWORD,
-        TokenType.TYPE_INT,
-        TokenType.TYPE_FLOAT,
-        TokenType.TYPE_BOOL,
-        TokenType.TYPE_STRING,
-        TokenType.TYPE_VOID,
-        TokenType.BOOLEAN,
-        TokenType.NULL
-      ]
-
-      if (!validNameTokens.includes(this.peek().type)) {
-        this.error("Expected field name in type annotation", this.peek())
-        break
-      }
-
-      const fieldName = this.advance()
-
-      if (!this.check(TokenType.COLON)) {
-        this.error("Expected ':' after field name", this.peek())
-        break
-      }
-      this.advance()
-
-      const fieldType = this.parseTypeAnnotation()
-
-      fields.push({
-        name: fieldName.value,
-        type: fieldType
-      })
-
-      if (this.check(TokenType.RBRACE)) break
-
-      if (!this.check(TokenType.COMMA)) {
-        this.error("Expected ',' or '}' in type annotation", this.peek())
-        break
-      }
-      this.advance()
-    }
-
-    if (this.check(TokenType.RBRACE)) {
-      this.advance()
-    } else {
-      this.error("Expected '}' to close type annotation", this.peek())
-    }
-
-    return { kind: "ObjectType", fields }
   }
 
   private parseIfStatement(): Stmt {
@@ -1267,7 +844,7 @@ export class Parser {
     }
     this.advance()
 
-    const params: any[] = []
+    const params: { name: Token; isRest?: boolean }[] = []
     while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
       let isRest = false
       if (this.check(TokenType.SPREAD)) {
@@ -1281,13 +858,7 @@ export class Parser {
         break
       }
 
-      let paramType: any = undefined
-      if (this.check(TokenType.COLON)) {
-        this.advance()
-        paramType = this.parseTypeAnnotation()
-      }
-
-      params.push({ name: paramName, type: paramType, isRest })
+      params.push({ name: paramName, isRest })
 
       if (this.check(TokenType.COMMA)) {
         this.advance()
@@ -1298,12 +869,6 @@ export class Parser {
       this.advance()
     } else {
       this.error("Expected ')' after parameters", this.peek())
-    }
-
-    let returnType: { base: Token; dimensions: number } | undefined
-    if (this.check(TokenType.COLON)) {
-      this.advance()
-      returnType = this.parseTypeAnnotation()
     }
 
     let body: any
@@ -1318,7 +883,6 @@ export class Parser {
       kind: "FunctionStmt",
       name: nameToken,
       params,
-      returnType,
       body
     }
   }
@@ -1443,5 +1007,234 @@ export class Parser {
 
       this.advance()
     }
+  }
+
+  // ========================================
+  // Type Annotation Parser
+  // ========================================
+
+  private parseTypeAnnotation(): TypeNode | undefined {
+    if (!this.check(TokenType.COLON)) {
+      return undefined
+    }
+
+    const colonToken = this.previous()
+    this.advance()
+
+    // Verificar se após o ":" existe um tipo válido
+    const nextToken = this.peek()
+    const isValidTypeStart = 
+      this.check(TokenType.INT_TYPE) ||
+      this.check(TokenType.FLOAT_TYPE) ||
+      this.check(TokenType.STRING_TYPE) ||
+      this.check(TokenType.BOOLEAN_TYPE) ||
+      this.check(TokenType.ANY_TYPE) ||
+      this.check(TokenType.VOID_TYPE) ||
+      this.check(TokenType.UNKNOWN_TYPE) ||
+      this.check(TokenType.UNDEFINED_TYPE) ||
+      this.check(TokenType.OBJECT_TYPE) ||
+      this.check(TokenType.BIGINT_TYPE) ||
+      this.check(TokenType.SYMBOL_TYPE) ||
+      this.check(TokenType.IDENTIFIER) ||
+      this.check(TokenType.LPAREN) ||
+      this.check(TokenType.LBRACE) ||
+      this.check(TokenType.LBRACKET)
+
+    if (!isValidTypeStart) {
+      this.error(`Expected type after ':'`, nextToken)
+      return undefined
+    }
+
+    return this.parseType()
+  }
+
+  private parseType(): TypeNode {
+    const token = this.peek()
+
+    // Tipo: int
+    if (this.check(TokenType.INT_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] IntTypeNode detected')
+      return this.parseArrayType({ kind: "IntType" })
+    }
+
+    // Tipo: float
+    if (this.check(TokenType.FLOAT_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] FloatTypeNode detected')
+      return this.parseArrayType({ kind: "FloatType" })
+    }
+
+    // Tipo: string
+    if (this.check(TokenType.STRING_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] StringTypeNode detected')
+      return this.parseArrayType({ kind: "StringType" })
+    }
+
+    // Tipo: bool
+    if (this.check(TokenType.BOOLEAN_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] BoolTypeNode detected')
+      return this.parseArrayType({ kind: "BoolType" })
+    }
+
+    // Tipo: any
+    if (this.check(TokenType.ANY_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] AnyTypeNode detected')
+      return this.parseArrayType({ kind: "AnyType" })
+    }
+
+    // Tipo: void
+    if (this.check(TokenType.VOID_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] VoidTypeNode detected')
+      return this.parseArrayType({ kind: "VoidType" })
+    }
+
+    // Tipo: unknown
+    if (this.check(TokenType.UNKNOWN_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] UnknownTypeNode detected')
+      return this.parseArrayType({ kind: "UnknownType" })
+    }
+
+    // Tipo: undefined
+    if (this.check(TokenType.UNDEFINED_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] UndefinedTypeNode detected')
+      return this.parseArrayType({ kind: "UndefinedType" })
+    }
+
+    // Tipo: object
+    if (this.check(TokenType.OBJECT_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] ObjectTypeNode detected')
+      return this.parseArrayType({ kind: "ObjectType" })
+    }
+
+    // Tipo: bigint
+    if (this.check(TokenType.BIGINT_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] BigIntTypeNode detected')
+      return this.parseArrayType({ kind: "BigIntType" })
+    }
+
+    // Tipo: symbol
+    if (this.check(TokenType.SYMBOL_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] SymbolTypeNode detected')
+      return this.parseArrayType({ kind: "SymbolType" })
+    }
+
+    // Tipo personalizado (Identifier) - ex: UserDefinedType, Array<T>
+    if (this.check(TokenType.IDENTIFIER)) {
+      const typeName = this.advance()
+      console.log('[TypeDebug] TypeReference detected:', typeName.value)
+
+      let typeArguments: TypeNode[] | undefined
+      if (this.check(TokenType.LESS_THAN)) {
+        this.advance()
+        typeArguments = []
+
+        while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
+          typeArguments.push(this.parseType())
+          if (this.check(TokenType.COMMA)) {
+            this.advance()
+          }
+        }
+
+        if (this.check(TokenType.GREATER_THAN)) {
+          this.advance()
+        }
+      }
+
+      const typeRef = {
+        kind: "TypeReference" as const,
+        typeName,
+        typeArguments
+      }
+
+      return this.parseArrayType(typeRef)
+    }
+
+    // Se não reconheceu o tipo, retorna AnyType como fallback
+    console.log('[TypeDebug] Unknown type, defaulting to AnyType')
+    return this.parseArrayType({ kind: "AnyType" })
+  }
+
+  // ========================================
+  // Array Type Parser (degrees)
+  // ========================================
+  private parseArrayType(baseType: TypeNode): TypeNode {
+    let degrees = 0
+
+    while (this.check(TokenType.LBRACKET)) {
+      this.advance()
+      
+      if (!this.check(TokenType.RBRACKET)) {
+        this.error("Expected ']' in array type", this.peek())
+        break
+      }
+      this.advance()
+      
+      degrees++
+    }
+
+    if (degrees > 0) {
+      console.log(`[TypeDebug] ArrayType with degrees: ${degrees}`)
+      return {
+        kind: "ArrayType",
+        elementType: baseType,
+        degrees
+      }
+    }
+
+    return baseType
+  }
+      console.log('[TypeDebug] BigIntTypeNode detected')
+      return { kind: "BigIntType" }
+    }
+
+    // Tipo: symbol
+    if (this.check(TokenType.SYMBOL_TYPE)) {
+      this.advance()
+      console.log('[TypeDebug] SymbolTypeNode detected')
+      return { kind: "SymbolType" }
+    }
+
+    // Tipo personalizado (Identifier) - ex: UserDefinedType, Array<T>
+    if (this.check(TokenType.IDENTIFIER)) {
+      const typeName = this.advance()
+      console.log('[TypeDebug] TypeReference detected:', typeName.value)
+
+      let typeArguments: TypeNode[] | undefined
+      if (this.check(TokenType.LESS_THAN)) {
+        this.advance()
+        typeArguments = []
+
+        while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
+          typeArguments.push(this.parseType())
+          if (this.check(TokenType.COMMA)) {
+            this.advance()
+          }
+        }
+
+        if (this.check(TokenType.GREATER_THAN)) {
+          this.advance()
+        }
+      }
+
+      return {
+        kind: "TypeReference",
+        typeName,
+        typeArguments
+      }
+    }
+
+    // Se não reconheceu o tipo, retorna AnyType como fallback
+    console.log('[TypeDebug] Unknown type, defaulting to AnyType')
+    return { kind: "AnyType" }
   }
 }

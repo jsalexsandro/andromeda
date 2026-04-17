@@ -1,0 +1,3 @@
+val arr1: string[]
+val arr2: int[][]
+val arr3: int[][][]
