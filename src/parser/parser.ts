@@ -936,6 +936,10 @@ export class Parser {
 
     const types: any[] = []
     while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
+      if (this.check(TokenType.IDENTIFIER) && this.peekNext()?.type === TokenType.COLON) {
+        this.advance()
+        this.advance()
+      }
       types.push(this.parseTypeAnnotation())
       if (this.check(TokenType.COMMA)) {
         this.advance()
@@ -1373,6 +1377,10 @@ export class Parser {
 
   public peek(): Token {
     return this.tokens[this.current]
+  }
+
+  public peekNext(): Token | undefined {
+    return this.tokens[this.current + 1]
   }
 
   public previous(): Token {
