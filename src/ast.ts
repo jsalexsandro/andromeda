@@ -255,7 +255,8 @@ export interface ClassMethod {
 
 export interface ArrowFunctionExpr {
   kind: "ArrowFunction"
-  params: { name: Token; isRest?: boolean }[]
+  params: { name: Token; type?: TypeNode; isOptional?: boolean; isRest?: boolean }[]
+  returnType?: TypeNode
   body: Expr | Stmt
   async?: boolean
 }

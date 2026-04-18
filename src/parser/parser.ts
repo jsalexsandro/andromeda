@@ -88,7 +88,7 @@ export class Parser {
     if (this.check(TokenType.ARROW)) {
       this.advance()
       const params = [{ name }]
-      return this.parseArrowBody(params)
+      return this.parseArrowBody(params, undefined)
     }
 
     return { kind: "Identifier", name }
@@ -283,20 +283,25 @@ export class Parser {
   }
 
   private tryParseArrowFunction(): Expr | null {
-    const params: { name: Token; isRest?: boolean }[] = []
+    const params: { name: Token; type?: TypeNode; isOptional?: boolean; isRest?: boolean }[] = []
 
+    // Case: () or (): type =>
     if (this.check(TokenType.RPAREN)) {
       this.advance()
-      
+      const returnType = this.check(TokenType.COLON)
+        ? this.parseTypeAnnotation()
+        : undefined
       if (!this.check(TokenType.ARROW)) {
         return null
       }
       this.advance()
-      return this.parseArrowBody(params)
+      return this.parseArrowBody(params, returnType)
     }
 
+    // Case: (x, y, ...) or (x: int, y?: string, ...rest: int[])
     while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
       let isRest = false
+      let isOptional = false
       if (this.check(TokenType.SPREAD)) {
         this.advance()
         isRest = true
@@ -307,7 +312,19 @@ export class Parser {
       }
 
       const paramName = this.advance()
-      params.push({ name: paramName, isRest })
+
+      // Optional: name?
+      if (this.check(TokenType.QUESTION)) {
+        isOptional = true
+        this.advance()
+      }
+
+      // Type annotation: name: type
+      const paramType = this.check(TokenType.COLON)
+        ? this.parseTypeAnnotation()
+        : undefined
+
+      params.push({ name: paramName, type: paramType, isOptional, isRest })
 
       if (this.check(TokenType.COMMA)) {
         this.advance()
@@ -319,12 +336,17 @@ export class Parser {
     }
     this.advance()
 
+    // Return type: ): type =>
+    const returnType = this.check(TokenType.COLON)
+      ? this.parseTypeAnnotation()
+      : undefined
+
     if (!this.check(TokenType.ARROW)) {
       return null
     }
     this.advance()
 
-    return this.parseArrowBody(params)
+    return this.parseArrowBody(params, returnType)
   }
 
   private isObjectTypeAnnotation(lbracePos: number): boolean {
@@ -364,17 +386,21 @@ export class Parser {
     return false
   }
 
-private parseArrowBody(params: { name: Token; isRest?: boolean }[]): Expr {
+private parseArrowBody(
+    params: { name: Token; type?: TypeNode; isOptional?: boolean; isRest?: boolean }[],
+    returnType?: TypeNode
+  ): Expr {
     if (this.check(TokenType.LBRACE)) {
       if (this.looksLikeBlockStatement()) {
         const body = this.parseBlockStatement()
         return {
           kind: "ArrowFunction",
           params,
+          returnType,
           body
         }
       }
-      
+
       const savedPos = this.current
       const savedErrorsLength = this.errors.errors.length
       try {
@@ -382,6 +408,7 @@ private parseArrowBody(params: { name: Token; isRest?: boolean }[]): Expr {
         return {
           kind: "ArrowFunction",
           params,
+          returnType,
           body: objLiteral
         }
       } catch (e) {
@@ -391,6 +418,7 @@ private parseArrowBody(params: { name: Token; isRest?: boolean }[]): Expr {
         return {
           kind: "ArrowFunction",
           params,
+          returnType,
           body
         }
       }
@@ -403,6 +431,7 @@ private parseArrowBody(params: { name: Token; isRest?: boolean }[]): Expr {
       return {
         kind: "ArrowFunction",
         params,
+        returnType,
         body
       }
     }
