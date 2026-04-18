@@ -390,6 +390,7 @@ export interface TupleTypeElement {
   name?: string
   type: TypeNode
   isOptional?: boolean
+  isRest?: boolean
 }
 
 export interface UnionTypeNode {
