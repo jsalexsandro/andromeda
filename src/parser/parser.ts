@@ -1266,13 +1266,108 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
     return { kind: "ObjectLiteralType", members }
   }
 
-  // Parse a base type (the raw type without arrays)
+  // <system-reminder>
+  // Tuple Type Parser
+  // Formato: [string, int, bool] ou [name: string, age?: int] ou [...rest: string[]]
+  // </system-reminder>
+  private parseTupleType(): TypeNode {
+    this.advance() // consume '['
+
+    const elements: { name?: string; type: TypeNode; isOptional?: boolean; isRest?: boolean }[] = []
+
+    // Tuple vazio: []
+    if (this.check(TokenType.RBRACKET)) {
+      this.advance()
+      console.log(`[TypeDebug] TupleType with 0 elements`)
+      return { kind: "TupleType", elements }
+    }
+
+    while (!this.check(TokenType.RBRACKET) && !this.isAtEnd()) {
+
+      // 1. Rest element: ...rest: string[]
+      let isRest = false
+      if (this.check(TokenType.SPREAD)) {
+        isRest = true
+        this.advance()
+      }
+
+      // 2. Lookahead: tem label? (identifier seguido de ':' ou '?:')
+      //    name: string  vs  string (sem label)
+      const hasLabel = this.check(TokenType.IDENTIFIER)
+        && (this.peekNext()?.type === TokenType.COLON
+          || this.peekNext()?.type === TokenType.QUESTION)
+
+      let name: string | undefined
+      let isOptional = false
+
+      // <system-reminder>
+      // Se tem label (name: string ou name?: string)
+      // </system-reminder>
+      if (hasLabel) {
+        name = this.advance().value as string // consome o label
+
+        // opcional no label: name?:
+        if (this.check(TokenType.QUESTION)) {
+          isOptional = true
+          this.advance()
+        }
+
+        // ':' obrigatório depois do label
+        if (!this.check(TokenType.COLON)) {
+          this.error("Expected ':' after tuple element label", this.peek())
+          break
+        }
+        this.advance()
+      }
+
+      // 3. Tipo do elemento (recursivo — aceita union, array, objeto...)
+      const type = this.parseType()
+
+      // <system-reminder>
+      // 4. Opcional sem label: string? (pós-tipo)
+      //    Só verifica se não detectou antes (sem label)
+      // </system-reminder>
+      if (!hasLabel && this.check(TokenType.QUESTION)) {
+        isOptional = true
+        this.advance()
+      }
+
+      elements.push({ name, type, isOptional, isRest })
+
+      // 5. Rest element só pode ser o último
+      if (isRest && !this.check(TokenType.RBRACKET)) {
+        this.error("Rest element must be last in tuple type", this.peek())
+      }
+
+      // 6. Separador
+      if (this.check(TokenType.COMMA)) {
+        this.advance()
+      }
+    }
+
+    this.consume(TokenType.RBRACKET, "Expected ']' to close tuple type")
+
+    console.log(`[TypeDebug] TupleType with ${elements.length} elements`)
+    return { kind: "TupleType", elements }
+  }
+
+  // ========================================
+  // Base Type Parser
+  // ========================================
+
   private parseBaseType(): TypeNode | null {
     const token = this.peek()
 
     // Handle object literal types { name: type, age: int }
     if (this.check(TokenType.LBRACE)) {
       return this.parseObjectLiteralType()
+    }
+
+    // <system-reminder>
+    // Handle tuple types [string, int, bool]
+    // </system-reminder>
+    if (this.check(TokenType.LBRACKET)) {
+      return this.parseTupleType()
     }
 
     if (this.check(TokenType.INT_TYPE)) {

@@ -1,1 +1,264 @@
-var s: string = 20
+// ============================================================
+// ANDROMEDA - Type System Documentation
+// ============================================================
+// Este arquivo documenta todos os recursos de tipagem implementados
+// no sistema de tipos da linguagem Andromeda.
+// ============================================================
+
+// ============================================================
+// PRIMITIVE TYPES (Tipos Primitivos)
+// ============================================================
+
+// Tipos básicos disponíveis
+val myInt: int = 42
+val myFloat: float = 3.14
+val myString: string = "hello"
+val myBool: bool = true
+val myAny: any = "anything" // aceita qualquer valor
+val myNull: null = null
+val myVoid: void = ()        // função sem retorno
+val myUndefined: undefined = undefined
+
+// ============================================================
+// ARRAY TYPES (Tipos Array)
+// ============================================================
+
+// Sintaxe簡 (suffixo com [])
+val ints: int[] = [1, 2, 3]
+val strings: string[][] = [["a", "b"], ["c", "d"]]
+val matrix: int[][][] = [[[1]]]
+
+// Sintaxe com Array<T>
+val arr1: Array<int> = []
+val arr2: Array<Array<string>> = [[]]
+
+// ============================================================
+// GENERIC TYPES (Tipos Genéricos)
+// ============================================================
+
+// Generic com um parâmetro
+val map: Map<string> = {}
+val list: Array<int> = [1, 2, 3]
+
+// Generic com múltiplos parâmetros
+val result: Result<string, int> = { ok: true, value: 1 }
+val pair: Pair<bool, float> = { first: true, second: 3.14 }
+
+// Generic aninhado
+val nested: Array<Array<Array<int>>> = [[[1]]]
+
+// Generic com array: Map<string, int>[]
+val mapArray: Map<string, int>[] = []
+
+// ============================================================
+// TUPLE TYPES (Tipos Tupla)
+// ============================================================
+
+// Tuple básica (tipos posicionais)
+val coord: [int, int] = [10, 20]
+val person: [string, int, bool] = ["Alice", 30, true]
+
+// Tuple com labels (named tuple elements)
+val named: [name: string, age: int] = ["Bob", 25]
+
+// Tuple com elementos opcionais
+val optional: [string, int?] = ["hello"]  // segundo elemento é opcional
+val optional2: [string, int?] = ["hello", 42]
+
+// Tuple com rest element (deve ser o último)
+val rest: [first: int, ...rest: string[]] = [1, "a", "b", "c"]
+
+// Tuple vazia
+val empty: [] = []
+
+// Tuple aninhada
+val nestedTuple: [string, [int, bool]] = ["test", [1, true]]
+
+// Tuple com union types
+val unionTuple: [string | null, int?] = [null, 42]
+
+// ============================================================
+// OBJECT LITERAL TYPES (Tipos Objeto Literal)
+// ============================================================
+
+// Objeto simples
+val user: { name: string } = { name: "Alice" }
+
+// Múltiplas propriedades
+val person2: { name: string, age: int } = { name: "Bob", 30 }
+
+// Propriedade opcional (?)
+val optionalProp: { name: string, age?: int } = { name: "Carol" }
+
+// Propriedade readonly (não pode ser modificada)
+val readonlyProp: { readonly id: int, name: string } = { id: 1, name: "Dave" }
+
+// Propriedade com chave string (aspas)
+val stringKey: { "special-key": string } = { "special-key": "value" }
+
+// Aninhamento de objetos
+val nested: { user: { name: string, address: { city: string } } } = {
+  user: { name: "Eve", address: { city: "SP" } }
+}
+
+// Objeto com tipos complexos
+val complexObj: {
+  items: int[],
+  handler: (int) => int,
+  metadata: { tags: string[] }
+} = {
+  items: [1, 2, 3],
+  handler: x => x * 2,
+  metadata: { tags: ["a", "b"] }
+}
+
+// Separadores: vírgula ou ponto-e-vírgula
+val withComma: { a: int, b: string } = { a: 1, b: "x" }
+val withSemi: { a: int; b: string } = { a: 1, b: "x" }
+
+// ============================================================
+// UNION TYPES (Tipos União)
+// ============================================================
+
+// Union básico
+val maybe: string | null = null
+val maybeInt: int | null = 42
+
+// Multi-union (múltiplos tipos)
+val multi: int | string | bool = true
+val quad: int | string | bool | null = "hello"
+
+// Union com arrays
+val arrayUnion: int[] | string[] = [1, 2, 3]
+val arrayUnion2: int[] | null = null
+
+// Union em parâmetro de função
+func greet(name: string | null): void {
+  if (name != null) {
+    print("Hello, " + name)
+  }
+}
+
+// Union com object type
+val objOrInt: { x: int } | int = { x: 1 }
+
+// ============================================================
+// INTERSECTION TYPES (Tipos Interseção)
+// ============================================================
+
+// Intersecção básica
+type Serializable = { serialize: () => string }
+type Deserializable = { deserialize: (s: string) => void }
+val both: Serializable & Deserializable = {
+  serialize: () => "",
+  deserialize: s => {}
+}
+
+// ============================================================
+// MIXED OPERATORS (Operadores Mistos)
+// ============================================================
+
+// Precedência: intersection (&) binds mais forte que union (|)
+// int | string & bool  =  int | (string & bool)
+val mixed: int | string & bool = "hello"
+
+// Agrupamento explícito com parênteses
+val grouped: (int | string) & bool = "test"
+
+// ============================================================
+// FUNCTION TYPES (Tipos Função)
+// ============================================================
+
+// Arrow function como valor (expressão)
+val add: (int, int) => int = (a, b) => a + b
+val increment: (int) => int = x => x + 1
+
+// Function type como tipo de variável
+val fn: (int) => string = x => "number: " + x
+
+// Função que retorna função
+val curry: () => (int) => int = () => x => x + 1
+
+// Array de funções
+val fns: ((int) => int)[] = [x => x * 2, x => x + 1]
+
+// Objeto com campo função
+val objWithFn: { name: string, fn: (int) => int } = {
+  name: "handler",
+  fn: x => x + 1
+}
+
+// ============================================================
+// COMPLEX COMBINATIONS (Combinações Complexas)
+// ============================================================
+
+// Array de objetos com propriedades tipadas
+val users: { name: string, age: int }[] = [
+  { name: "Alice", age: 30 },
+  { name: "Bob", age: 25 }
+]
+
+// Tuple com objetos
+val config: [{ host: string, port: int }, bool] = [
+  { host: "localhost", port: 8080 },
+  true
+]
+
+// Generic com union
+val result2: Result<string | int, boolean> = { ok: true, value: 42 }
+
+// Objeto com tipos genéricos aninhados
+val data: {
+  items: Map<string, int[]>,
+  callback: (Map<string, int[]>) => void
+} = {
+  items: {},
+  callback: m => {}
+}
+
+// Union de tuples
+val unionTuple2: [int, string] | [boolean, null] = [1, "test"]
+
+// ============================================================
+// KEYOF E INDEX ACCESS (Acesso por Chave)
+// ============================================================
+
+// Em breve: keyof e index access types
+
+// ============================================================
+// EXAMPLES EM USO REAL
+// ============================================================
+
+// Exemplo: Função que processa dados
+func process(
+  data: { id: int, name: string } | null,
+  options: { verbose: bool, level: int | null }
+): { success: boolean, message: string } | null {
+  if (data == null) {
+    return null
+  }
+  return { success: true, message: "Processed " + data.name }
+}
+
+// Exemplo: API com tipos complexos
+type ApiResponse<T> = { data: T, status: int }
+type ApiError = { error: string, code: int }
+
+val apiResponse: ApiResponse<{ users: { name: string }[] }> | ApiError = {
+  data: { users: [{ name: "Alice" }] },
+  status: 200
+}
+
+// ============================================================
+// RESUMO DA SINTAXE
+// ============================================================
+
+// Primitivos:        int, float, string, bool, any, null, void, undefined
+// Arrays (sufixo):   T[]      ex: int[], string[][]
+// Arrays (generic):  Array<T> ex: Array<int>, Array<Array<string>>
+// Generics:          Name<T1, T2>  ex: Map<string, int>, Result<T, E>
+// Tuples:            [T1, T2, ...] ex: [string, int], [name: string]
+// Objects:           { key: type, key2?: type, readonly key3: type }
+// Unions:            T1 | T2 | T3
+// Intersections:     T1 & T2 & T3
+// Functions:         (params) => returnType
