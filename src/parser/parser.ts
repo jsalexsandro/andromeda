@@ -1,6 +1,6 @@
 import { Token, TokenType } from '../lexer/types'
 import { ErrorHandler } from './error'
-import { Expr, Stmt, TypeNode } from '../ast'
+import { Expr, Stmt, TypeNode, FunctionStmtParam } from '../ast'
 import { Precedence, getPrecedence } from './precedence'
 
 type PrefixParselet = () => Expr | null;
@@ -11,6 +11,7 @@ export class Parser {
   private current = 0
   public errors: ErrorHandler
   private sourceCode: string
+  private typeDepth = 0
 
   private prefixParselets: Map<TokenType, PrefixParselet> = new Map()
   private infixParselets: Map<TokenType, InfixParselet> = new Map()
@@ -852,27 +853,25 @@ private parseAssignment(left: Expr): Expr | null {
     }
     this.advance()
 
-    const params: { name: Token; isRest?: boolean }[] = []
+    const params: FunctionStmtParam[] = []
     let foundRestParam = false
 
     while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
       let isRest = false
+      let isOptional = false
+
       if (this.check(TokenType.SPREAD)) {
-        // <system-reminder>
-        // Rest parameter cannot be optional and cannot have type annotation yet
-        // </system-reminder>
         if (foundRestParam) {
           this.error("Rest parameter must be last in function parameters", this.peek())
           break
         }
-        
-        // Look ahead 2 positions: SPREAD -> IDENTIFIER -> COMMA
+
         const afterNameIdx = this.current + 2
         const afterName = this.tokens[afterNameIdx]
         if (afterName && afterName.type === TokenType.COMMA) {
           this.error("Rest parameter must be last in function parameters", afterName)
         }
-        
+
         this.advance()
         isRest = true
         foundRestParam = true
@@ -884,7 +883,27 @@ private parseAssignment(left: Expr): Expr | null {
         break
       }
 
-      params.push({ name: paramName, isRest })
+      // Optional: name?
+      if (this.check(TokenType.QUESTION)) {
+        if (isRest) {
+          this.error("Rest parameter cannot be optional", this.peek())
+        }
+        isOptional = true
+        this.advance()
+      }
+
+      // Type annotation: name: type
+      const paramType = this.parseTypeAnnotation()
+
+      // Validate rest parameter
+      if (isRest && isOptional) {
+        this.error("Rest parameter cannot be optional", paramName)
+      }
+      if (isRest && paramType && paramType.kind !== 'ArrayType') {
+        this.error("Rest parameter type must be an array type", paramName)
+      }
+
+      params.push({ name: paramName, type: paramType, isOptional, isRest })
 
       if (this.check(TokenType.COMMA)) {
         this.advance()
@@ -897,7 +916,10 @@ private parseAssignment(left: Expr): Expr | null {
       this.error("Expected ')' after parameters", this.peek())
     }
 
-    let body: any
+    // Return type: ) => returnType
+    const returnType = this.parseTypeAnnotation()
+
+    let body: BlockStmt
     if (this.check(TokenType.LBRACE)) {
       body = this.parseBlockStatement()
     } else {
@@ -909,6 +931,7 @@ private parseAssignment(left: Expr): Expr | null {
       kind: "FunctionStmt",
       name: nameToken,
       params,
+      returnType,
       body
     }
   }
@@ -1078,6 +1101,31 @@ private parseAssignment(left: Expr): Expr | null {
     return this.parseTypeChain()
   }
 
+  private parseTypeWithDepth(): TypeNode {
+    this.typeDepth++
+    const type = this.parseType()
+    this.typeDepth--
+    return type
+  }
+
+  private looksLikeObjectType(): boolean {
+    let i = this.current + 1
+    const t = this.tokens[i]
+    if (!t) return false
+
+    if (t.type === TokenType.RBRACE) return true
+
+    if (t.type === TokenType.READONLY) return true
+
+    if (t.type === TokenType.IDENTIFIER || t.type === TokenType.STRING) {
+      const next = this.tokens[i + 1]
+      if (!next) return false
+      return next.type === TokenType.COLON || next.type === TokenType.QUESTION
+    }
+
+    return false
+  }
+
   private parseTypeChain(): TypeNode {
     let type = this.parseSingleType()
     if (!type) {
@@ -1227,11 +1275,6 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
   private parseSingleType(): TypeNode | null {
     const baseType = this.parseBaseType()
     if (!baseType) return null
-
-    // Handle object literal types { name: type, age: int }
-    if (this.check(TokenType.LBRACE)) {
-      return this.parseObjectLiteralType()
-    }
 
     return this.parseArrayType(baseType)
   }
@@ -1428,12 +1471,12 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
       }
       this.advance()
 
-      // 5. Tipo da propriedade (recursivo)
-      const type = this.parseType()
+      // 5. Tipo da propriedade (recursivo com depth protection)
+      const type = this.parseTypeWithDepth()
 
       members.push({ name, type, isOptional, isReadonly })
 
-      // 6. Separador: ; ou ,
+      // 6. Separador: ; ou , ou EOF ou }
       if (this.check(TokenType.SEMICOLON) || this.check(TokenType.COMMA)) {
         this.advance()
       }
@@ -1548,8 +1591,12 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
     const token = this.peek()
 
     // Handle object literal types { name: type, age: int }
+    // Only consume if it looks like an object type, not function body
     if (this.check(TokenType.LBRACE)) {
-      return this.parseObjectLiteralType()
+      if (this.typeDepth > 0 || this.looksLikeObjectType()) {
+        return this.parseObjectLiteralType()
+      }
+      return null
     }
 
     // <system-reminder>
