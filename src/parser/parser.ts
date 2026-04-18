@@ -29,6 +29,7 @@ export class Parser {
     this.prefixParselets.set(TokenType.STRING, this.parseString.bind(this))
     this.prefixParselets.set(TokenType.BOOLEAN, this.parseBoolean.bind(this))
     this.prefixParselets.set(TokenType.NULL, this.parseNull.bind(this))
+    this.prefixParselets.set(TokenType.UNDEFINED_TYPE, this.parseUndefined.bind(this))
     this.prefixParselets.set(TokenType.LPAREN, this.parseGroup.bind(this))
 
     this.prefixParselets.set(TokenType.MINUS, this.parseUnary.bind(this))
@@ -106,6 +107,13 @@ export class Parser {
 
   private parseNull(): Expr {
     return { kind: "Literal", value: null }
+  }
+
+  // <system-reminder>
+  // Parse undefined literal expression
+  // </system-reminder>
+  private parseUndefined(): Expr {
+    return { kind: "Literal", value: undefined }
   }
 
   private parseGroup(): Expr {
