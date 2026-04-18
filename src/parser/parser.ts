@@ -929,7 +929,11 @@ private parseAssignment(left: Expr): Expr | null {
         this.error("Rest parameter cannot be optional", paramName)
       }
       if (isRest && paramType && paramType.kind !== 'ArrayType') {
-        this.error("Rest parameter type must be an array type", paramName)
+        const typeName = this.typeNodeToString(paramType)
+        this.error(
+          `Rest parameter '${paramName.value}' must have array type. Use '${typeName}[]' instead of '${typeName}'`,
+          paramName
+        )
       }
 
       params.push({ name: paramName, type: paramType, isOptional, isRest })
@@ -1153,6 +1157,29 @@ private parseAssignment(left: Expr): Expr | null {
     }
 
     return false
+  }
+
+  private typeNodeToString(type: TypeNode): string {
+    switch (type.kind) {
+      case 'IntType': return 'int'
+      case 'FloatType': return 'float'
+      case 'StringType': return 'string'
+      case 'BoolType': return 'bool'
+      case 'VoidType': return 'void'
+      case 'AnyType': return 'any'
+      case 'UnknownType': return 'unknown'
+      case 'UndefinedType': return 'undefined'
+      case 'NullType': return 'null'
+      case 'ArrayType': return this.typeNodeToString(type.elementType)
+      case 'ObjectLiteralType': return 'object'
+      case 'FunctionType': return 'function'
+      case 'UnionType': return 'union'
+      case 'IntersectionType': return 'intersection'
+      case 'TupleType': return 'tuple'
+      case 'TypeReference': return (type.typeName as Token).value as string
+      case 'ParenthesizedType': return `(${this.typeNodeToString(type.type)})`
+      default: return 'unknown'
+    }
   }
 
   private parseTypeChain(): TypeNode {
@@ -1421,7 +1448,11 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
 
       // Validation: rest must be array type
       if (isRest && type.kind !== "ArrayType") {
-        this.error("Rest parameter type must be an array type", nameToken)
+        const typeName = this.typeNodeToString(type)
+        this.error(
+          `Rest parameter '${nameToken.value}' must have array type. Use '${typeName}[]' instead of '${typeName}'`,
+          nameToken
+        )
       }
 
       // Validation: rest cannot be optional
