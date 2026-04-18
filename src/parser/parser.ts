@@ -1347,7 +1347,17 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
         this.error("Rest element must be last in tuple type", this.peek())
       }
 
-      // 6. Separador
+      // 6. Rest element não pode ser opcional
+      if (isRest && isOptional) {
+        this.error("Rest element cannot be optional", this.peek())
+      }
+
+      // 7. Rest element deve ser array type
+      if (isRest && type.kind !== "ArrayType") {
+        this.error("Rest element type must be an array type", this.peek())
+      }
+
+      // 8. Separador
       if (this.check(TokenType.COMMA)) {
         this.advance()
       }
