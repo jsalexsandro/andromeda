@@ -311,7 +311,7 @@ export class Parser {
         return null
       }
 
-      const paramName = this.advance()
+const paramName = this.advance()
 
       // Optional: name?
       if (this.check(TokenType.QUESTION)) {
@@ -324,6 +324,18 @@ export class Parser {
         ? this.parseTypeAnnotation()
         : undefined
 
+      // Validate rest parameter
+      if (isRest && isOptional) {
+        this.error("Rest parameter cannot be optional", paramName)
+      }
+      if (isRest && paramType && paramType.kind !== 'ArrayType') {
+        const typeName = this.typeNodeToString(paramType)
+        this.error(
+          `Rest parameter '${paramName.value}' must have array type. Use '${typeName}[]' instead of '${typeName}'`,
+          paramName
+        )
+      }
+
       params.push({ name: paramName, type: paramType, isOptional, isRest })
 
       if (this.check(TokenType.COMMA)) {
@@ -334,7 +346,6 @@ export class Parser {
     if (!this.check(TokenType.RPAREN)) {
       return null
     }
-    this.advance()
 
     // Return type: ): type =>
     const returnType = this.check(TokenType.COLON)
@@ -344,6 +355,7 @@ export class Parser {
     if (!this.check(TokenType.ARROW)) {
       return null
     }
+
     this.advance()
 
     return this.parseArrowBody(params, returnType)
