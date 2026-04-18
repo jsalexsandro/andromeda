@@ -1049,17 +1049,110 @@ private parseAssignment(left: Expr): Expr | null {
   }
 
   private parseType(): TypeNode {
-    const firstType = this.parseSingleType()
-    if (!firstType) {
+    return this.parseTypeChain()
+  }
+
+  private parseTypeChain(): TypeNode {
+    let type = this.parseSingleType()
+    if (!type) {
       this.error(`Expected type, got '${this.peek().value}'`, this.peek())
       return { kind: "AnyType" }
     }
 
-    if (this.check(TokenType.PIPE)) {
-      return this.parseUnionType(firstType)
+    // Parse union and intersection with left-to-right
+    // Use a flat list approach for cleaner handling
+    const types: TypeNode[] = [type]
+    const ops: string[] = []
+
+    while (this.check(TokenType.PIPE) || this.check(TokenType.AMPERSAND)) {
+      ops.push(this.check(TokenType.PIPE) ? '|' : '&')
+      this.advance()
+
+      const next = this.parseSingleType()
+      if (!next) {
+        this.error(`Expected type after '${ops[ops.length - 1]}'`, this.peek())
+        break
+      }
+      types.push(next)
     }
 
-    return firstType
+    if (types.length === 1) {
+      console.log(`[TypeDebug] SingleType: ${type.kind}`)
+      return type
+    }
+
+    // Group by operator precedence: union (|) binds looser, intersection (&) binds tighter
+    // So we group intersections first, then unions on top
+    // This gives: A | B & C | D  =  (A) | ((B & C) | D)  =  (A) | (B & C | D)
+    // Actually: A | B & C = A | (B & C) - intersection should be grouped first
+    const grouped = this.groupTypeOps(types, ops)
+
+    if (grouped.kind === 'UnionType') {
+      console.log(`[TypeDebug] UnionType with ${grouped.types.length} types`)
+    } else if (grouped.kind === 'IntersectionType') {
+      console.log(`[TypeDebug] IntersectionType with ${grouped.types.length} types`)
+    }
+
+    return grouped
+  }
+
+  private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
+    if (types.length === 1) return types[0]
+
+    // Group: find all '&' groups first (intersection binds tighter), then '|'
+    const intersectionGroups: TypeNode[] = []
+    const unionGroups: TypeNode[] = []
+    let current: TypeNode[] = [types[0]]
+
+    for (let i = 0; i < ops.length; i++) {
+      current.push(types[i + 1])
+      if (ops[i] === '&') {
+        // Keep building intersection
+      } else {
+        // '|' ends current group
+        if (current.length === 1) {
+          unionGroups.push(current[0])
+        } else {
+          unionGroups.push({ kind: "IntersectionType", types: [...current] })
+        }
+        current = [types[i + 1]]
+      }
+    }
+
+    // Add remaining
+    if (current.length === 1) {
+      unionGroups.push(current[0])
+    } else {
+      unionGroups.push({ kind: "IntersectionType", types: [...current] })
+    }
+
+    // Combine unions (they have looser precedence)
+    if (unionGroups.length === 1) {
+      return unionGroups[0]
+    }
+
+    return { kind: "UnionType", types: unionGroups }
+  }
+
+  private parseIntersectionType(firstType: TypeNode): TypeNode {
+    const types: TypeNode[] = [firstType]
+
+    while (this.check(TokenType.AMPERSAND)) {
+      this.advance()
+      const nextType = this.parseSingleType()
+      if (!nextType) {
+        this.error("Expected type after '&'", this.peek())
+        break
+      }
+      types.push(nextType)
+    }
+
+    if (types.length === 1) {
+      return firstType
+    }
+
+    console.log(`[TypeDebug] IntersectionType with ${types.length} types`)
+    return { kind: "IntersectionType", types }
   }
 
   // Keep old method for compatibility

@@ -60,6 +60,9 @@ export enum TokenType {
   ANDROX_EXPR_OPEN = 'ANDROX_EXPR_OPEN',
   ANDROX_EXPR_CLOSE = 'ANDROX_EXPR_CLOSE',
   ANDROX_SPREAD_ATTR = 'ANDROX_SPREAD_ATTR',
+  // === Type Operators ===
+  AMPERSAND = 'AMPERSAND',
+  EXTENDS_KW = 'EXTENDS_KW',
   // === Type Keywords ===
   INT_TYPE = 'INT_TYPE',
   FLOAT_TYPE = 'FLOAT_TYPE',

@@ -1016,6 +1016,10 @@ readNumber(): Token {
       return { type: TokenType.READONLY, value: 'readonly', line: this.line, column: startColumn }
     }
 
+    if (ident === 'extends') {
+      return { type: TokenType.EXTENDS_KW, value: 'extends', line: this.line, column: startColumn }
+    }
+
     // ========================================
     // Regular Keywords and Identifiers
     // ========================================
@@ -1176,7 +1180,7 @@ readNumber(): Token {
           this.readChar()
           return { type: TokenType.AND, value: '&&', line: this.line, column: startColumn }
         }
-        return { type: TokenType.OPERATOR, value: '&', line: this.line, column: startColumn }
+        return { type: TokenType.AMPERSAND, value: '&', line: this.line, column: startColumn }
       
       case '|':
         this.readChar()
