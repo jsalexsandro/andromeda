@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // ============================================================
 // ANDROMEDA - Type System Documentation
 // ============================================================
@@ -262,3 +263,6 @@ val apiResponse: ApiResponse<{ users: { name: string }[] }> | ApiError = {
 // Unions:            T1 | T2 | T3
 // Intersections:     T1 & T2 & T3
 // Functions:         (params) => returnType
+=======
+var n: {}[] = {}
+>>>>>>> origin/master

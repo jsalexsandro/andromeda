@@ -23,13 +23,9 @@
 FASE 2 — STATEMENTS SIMPLES
 │
 ├── 9.  VariableDeclaration     val x = expr
-        9.1  suporte a tipagem (any, null, [int, string, float, bool], ou qualuqer_tipo -> o semantic verifica se é valido)
-        9.2 Criar o ParserTypeAnotation (dependendo o contexto após ":" é um tipagem )
-        9.3 Suporte a objetos types e arrays types { name: string, values: string[] } ou string[] int[][]
-        9.4 Adicionar suporte a union types (string | null)
-        9.5 adicionar supoerte a uninion multiples types string | null | bool
-      
-      (isso já está muito bom)
+        9.1  suporte a tipagem, apos ":" é uma tipagem
+        9.2 Criar o ParserTypeAnotation @typeAnnotation.md
+
 
 ├── 10. BlockStatement          { ... }
 ├── 11. IfStatement             if/else
