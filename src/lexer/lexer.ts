@@ -1157,11 +1157,9 @@ readNumber(): Token {
           return { type: TokenType.GREATER_EQUAL, value: '>=', line: this.line, column: startColumn }
         }
         // Se estava em generic, fecha o generic e controle profundidade
+        // NÃO reseta inTypeAnnotation aqui - precisa durar até fim da type annotation
         if (this.inTypeAnnotation && this.genericDepth > 0) {
           this.genericDepth--
-          if (this.genericDepth === 0) {
-            this.inTypeAnnotation = false
-          }
           return { type: TokenType.GREATER_THAN, value: '>', line: this.line, column: startColumn }
         }
         return { type: TokenType.GREATER_THAN, value: '>', line: this.line, column: startColumn }
@@ -1204,6 +1202,9 @@ readNumber(): Token {
       
       case '}':
         this.readChar()
+        // Reseta modo tipo - fecha object type ou block
+        this.inTypeAnnotation = false
+        this.genericDepth = 0
         return { type: TokenType.RBRACE, value: '}', line: this.line, column: startColumn }
       
       case '[':
@@ -1229,6 +1230,9 @@ readNumber(): Token {
       
       case ';':
         this.readChar()
+        // Reseta modo tipo - fim de statement
+        this.inTypeAnnotation = false
+        this.genericDepth = 0
         return { type: TokenType.SEMICOLON, value: ';', line: this.line, column: startColumn }
       
       case ':':
