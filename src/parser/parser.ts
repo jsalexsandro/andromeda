@@ -1096,42 +1096,53 @@ private parseAssignment(left: Expr): Expr | null {
     return grouped
   }
 
-  private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
+private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
     if (types.length === 1) return types[0]
 
-    // Group: find all '&' groups first (intersection binds tighter), then '|'
-    const intersectionGroups: TypeNode[] = []
-    const unionGroups: TypeNode[] = []
+    // Simple case: just check if all operators are the same
+    const allUnion = ops.every(op => op === '|')
+    const allIntersection = ops.every(op => op === '&')
+
+    if (allUnion) {
+      return { kind: "UnionType", types }
+    }
+
+    if (allIntersection) {
+      return { kind: "IntersectionType", types }
+    }
+
+    // Mixed operators: union has lower precedence than intersection
+    // So group intersections first
+    const result: TypeNode[] = []
     let current: TypeNode[] = [types[0]]
 
     for (let i = 0; i < ops.length; i++) {
-      current.push(types[i + 1])
       if (ops[i] === '&') {
-        // Keep building intersection
+        // Keep adding to intersection
+        current.push(types[i + 1])
       } else {
-        // '|' ends current group
+        // '|' - end current group
         if (current.length === 1) {
-          unionGroups.push(current[0])
+          result.push(current[0])
         } else {
-          unionGroups.push({ kind: "IntersectionType", types: [...current] })
+          result.push({ kind: "IntersectionType", types: current })
         }
         current = [types[i + 1]]
       }
     }
 
-    // Add remaining
+    // Handle remaining
     if (current.length === 1) {
-      unionGroups.push(current[0])
+      result.push(current[0])
     } else {
-      unionGroups.push({ kind: "IntersectionType", types: [...current] })
+      result.push({ kind: "IntersectionType", types: current })
     }
 
-    // Combine unions (they have looser precedence)
-    if (unionGroups.length === 1) {
-      return unionGroups[0]
+    if (result.length === 1) {
+      return result[0]
     }
 
-return { kind: "UnionType", types: unionGroups }
+    return { kind: "UnionType", types: result }
   }
 
   // ========================================
