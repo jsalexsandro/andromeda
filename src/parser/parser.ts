@@ -1236,6 +1236,159 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
     return this.parseArrayType(baseType)
   }
 
+  // <system-reminder>
+  // Decides between FunctionType and ParenthesizedType based on lookahead
+  // </system-reminder>
+  private parseFunctionOrParenthesizedType(): TypeNode {
+    this.advance() // consume '('
+
+    // Special case: () => void (function with no params)
+    if (this.check(TokenType.RPAREN)) {
+      this.advance() // consume ')'
+
+      if (this.check(TokenType.ARROW)) {
+        this.advance() // consume '=>'
+        const returnType = this.parseType()
+        console.log(`[TypeDebug] FunctionType with 0 parameters`)
+        return { kind: "FunctionType", parameters: [], returnType }
+      }
+
+      // () without => is invalid in type context
+      this.error("Expected '=>' after '()' in type position", this.peek())
+      return { kind: "VoidType" }
+    }
+
+    // Lookahead: is it FunctionType or ParenthesizedType?
+    if (this.looksLikeFunctionType()) {
+      return this.parseFunctionTypeParams()
+    }
+
+    // ParenthesizedType: (int | string)
+    const inner = this.consumeAndParseType(TokenType.RPAREN, "Expected ')' to close parenthesized type")
+    return { kind: "ParenthesizedType", type: inner }
+  }
+
+  // <system-reminder>
+  // Lookahead to detect if this is a function type: looks for '=>' after closing ')'
+  // Does NOT consume any tokens - pure lookahead
+  // </system-reminder>
+  private looksLikeFunctionType(): boolean {
+    const saved = this.current
+
+    // Find matching ')' by counting parentheses depth
+    let depth = 1
+    while (!this.isAtEnd() && depth > 0) {
+      const t = this.peek()
+      if (t.type === TokenType.LPAREN) depth++
+      if (t.type === TokenType.RPAREN) depth--
+      this.advance()
+    }
+
+    // After ')', is there '=>'?
+    const hasArrow = this.check(TokenType.ARROW)
+
+    // Restore position - pure lookahead, consume nothing
+    this.current = saved
+    return hasArrow
+  }
+
+  // <system-reminder>
+  // Parse function type parameters: (x: string, y: int) => bool
+  // Supports named, anonymous, optional, and rest parameters
+  // </system-reminder>
+  private parseFunctionTypeParams(): TypeNode {
+    const parameters: { name: Token; type: TypeNode; isOptional?: boolean; isRest?: boolean }[] = []
+
+    while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
+
+      // Rest parameter: ...rest: string[]
+      let isRest = false
+      if (this.check(TokenType.SPREAD)) {
+        isRest = true
+        this.advance()
+      }
+
+      // Per-parameter lookahead: is this named or anonymous?
+      // Named: IDENTIFIER followed by ':' or '?'
+      // Anonymous: anything else (the token IS the type)
+      const isNamed = this.check(TokenType.IDENTIFIER)
+        && (this.peekNext()?.type === TokenType.COLON
+          || this.peekNext()?.type === TokenType.QUESTION)
+
+      let nameToken: Token
+
+      if (isNamed) {
+        // Named parameter: x: string
+        nameToken = this.advance()
+      } else {
+        // Anonymous parameter: string, int | null, etc.
+        // Create synthetic token to fill required field
+        const t = this.peek()
+        nameToken = {
+          type: TokenType.IDENTIFIER,
+          value: "_",
+          line: t.line,
+          column: t.column
+        }
+      }
+
+      // Optional: name?
+      let isOptional = false
+      if (this.check(TokenType.QUESTION)) {
+        isOptional = true
+        this.advance()
+      }
+
+      // Only consume ':' if it was a named parameter
+      if (isNamed) {
+        this.consume(TokenType.COLON, `Expected ':' after parameter name '${nameToken.value}'`)
+      }
+
+      // Parse parameter type (recursive - can be any type)
+      const type = this.parseType()
+
+      // Validation: rest must be array type
+      if (isRest && type.kind !== "ArrayType") {
+        this.error("Rest parameter type must be an array type", nameToken)
+      }
+
+      // Validation: rest cannot be optional
+      if (isRest && isOptional) {
+        this.error("Rest parameter cannot be optional", nameToken)
+      }
+
+      parameters.push({ name: nameToken, type, isOptional, isRest })
+
+      // Validation: rest must be last
+      if (isRest && !this.check(TokenType.RPAREN)) {
+        this.error("Rest parameter must be last", this.peek())
+        break
+      }
+
+      if (this.check(TokenType.COMMA)) {
+        this.advance()
+      }
+    }
+
+    this.consume(TokenType.RPAREN, "Expected ')' after function type parameters")
+    this.consume(TokenType.ARROW, "Expected '=>' after function type parameters")
+
+    // Parse return type (recursive - can be any type)
+    const returnType = this.parseType()
+
+    console.log(`[TypeDebug] FunctionType with ${parameters.length} parameters`)
+    return { kind: "FunctionType", parameters, returnType }
+  }
+
+  // <system-reminder>
+  // Helper to consume ')' and parse the type inside parentheses
+  // </system-reminder>
+  private consumeAndParseType(closeToken: TokenType, errorMsg: string): TypeNode {
+    const innerType = this.parseType()
+    this.consume(closeToken, errorMsg)
+    return innerType
+  }
+
   private parseObjectLiteralType(): TypeNode {
     this.advance() // consume {
 
@@ -1404,6 +1557,13 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
     // </system-reminder>
     if (this.check(TokenType.LBRACKET)) {
       return this.parseTupleType()
+    }
+
+    // <system-reminder>
+    // Handle function types (x: int) => bool or parenthesized types (int | string)
+    // </system-reminder>
+    if (this.check(TokenType.LPAREN)) {
+      return this.parseFunctionOrParenthesizedType()
     }
 
     if (this.check(TokenType.INT_TYPE)) {
