@@ -1202,12 +1202,78 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
     const baseType = this.parseBaseType()
     if (!baseType) return null
 
+    // Handle object literal types { name: type, age: int }
+    if (this.check(TokenType.LBRACE)) {
+      return this.parseObjectLiteralType()
+    }
+
     return this.parseArrayType(baseType)
+  }
+
+  private parseObjectLiteralType(): TypeNode {
+    this.advance() // consume {
+
+    const members: { name: string; type: TypeNode; isOptional?: boolean; isReadonly?: boolean }[] = []
+
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+
+      // 1. Modificador readonly
+      let isReadonly = false
+      if (this.check(TokenType.READONLY)) {
+        isReadonly = true
+        this.advance()
+      }
+
+      // 2. Nome da propriedade (identifier ou string)
+      let name: string
+      if (this.check(TokenType.IDENTIFIER)) {
+        name = this.advance().value as string
+      } else if (this.check(TokenType.STRING)) {
+        name = this.advance().value as string
+      } else {
+        this.error("Expected property name", this.peek())
+        break
+      }
+
+      // 3. Opcional (?) - verificar APÓS o nome
+      let isOptional = false
+      if (this.check(TokenType.QUESTION)) {
+        isOptional = true
+        this.advance()
+      }
+
+      // 4. Dois pontos obrigatório
+      if (!this.check(TokenType.COLON)) {
+        this.error("Expected ':' after property name", this.peek())
+        break
+      }
+      this.advance()
+
+      // 5. Tipo da propriedade (recursivo)
+      const type = this.parseType()
+
+      members.push({ name, type, isOptional, isReadonly })
+
+      // 6. Separador: ; ou ,
+      if (this.check(TokenType.SEMICOLON) || this.check(TokenType.COMMA)) {
+        this.advance()
+      }
+    }
+
+    this.consume(TokenType.RBRACE, "Expected '}' to close object type")
+
+    console.log(`[TypeDebug] ObjectLiteralType with ${members.length} members`)
+    return { kind: "ObjectLiteralType", members }
   }
 
   // Parse a base type (the raw type without arrays)
   private parseBaseType(): TypeNode | null {
     const token = this.peek()
+
+    // Handle object literal types { name: type, age: int }
+    if (this.check(TokenType.LBRACE)) {
+      return this.parseObjectLiteralType()
+    }
 
     if (this.check(TokenType.INT_TYPE)) {
       this.advance()
