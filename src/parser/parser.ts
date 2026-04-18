@@ -853,11 +853,29 @@ private parseAssignment(left: Expr): Expr | null {
     this.advance()
 
     const params: { name: Token; isRest?: boolean }[] = []
+    let foundRestParam = false
+
     while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
       let isRest = false
       if (this.check(TokenType.SPREAD)) {
+        // <system-reminder>
+        // Rest parameter cannot be optional and cannot have type annotation yet
+        // </system-reminder>
+        if (foundRestParam) {
+          this.error("Rest parameter must be last in function parameters", this.peek())
+          break
+        }
+        
+        // Look ahead 2 positions: SPREAD -> IDENTIFIER -> COMMA
+        const afterNameIdx = this.current + 2
+        const afterName = this.tokens[afterNameIdx]
+        if (afterName && afterName.type === TokenType.COMMA) {
+          this.error("Rest parameter must be last in function parameters", afterName)
+        }
+        
         this.advance()
         isRest = true
+        foundRestParam = true
       }
 
       const paramName = this.advance()
