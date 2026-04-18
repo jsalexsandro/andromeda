@@ -272,6 +272,7 @@ export class Parser {
 
   private parseArrowOrGroup(): Expr {
     const startPos = this.current
+    const savedErrorsLength = this.errors.errors.length
 
     const arrow = this.tryParseArrowFunction()
     if (arrow) {
@@ -279,6 +280,7 @@ export class Parser {
     }
 
     this.current = startPos
+    this.errors.errors = this.errors.errors.slice(0, savedErrorsLength)
     return this.parseGroup()
   }
 
@@ -346,6 +348,8 @@ const paramName = this.advance()
     if (!this.check(TokenType.RPAREN)) {
       return null
     }
+
+    this.advance()
 
     // Return type: ): type =>
     const returnType = this.check(TokenType.COLON)

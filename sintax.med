@@ -106,7 +106,7 @@ var ising = doubish ?? {}
 
 
 func fn(...args) { }           // rest parameters
-func fn_2(...args: string) { }    // com tipo
+func fn_2(...args: string[]) { }    // com tipo
 
 
 var numbers = [0, 1, 2]

@@ -1,0 +1,31 @@
+// Arrow com rest explícito correto
+val f1 = (...args: string[]) => args
+val f2 = (x: int, ...rest: bool[]) => rest
+
+// Rest errado — deve dar erro claro
+val bad1 = (...args: string[]) => args      // ❌ erro esperado
+func bad2(...args: int[]) {}                // ❌ erro esperado
+
+// Union de function types
+val f3: (() => int) | (() => string) | null = null
+
+// Intersection de objetos
+val f4: { name: string } & { age: int } & { active: bool } = { name: "", age: 0, active: true }
+
+// A | B & C deve agrupar como A | (B & C)
+val f5: string | int & bool | null = null
+
+// Objeto com readonly
+val f6: { readonly id: int; name?: string } = { id: 1 }
+
+// Tuple vazia
+val f7: [] = []
+
+// Arrow retornando arrow retornando arrow
+val f8: () => () => () => int = () => () => () => 1
+
+// Param que é union de function types
+func f9(cb: (() => void) | null): void {}
+
+// Generic aninhado profundo
+val f10: Map<string, Array<Map<int, { value: string | null }[]>>> = {}
