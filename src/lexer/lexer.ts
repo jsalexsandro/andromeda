@@ -46,6 +46,8 @@ export class Lexer {
   private currentTagName: string = ""
   private pendingAttrName: string | null = null
   private pendingAttrValue: Token | null = null
+  private inTypeAnnotation = false
+  private genericDepth = 0
 
   constructor(input: string, templateMode: boolean = true) {
     this.input = input
@@ -1066,6 +1068,9 @@ readNumber(): Token {
           this.readChar()
           return { type: TokenType.ARROW, value: '=>', line: this.line, column: startColumn }
         }
+        // Limpa modo tipo quando chega ao inicializador
+        this.inTypeAnnotation = false
+        this.genericDepth = 0
         return { type: TokenType.ASSIGN, value: '=', line: this.line, column: startColumn }
       
       case '+':
@@ -1126,6 +1131,12 @@ readNumber(): Token {
           this.readChar()
           return this.readAndroxCloseTag()
         }
+        // Se estiver em type annotation, é generic, não ANDROX
+        if (this.inTypeAnnotation && (this.isLetter() || this.ch === '_' || this.ch === '$')) {
+          this.genericDepth++
+          return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+        }
+        // Comportamento original: ANDROX
         if (this.isLetter() || this.ch === '_' || this.ch === '$') {
           return this.readAndroxOpenTag()
         }
@@ -1136,6 +1147,14 @@ readNumber(): Token {
         if (this.ch === '=') {
           this.readChar()
           return { type: TokenType.GREATER_EQUAL, value: '>=', line: this.line, column: startColumn }
+        }
+        // Se estava em generic, fecha o generic e controle profundidade
+        if (this.inTypeAnnotation && this.genericDepth > 0) {
+          this.genericDepth--
+          if (this.genericDepth === 0) {
+            this.inTypeAnnotation = false
+          }
+          return { type: TokenType.GREATER_THAN, value: '>', line: this.line, column: startColumn }
         }
         return { type: TokenType.GREATER_THAN, value: '>', line: this.line, column: startColumn }
       
@@ -1206,6 +1225,8 @@ readNumber(): Token {
       
       case ':':
         this.readChar()
+        this.inTypeAnnotation = true
+        this.genericDepth = 0
         return { type: TokenType.COLON, value: ':', line: this.line, column: startColumn }
       
       case '?':

@@ -1276,7 +1276,19 @@ private parseAssignment(left: Expr): Expr | null {
 
     if (this.check(TokenType.IDENTIFIER)) {
       const typeName = this.advance()
-      return { kind: "TypeReference", typeName }
+
+      let typeArguments: TypeNode[] | undefined
+      if (this.check(TokenType.LESS_THAN)) {
+        this.advance()
+        typeArguments = []
+        while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
+          typeArguments.push(this.parseType())
+          if (this.check(TokenType.COMMA)) this.advance()
+        }
+        this.consume(TokenType.GREATER_THAN, "Expected '>' after type arguments")
+      }
+
+      return { kind: "TypeReference", typeName, typeArguments }
     }
 
     this.error(`Expected type, got '${token.value}'`, token)
