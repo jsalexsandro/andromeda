@@ -36,3 +36,52 @@ O parser de função (`parseFunctionStatement`) precisa ser atualizado para reco
 - Spread em objetos: ✅ Funciona (`{...obj1, ...obj2}`)
 - Tuple rest: ✅ Funciona (`[...rest: string[]]`)
 - Spread em chamadas: ✅ Funciona (`f(...args)`)
+
+---
+
+# Feature: Mapped Types com Spread em Object Types
+
+## Descrição
+Implementar spread em object types (anotações de tipo) para criar mapped types.
+
+## Diferença com Object Literal Spread
+
+```andromeda
+// Object LITERAL (expressão) - já funciona ✅
+val merged = { ...obj1, ...obj2 }
+
+// Object TYPE (tipo) - NÃO funciona ❌
+val x: { ...TypeA, newProp: int }
+```
+
+## Sintaxe TypeScript equivalente
+
+```typescript
+// Adicionar propriedades
+type Extended<T> = { ...T, newProp: string }
+
+// Mapped type básico
+type Readonly<T> = {
+  readonly [K in keyof T]: T[K]
+}
+
+// Remover propriedades
+type Without<T, K extends keyof T> = {
+  [P in keyof T as P extends K ? never: P]: T[P]
+}
+```
+
+## Status
+- [ ] Não implementado
+- [ ] Design necessário
+
+## Referências
+- Arquivo potencial: `src/parser/parser.ts`
+- Método: `parseObjectLiteralType`
+
+## Exemplos desejados
+```andromeda
+type WithId<T> = { ...T, id: int }
+type Readonly<T> = { readonly ...T }
+type Optional<T> = { ...T, [K in keyof T]?: T[K] }
+```
