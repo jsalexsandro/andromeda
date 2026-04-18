@@ -1023,7 +1023,7 @@ private parseAssignment(left: Expr): Expr | null {
 
     // Verificar se após o ":" existe um tipo válido
     const nextToken = this.peek()
-    const isValidTypeStart = 
+    const isValidTypeStart =
       this.check(TokenType.INT_TYPE) ||
       this.check(TokenType.FLOAT_TYPE) ||
       this.check(TokenType.STRING_TYPE) ||
@@ -1032,6 +1032,8 @@ private parseAssignment(left: Expr): Expr | null {
       this.check(TokenType.VOID_TYPE) ||
       this.check(TokenType.UNKNOWN_TYPE) ||
       this.check(TokenType.UNDEFINED_TYPE) ||
+      this.check(TokenType.NULL_TYPE) ||
+      this.check(TokenType.NULL) ||  // 'null' literal também é tipo
       this.check(TokenType.OBJECT_TYPE) ||
       this.check(TokenType.IDENTIFIER) ||
       this.check(TokenType.LPAREN) ||
@@ -1118,6 +1120,13 @@ private parseAssignment(left: Expr): Expr | null {
       this.advance()
       console.log('[TypeDebug] UndefinedTypeNode detected')
       return this.parseArrayType({ kind: "UndefinedType" })
+    }
+
+    // Tipo: null
+    if (this.check(TokenType.NULL_TYPE) || this.check(TokenType.NULL)) {
+      this.advance()
+      console.log('[TypeDebug] NullTypeNode detected')
+      return this.parseArrayType({ kind: "NullType" })
     }
 
     // Tipo: object
@@ -1267,6 +1276,11 @@ private parseAssignment(left: Expr): Expr | null {
     if (this.check(TokenType.UNDEFINED_TYPE)) {
       this.advance()
       return { kind: "UndefinedType" }
+    }
+
+    if (this.check(TokenType.NULL_TYPE) || this.check(TokenType.NULL)) {
+      this.advance()
+      return { kind: "NullType" }
     }
 
     if (this.check(TokenType.OBJECT_TYPE)) {

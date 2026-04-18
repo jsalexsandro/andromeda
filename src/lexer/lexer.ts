@@ -981,6 +981,10 @@ readNumber(): Token {
       return { type: TokenType.UNDEFINED_TYPE, value: 'undefined', line: this.line, column: startColumn }
     }
 
+    if (ident === 'null') {
+      return { type: TokenType.NULL_TYPE, value: 'null', line: this.line, column: startColumn }
+    }
+
     if (ident === 'void') {
       return { type: TokenType.VOID_TYPE, value: 'void', line: this.line, column: startColumn }
     }
