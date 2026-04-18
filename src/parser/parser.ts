@@ -1131,138 +1131,7 @@ private parseAssignment(left: Expr): Expr | null {
       return unionGroups[0]
     }
 
-    return { kind: "UnionType", types: unionGroups }
-  }
-
-  private parseIntersectionType(firstType: TypeNode): TypeNode {
-    const types: TypeNode[] = [firstType]
-
-    while (this.check(TokenType.AMPERSAND)) {
-      this.advance()
-      const nextType = this.parseSingleType()
-      if (!nextType) {
-        this.error("Expected type after '&'", this.peek())
-        break
-      }
-      types.push(nextType)
-    }
-
-    if (types.length === 1) {
-      return firstType
-    }
-
-    console.log(`[TypeDebug] IntersectionType with ${types.length} types`)
-    return { kind: "IntersectionType", types }
-  }
-
-  // Keep old method for compatibility
-  private parseTypeLegacy(): TypeNode {
-    const token = this.peek()
-
-    // Tipo: int
-    if (this.check(TokenType.INT_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] IntTypeNode detected')
-      return this.parseArrayType({ kind: "IntType" })
-    }
-
-    // Tipo: float
-    if (this.check(TokenType.FLOAT_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] FloatTypeNode detected')
-      return this.parseArrayType({ kind: "FloatType" })
-    }
-
-    // Tipo: string
-    if (this.check(TokenType.STRING_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] StringTypeNode detected')
-      return this.parseArrayType({ kind: "StringType" })
-    }
-
-    // Tipo: bool
-    if (this.check(TokenType.BOOLEAN_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] BoolTypeNode detected')
-      return this.parseArrayType({ kind: "BoolType" })
-    }
-
-    // Tipo: any
-    if (this.check(TokenType.ANY_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] AnyTypeNode detected')
-      return this.parseArrayType({ kind: "AnyType" })
-    }
-
-    // Tipo: void
-    if (this.check(TokenType.VOID_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] VoidTypeNode detected')
-      return this.parseArrayType({ kind: "VoidType" })
-    }
-
-    // Tipo: unknown
-    if (this.check(TokenType.UNKNOWN_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] UnknownTypeNode detected')
-      return this.parseArrayType({ kind: "UnknownType" })
-    }
-
-    // Tipo: undefined
-    if (this.check(TokenType.UNDEFINED_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] UndefinedTypeNode detected')
-      return this.parseArrayType({ kind: "UndefinedType" })
-    }
-
-    // Tipo: null
-    if (this.check(TokenType.NULL_TYPE) || this.check(TokenType.NULL)) {
-      this.advance()
-      console.log('[TypeDebug] NullTypeNode detected')
-      return this.parseArrayType({ kind: "NullType" })
-    }
-
-    // Tipo: object
-    if (this.check(TokenType.OBJECT_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] ObjectTypeNode detected')
-      return this.parseArrayType({ kind: "ObjectType" })
-    }
-
-    // Tipo personalizado (Identifier) - ex: UserDefinedType, Array<T>
-    if (this.check(TokenType.IDENTIFIER)) {
-      const typeName = this.advance()
-      console.log('[TypeDebug] TypeReference detected:', typeName.value)
-
-      let typeArguments: TypeNode[] | undefined
-      if (this.check(TokenType.LESS_THAN)) {
-        this.advance()
-        typeArguments = []
-
-        while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
-          typeArguments.push(this.parseType())
-          if (this.check(TokenType.COMMA)) {
-            this.advance()
-          }
-        }
-
-        if (this.check(TokenType.GREATER_THAN)) {
-          this.advance()
-        }
-      }
-
-      const typeRef = {
-        kind: "TypeReference" as const,
-        typeName,
-        typeArguments
-      }
-
-      return this.parseArrayType(typeRef)
-    }
-
-    // Se não reconheceu o tipo, retorna AnyType como fallback
-    console.log('[TypeDebug] Unknown type, defaulting to AnyType')
-    return this.parseArrayType({ kind: "AnyType" })
+return { kind: "UnionType", types: unionGroups }
   }
 
   // ========================================
@@ -1295,9 +1164,7 @@ private parseAssignment(left: Expr): Expr | null {
     return baseType
   }
 
-  // ========================================
-  // Union Type Parser (int | string)
-  // ========================================
+// ========================================
   private parseUnionType(firstType: TypeNode): TypeNode {
     const types: TypeNode[] = [firstType]
 
