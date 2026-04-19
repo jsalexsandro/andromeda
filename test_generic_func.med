@@ -1,0 +1,2 @@
+const e = <h1>Olá, Mundo!</h1>
+func test<T>(x: T): T {}

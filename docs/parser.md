@@ -82,7 +82,8 @@ FASE 6 — CONTROLE AVANÇADO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 FASE 7 — CLASSES
-│
+│   30. Generics
+        O parser de generics após fun<>()
 ├── 30. ClassStatement          class Foo {}
 ├── 31. ThisExpression          this.x
 ├── 32. SuperExpression         super()

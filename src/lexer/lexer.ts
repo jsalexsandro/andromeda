@@ -48,6 +48,7 @@ export class Lexer {
   private pendingAttrValue: Token | null = null
   private inTypeAnnotation = false
   private genericDepth = 0
+  private expectingGenericParams = false
 
   constructor(input: string, templateMode: boolean = true) {
     this.input = input
@@ -1027,6 +1028,16 @@ readNumber(): Token {
     const isKeyword = KEYWORDS_SET.has(ident)
     const type = isKeyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
 
+    if (type === TokenType.KEYWORD && ident === 'func') {
+      this.expectingGenericParams = true
+    }
+
+    if (this.expectingGenericParams && type === TokenType.IDENTIFIER) {
+      // Este é o nome da função — mantém flag ativa para próximo '<'
+    } else if (type !== TokenType.KEYWORD || (ident !== 'func' && !this.expectingGenericParams)) {
+      this.expectingGenericParams = false
+    }
+
     return { type, value: ident, line: this.line, column: startColumn }
   }
 
@@ -1144,6 +1155,15 @@ readNumber(): Token {
           this.genericDepth++
           return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
         }
+
+        // Logo após nome de função → type parameter, não Androx
+        if (this.expectingGenericParams && (this.isLetter() || this.ch === '_' || this.ch === '$')) {
+          this.expectingGenericParams = false
+          this.inTypeAnnotation = true
+          this.genericDepth++
+          return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+        }
+
         // Comportamento original: ANDROX
         if (this.isLetter() || this.ch === '_' || this.ch === '$') {
           return this.readAndroxOpenTag()
