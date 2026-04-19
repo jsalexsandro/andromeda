@@ -1,1 +1,1 @@
-var tipo = typeof s
+val arrowInGeneric = <T, U>(fn: (x: T) => U, val: T): U => fn(val)

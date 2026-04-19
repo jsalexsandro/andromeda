@@ -1,0 +1,56 @@
+// Generic Profundo - Testes Avançados
+// ====================================
+
+// Multiple type parameters
+func multi<T, U, V>(a: T, b: U, c: V): { t: T; u: U; v: V } {}
+
+// Generic com constraint
+func withConstraint<T extends string>(value: T): int {}
+
+// Generic com default
+func withDefault<T = int>(value: T): T {}
+
+// Generic aninhado
+func nested<T, U>(map: Map<T, Array<U>>): Array<U> {}
+
+// Generic em arrow function
+val genArrow = <T>(x: T): T => x
+
+// Generic com typeof
+func genTypeof<T>(obj: typeof config): T {}
+
+// Generic com keyof
+func genKeyof<T>(obj: T): keyof T {}
+
+// Generic com readonly
+func genReadonly<T>(arr: readonly T[]): T {}
+
+// Generic com multiple operators
+func complex<T>(arr: readonly T[], key: keyof typeof obj): readonly { value: T; keys: keyof T }[] {}
+
+// Generic com union/intersection
+func unionGen<T, U>(a: T | U, b: T & U): void {}
+
+// Generic com tuple
+func tupleGen<T, U>(arr: [T, U]): T {}
+
+// Generic com index signature
+func indexGen<T>(obj: { [key: string]: T }): T {}
+
+// Generic com rest parameters
+func restGen<T>(...args: T[]): T[] {}
+
+// Generic com optional
+func optionalGen<T>(value?: T): T {}
+
+// Generic com arrow function inside
+val arrowInGeneric = <T, U>(fn: (x: T) => U, val: T): U => fn(val)
+
+// Nested generics
+val nestedGen: Map<string, Array<Map<int, { value: string }>>> = {}
+
+// Generic com function type
+val fnGeneric: <T, U>(T) => U = x => x
+
+// Generic com object type
+val objGeneric: <T extends { id: int }>(T) => string = t => ""
