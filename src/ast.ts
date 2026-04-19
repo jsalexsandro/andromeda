@@ -180,6 +180,7 @@ export interface FunctionStmtParam {
 export interface FunctionStmt {
   kind: "FunctionStmt"
   name: Token
+  typeParameters?: TypeNode[]
   params: FunctionStmtParam[]
   returnType?: TypeNode
   body: BlockStmt

@@ -893,6 +893,22 @@ private parseAssignment(left: Expr): Expr | null {
       return { kind: "ExpressionStmt", expression: { kind: "Literal", value: null } }
     }
 
+    // Type parameters: func name<T, U, V>()
+    const typeParameters: TypeNode[] = []
+    if (this.check(TokenType.LESS_THAN)) {
+      this.advance()
+      while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
+        if (!this.check(TokenType.IDENTIFIER)) {
+          this.error("Expected type parameter name", this.peek())
+          break
+        }
+        const paramToken = this.advance()
+        typeParameters.push({ kind: "TypeReference", typeName: paramToken })
+        if (this.check(TokenType.COMMA)) this.advance()
+      }
+      this.consume(TokenType.GREATER_THAN, "Expected '>' after type parameters")
+    }
+
     if (!this.check(TokenType.LPAREN)) {
       this.error("Expected '(' after function name", this.peek())
     }
@@ -979,6 +995,7 @@ private parseAssignment(left: Expr): Expr | null {
     return {
       kind: "FunctionStmt",
       name: nameToken,
+      typeParameters: typeParameters.length > 0 ? typeParameters : undefined,
       params,
       returnType,
       body
