@@ -1,0 +1,23 @@
+// Arrow Functions Advanced
+// ========================
+
+// Arrow sem parens retornando arrow retornando arrow
+val a = x => y => z => x + y + z
+
+// Arrow tipada retornando arrow tipada retornando arrow tipada
+val b: (int) => (int) => (int) => int = x => y => z => x + y + z
+
+// Arrow com parametro com ObjectLiteralType e returnType
+val c = (opts: { x: int; y: int; label?: string }): { result: int; label: string } => {
+  result: opts.x + opts.y,
+  label: opts.label
+}
+
+// Rest + tipo + retorno complexo
+val d = (...args: int[]): { sum: int; count: int } => {
+  sum: 0,
+  count: 0
+}
+
+// Arrow cujo param é função que retorna função
+val e = (fn: (x: int) => (y: int) => bool): bool => fn(1)(2)

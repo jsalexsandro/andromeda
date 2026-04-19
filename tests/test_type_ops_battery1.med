@@ -1,0 +1,19 @@
+// Type Operators - Battery Test 1
+// ================================
+
+// keyof em todos os tipos estruturais
+val a: keyof { name: string; age: int; active: bool }
+val b: keyof { [key: string]: int }
+val c: keyof User
+val d: keyof Map<string, int>
+
+// typeof em vários contextos
+val e: typeof myVar
+val f: typeof config.timeout
+val g: typeof arr
+
+// readonly em todos os tipos array
+val h: readonly string[]
+val i: readonly int[][]
+val j: readonly (string | int)[]
+val k: readonly { id: int; name: string }[]

@@ -1,0 +1,19 @@
+// Generic Advanced
+// ================
+
+// Generic dentro de tuple dentro de generic
+val a: Map<string, [Array<int>, Map<bool, string[]>]> = {}
+
+// Generic cujo argumento é função que retorna generic
+val b: Array<(x: int) => Promise<{ id: int; value: string | null }>> = []
+
+// Função com generic aninhado profundo como param e return
+func deep(
+  store: Map<string, Array<{ key: string; values: (int | null)[] }>>
+): Map<int, { result: string[] | null }> {}
+
+// Union de generics
+val c: Array<string> | Map<string, int> | null = null
+
+// Generic de interseção
+val d: Promise<{ name: string } & { age: int } & { active: bool }> = {}

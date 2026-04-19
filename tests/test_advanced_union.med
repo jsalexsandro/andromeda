@@ -1,0 +1,18 @@
+// Advanced Union Types
+// ====================
+
+// A | B & C — deve agrupar como A | (B & C), não (A | B) & C
+val a: string | int & bool | null = null
+
+// União de interseções
+val b: (string & { length: int }) | (int & { toFixed: () => string }) | null = null
+
+// Array de união vs união de arrays
+val c: string | int[] = null
+val d: (string | int)[] = []
+
+// Função com return type que é união de funções
+val e: () => (() => int) | (() => string) | null = () => () => 1
+
+// Interseção dentro de generic
+val f: Array<{ name: string } & { age: int }> = []

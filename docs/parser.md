@@ -116,6 +116,9 @@ FASE 11 — AÇÚCAR SINTÁTICO
 │
 ├── 41. TemplateLiteral         $`hello {name}`
 └── 42. NullishCoalescing       (já na fase 3, refinar)
+    43. TypeofExp e KeyofExp
+      // var t = typeof typeof s 
+      var t3 = typeof true
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

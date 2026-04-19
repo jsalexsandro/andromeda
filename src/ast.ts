@@ -430,6 +430,8 @@ export interface TypeElement {
   type: TypeNode
   isOptional?: boolean
   isReadonly?: boolean
+  isIndexSignature?: boolean
+  keyType?: TypeNode
 }
 
 export interface ParenthesizedTypeNode {

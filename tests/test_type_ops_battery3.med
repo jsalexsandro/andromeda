@@ -1,0 +1,21 @@
+// Type Operators - Battery Test 3
+// ================================
+
+// Como propriedade de objeto
+val a: {
+  key: keyof { name: string; age: int }
+  source: typeof myConfig
+  list: readonly string[]
+}
+
+// Como elemento de tuple
+val b: [keyof User, typeof config, readonly int[]]
+
+// Como parâmetro de função
+func get(key: keyof { name: string; age: int }): string {}
+func clone(arr: readonly int[]): readonly int[] {}
+func mirror(x: typeof source): typeof source {}
+
+// Como return type
+func keys(): keyof { name: string; age: int } {}
+func frozen(): readonly string[] {}

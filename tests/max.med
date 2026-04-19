@@ -465,11 +465,11 @@ print(...sorted)
 // Descomente um de cada vez para verificar recuperação de erro.
 // ─────────────────────────────────────────────────────────────
 
-// val bad1 = { key: }                  // valor faltando
-// val bad2 = [1, 2, ]                  // trailing comma (se não suportar)
-// val bad3 = a ? b                     // ternário incompleto
-// val bad4: int | = 5                  // union incompleta
-// func bad5(a: int,): void {}          // trailing comma em params
-// val bad6 = a ?? ?? b                 // dois nullish seguidos
-// val bad7 = ...x                      // spread fora de contexto
-// val bad8: () => = () => 1            // tipo sem return type
+// val bad1 = { key: }                  // valor faltando [ok] reporta erro
+// val bad2 = [1, 2, ]                  // trailing comma (se não suportar) -> não reporta nada
+// val bad3 = a ? b                     // ternário incompleto [reporta erro errado]
+// val bad4: int | = 5                  // union incompleta [ok] reporta erro
+// func bad5(a: int,): void {}          // trailing comma em params -> não reporta nada
+// val bad6 = a ?? ?? b                 // dois nullish seguidos [ok] reporta erro
+// val bad7 = ...x                      // spread fora de contexto  -> não reporta nada (bug)
+// val bad8: () => = () => 1            // tipo sem return type [ok] reporta erro

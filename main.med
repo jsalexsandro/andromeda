@@ -1,7 +1,1 @@
-var n = 2
-
-func app(){
-
-}
-
-const e = (() => {})()
+var tipo = typeof s

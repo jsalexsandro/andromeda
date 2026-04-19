@@ -1,0 +1,25 @@
+// Object Advanced
+// ===============
+
+// Objeto com chave string e tipo função
+val a: { "on-click": (e: { x: int; y: int }) => void } = { "on-click": e => {} }
+
+// Objeto com readonly + opcional + aninhado
+val b: {
+  readonly id: int
+  name?: string
+  address?: {
+    readonly street: string
+    number?: int
+    extra?: { zip: string; country?: string }
+  }
+} = { id: 1 }
+
+// Objeto cujos valores são arrays de objetos com funções
+val c: {
+  routes: {
+    path: string
+    handler: (req: { url: string; method: string }) => { status: int; body: string }
+    middleware?: ((req: { url: string }) => bool)[]
+  }[]
+} = { routes: [] }

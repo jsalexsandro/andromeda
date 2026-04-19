@@ -1136,7 +1136,10 @@ private parseAssignment(left: Expr): Expr | null {
       this.check(TokenType.IDENTIFIER) ||
       this.check(TokenType.LPAREN) ||
       this.check(TokenType.LBRACE) ||
-      this.check(TokenType.LBRACKET)
+      this.check(TokenType.LBRACKET) ||
+      this.check(TokenType.KEYOF)   ||
+      this.check(TokenType.TYPEOF)  ||
+      this.check(TokenType.READONLY)
 
     if (!isValidTypeStart) {
       this.error(`Expected type after ':'`, nextToken)
@@ -1165,6 +1168,8 @@ private parseAssignment(left: Expr): Expr | null {
     if (t.type === TokenType.RBRACE) return true
 
     if (t.type === TokenType.READONLY) return true
+
+    if (t.type === TokenType.LBRACKET) return true
 
     if (t.type === TokenType.IDENTIFIER || t.type === TokenType.STRING) {
       const next = this.tokens[i + 1]
@@ -1511,9 +1516,44 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
   private parseObjectLiteralType(): TypeNode {
     this.advance() // consume {
 
-    const members: { name: string; type: TypeNode; isOptional?: boolean; isReadonly?: boolean }[] = []
+    const members: { name: string; type: TypeNode; isOptional?: boolean; isReadonly?: boolean; isIndexSignature?: boolean; keyType?: TypeNode }[] = []
 
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+
+      // ✅ Index Signature: [key: string]: valueType
+      if (this.check(TokenType.LBRACKET)) {
+        this.advance() // consume '['
+
+        if (!this.check(TokenType.IDENTIFIER)) {
+          this.error("Expected identifier in index signature", this.peek())
+          break
+        }
+        const keyName = this.advance().value as string
+
+        this.consume(TokenType.COLON, "Expected ':' after index key name")
+        const keyType = this.parseType()
+        this.consume(TokenType.RBRACKET, "Expected ']' after index key type")
+
+        if (!this.check(TokenType.COLON)) {
+          this.error("Expected ':' after index signature", this.peek())
+          break
+        }
+        this.advance()
+
+        const valueType = this.parseTypeWithDepth()
+
+        members.push({
+          name: keyName,
+          type: valueType,
+          keyType,
+          isIndexSignature: true
+        })
+
+        if (this.check(TokenType.SEMICOLON) || this.check(TokenType.COMMA)) {
+          this.advance()
+        }
+        continue
+      }
 
       // 1. Modificador readonly
       let isReadonly = false
@@ -1688,6 +1728,67 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
     if (this.check(TokenType.LPAREN)) {
       return this.parseFunctionOrParenthesizedType()
     }
+
+    // ========================================
+    // FASE 3 — Type Operators
+    // ========================================
+
+    // keyof T
+    // keyof (string | int)
+    // keyof typeof obj
+    if (this.check(TokenType.KEYOF)) {
+      const op = this.advance()
+      const type = this.parseSingleType()
+      if (!type) {
+        this.error("Expected type after 'keyof'", op)
+        return { kind: "AnyType" }
+      }
+      return { kind: "TypeOperator", operator: "keyof", type }
+    }
+
+    // typeof x
+    // typeof obj.prop
+    // só aceita IDENTIFIER — typeof não aceita expressão arbitrária como tipo
+    if (this.check(TokenType.TYPEOF)) {
+      const op = this.advance()
+      if (!this.check(TokenType.IDENTIFIER)) {
+        this.error("Expected identifier after 'typeof'", this.peek())
+        return { kind: "AnyType" }
+      }
+
+      // Consome o primeiro identifier
+      let typeName = this.advance()
+
+      // Suporta member access: typeof config.timeout.value
+      while (this.check(TokenType.DOT)) {
+        this.advance()
+        if (!this.check(TokenType.IDENTIFIER)) {
+          this.error("Expected identifier after '.' in typeof", this.peek())
+          break
+        }
+        const member = this.advance()
+        typeName = {
+          ...typeName,
+          value: `${typeName.value}.${member.value}`
+        }
+      }
+
+      return { kind: "TypeQuery", typeName }
+    }
+
+    // readonly T
+    // readonly string[]
+    if (this.check(TokenType.READONLY)) {
+      const op = this.advance()
+      const type = this.parseSingleType()
+      if (!type) {
+        this.error("Expected type after 'readonly'", op)
+        return { kind: "AnyType" }
+      }
+      return { kind: "TypeOperator", operator: "readonly", type }
+    }
+
+    // ========================================
 
     if (this.check(TokenType.INT_TYPE)) {
       this.advance()

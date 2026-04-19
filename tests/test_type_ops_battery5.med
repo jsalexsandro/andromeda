@@ -1,0 +1,27 @@
+// Type Operators - Boss Test (Bateria 5)
+// =======================================
+
+// Tudo junto
+val system: {
+  keys: keyof { name: string; age: int; active: bool }
+  source: typeof defaultConfig
+  frozen: readonly {
+    id: int
+    tags: readonly string[]
+    meta: readonly [string, int]
+  }[]
+  lookup: Map<keyof { a: int; b: string }, readonly int[]>
+}
+
+func transform<T>(
+  obj: T,
+  key: keyof typeof obj,
+  list: readonly (string | int)[],
+  fallback: typeof defaultValue
+): readonly { key: string; value: int }[] {}
+
+val pipeline: readonly [
+  (x: keyof { a: int; b: string }) => readonly int[],
+  (arr: readonly string[]) => keyof { ok: bool; err: string },
+  (key: typeof configKey) => readonly (string | null)[]
+]

@@ -1,0 +1,11 @@
+// Type Operators - Battery Test 4
+// ================================
+
+// Como argumento de generic
+val a: Array<keyof User>
+val b: Promise<readonly string[]>
+val c: Map<keyof Config, typeof defaultValue>
+
+// Generic com readonly interno
+val d: Array<readonly [string, int]>
+val e: Map<string, readonly { id: int; value: string }[]>

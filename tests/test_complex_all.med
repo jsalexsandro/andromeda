@@ -1,0 +1,51 @@
+// Complex All - Boss Test
+// =======================
+
+// Tudo junto em um bloco só
+val system: {
+  readonly version: int
+  config: {
+    timeout?: int
+    retries?: int
+    headers?: { [key: string]: string }
+  }
+  handlers: {
+    onSuccess: (data: { id: int; payload: string | null }) => void
+    onError: (err: { code: int; message: string }) => bool | null
+    onRetry?: (attempt: int, maxAttempts: int) => bool
+  }
+  middleware: ((
+    req: { url: string; method: string; body?: string | null },
+    next: () => void
+  ) => bool | null)[]
+  pipeline: [
+    (input: string) => int,
+    (input: int) => { value: int; label: string },
+    (input: { value: int; label: string }) => bool | null
+  ]
+} = {
+  version: 1,
+  config: {},
+  handlers: {
+    onSuccess: data => {},
+    onError: err => null
+  },
+  middleware: [],
+  pipeline: [
+    s => 0,
+    n => { value: n, label: "" },
+    obj => null
+  ]
+}
+
+func process(
+  input: string | int | null,
+  transform: (
+    x: string | int,
+    opts?: { strict: bool; fallback?: string | null }
+  ) => { result: string | null; meta: { took: int; cached: bool } },
+  callbacks: {
+    onDone: (result: { result: string | null }) => void
+    onFail?: (err: string) => bool | null
+  }
+): Promise<{ ok: bool; data: string | null }> {}

@@ -1,0 +1,16 @@
+// Type Operators - Battery Test 2
+// ================================
+
+// keyof typeof — o combo mais comum
+val a: keyof typeof myObj
+val b: keyof typeof config
+func test(key: keyof typeof settings): void {}
+
+// readonly de tipos complexos
+val c: readonly (string | int | null)[]
+val d: readonly ((x: int) => bool)[]
+val e: readonly [string, int, bool][]
+
+// keyof de interseção
+val f: keyof ({ name: string } & { age: int })
+val g: keyof (User & { admin: bool })

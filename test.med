@@ -29,3 +29,9 @@ func f9(cb: (() => void) | null): void {}
 
 // Generic aninhado profundo
 val f10: Map<string, Array<Map<int, { value: string | null }[]>>> = {}
+
+
+val apiResponse: ApiResponse<{ users: { name: string }[] }> | ApiError = {
+  data: { users: [{ name: "Alice" }] },
+  status: 200
+}

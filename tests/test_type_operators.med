@@ -1,0 +1,28 @@
+// Type Operators - Fase 3
+// ========================
+
+// keyof básico
+val a: keyof { name: string; age: int }
+
+// keyof de TypeReference
+val b: keyof User
+
+// typeof básico
+val c: typeof myVar
+
+// readonly básico
+val d: readonly string[]
+val e: readonly int[][]
+
+// Composição
+val f: keyof typeof obj
+
+// Em funções
+func keys(obj: { name: string; age: int }): keyof { name: string; age: int } {}
+func clone(arr: readonly int[]): int[] {}
+
+// Em unions
+val h: keyof User | null
+
+// Aninhado
+val j: keyof { data: readonly string[] }
