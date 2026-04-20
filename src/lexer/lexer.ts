@@ -1164,6 +1164,12 @@ readNumber(): Token {
           return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
         }
 
+        // Já estamos dentro de um generic — qualquer < é outro generic
+        if (this.genericDepth > 0 && (this.isLetter() || this.ch === '_' || this.ch === '$')) {
+          this.genericDepth++
+          return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+        }
+
         // Generic arrow ou call: <T,> ou <T, U> ou map<string> → não é Androx
         if (this.isLetter() || this.ch === '_' || this.ch === '$') {
           if (this.looksLikeGenericArrow() || this.looksLikeGenericCall()) {
@@ -1182,7 +1188,7 @@ readNumber(): Token {
         }
         // Se estava em generic, fecha o generic e controle profundidade
         // NÃO reseta inTypeAnnotation aqui - precisa durar até fim da type annotation
-        if (this.inTypeAnnotation && this.genericDepth > 0) {
+        if (this.genericDepth > 0) {
           this.genericDepth--
           return { type: TokenType.GREATER_THAN, value: '>', line: this.line, column: startColumn }
         }

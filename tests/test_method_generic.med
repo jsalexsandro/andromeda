@@ -1,0 +1,2 @@
+obj.method<string>("hello")
+arr.map<string>(x => x)
