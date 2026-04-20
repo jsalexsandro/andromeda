@@ -1,0 +1,4 @@
+func a<T = string>(x: T): T {}
+func b<T = int, U = string>(x: T, y: U): [T, U] {}
+func c<T extends string = string>(x: T): T {}
+func d<T, U = T>(x: T, y?: U): U {}

@@ -1,0 +1,5 @@
+identity<string>("hello")
+identity<int | null>(null)
+identity<{ id: int; name: string }>({ id: 1, name: "a" })
+identity<readonly string[]>(["a", "b"])
+map<string, int>(["a", "b"])

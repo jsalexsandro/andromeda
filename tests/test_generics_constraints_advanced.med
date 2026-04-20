@@ -1,0 +1,6 @@
+func a<T extends string>(x: T): T {}
+func b<T extends { id: int; name: string }>(obj: T): keyof T {}
+func c<T extends string[]>(arr: T): T {}
+func d<T extends (x: int) => bool>(fn: T): bool {}
+func e<T extends string, U extends T>(x: T, y: U): U {}
+func f<T, U extends keyof T>(obj: T, key: U): T {}

@@ -1,0 +1,13 @@
+// Generic calls with nested/advanced types - known issues
+
+// 1. Nested generic - Array<string> inside <>
+nested<Array<string | null>>([])
+
+// 2. Generic call chain - ()<int>()
+chain<string>()<int>()
+
+// 3. Method call with generic - obj.method<string>()
+obj.method<string>("hello")
+
+// 4. Arrow function with generic - arr.map<string>()
+arr.map<string>(x => x.toString())
