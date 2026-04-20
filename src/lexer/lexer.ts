@@ -1164,8 +1164,12 @@ readNumber(): Token {
           return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
         }
 
-        // Comportamento original: ANDROX
+        // Generic arrow: <T,> ou <T, U> → não é Androx
         if (this.isLetter() || this.ch === '_' || this.ch === '$') {
+          if (this.looksLikeGenericArrow()) {
+            this.genericDepth++
+            return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+          }
           return this.readAndroxOpenTag()
         }
         return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
@@ -1343,5 +1347,12 @@ readNumber(): Token {
       
       tokens.push(token)
     }
+  }
+
+  private looksLikeGenericArrow(): boolean {
+    let i = this.position
+    while (i < this.input.length && /[a-zA-Z_$0-9]/.test(this.input[i])) i++
+    const next = this.input[i]
+    return next === ',' || this.input.slice(i, i + 7) === ' extend' || next === '='
   }
 }

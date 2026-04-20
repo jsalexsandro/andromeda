@@ -1,0 +1,8 @@
+func a<T>(value: T): T {}
+func b<T extends string>(value: T): int {}
+func c<T = int>(value: T): T {}
+func d<T extends string, U extends int>(x: T, y: U): bool {}
+func e<T, U = string, V extends bool>(x: T, y: U, z: V): void {}
+func f<T extends { id: int; name: string }>(obj: T): keyof T {}
+func g<T extends string[]>(arr: T): T {}
+func h<T, U>(fn: (x: T) => U, val: T): U {}

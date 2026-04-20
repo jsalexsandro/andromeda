@@ -38,6 +38,7 @@ export class Parser {
     this.prefixParselets.set(TokenType.NOT, this.parseUnary.bind(this))
 
     this.prefixParselets.set(TokenType.LPAREN, this.parseArrowOrGroup.bind(this))
+    this.prefixParselets.set(TokenType.LESS_THAN, this.parseArrowFromLessThan.bind(this))
 
     this.prefixParselets.set(TokenType.LBRACKET, this.parseArrayLiteral.bind(this))
 
@@ -284,85 +285,153 @@ export class Parser {
     return this.parseGroup()
   }
 
-  private tryParseArrowFunction(): Expr | null {
-    const params: { name: Token; type?: TypeNode; isOptional?: boolean; isRest?: boolean }[] = []
+  private parseArrowFromLessThan(): Expr | null {
+    const startPos = this.current
+    const savedErrors = this.errors.errors.length
 
-    // Case: () or (): type =>
-    if (this.check(TokenType.RPAREN)) {
+    try {
+      const typeParameters: TypeParameterNode[] = []
+
+      while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
+        if (!this.check(TokenType.IDENTIFIER)) {
+          this.current = startPos
+          this.errors.errors = this.errors.errors.slice(0, savedErrors)
+          return null
+        }
+
+        const paramToken = this.advance()
+
+        let constraint: TypeNode | undefined
+        if (this.check(TokenType.EXTENDS_KW)) {
+          this.advance()
+          constraint = this.parseType()
+        }
+
+        let defaultType: TypeNode | undefined
+        if (this.check(TokenType.ASSIGN)) {
+          this.advance()
+          defaultType = this.parseType()
+        }
+
+        typeParameters.push({
+          kind: "TypeParameter",
+          name: paramToken,
+          constraint,
+          default: defaultType
+        })
+
+        if (this.check(TokenType.COMMA)) this.advance()
+      }
+
+      if (!this.check(TokenType.GREATER_THAN)) {
+        this.current = startPos
+        this.errors.errors = this.errors.errors.slice(0, savedErrors)
+        return null
+      }
       this.advance()
+
+      if (!this.check(TokenType.LPAREN)) {
+        this.current = startPos
+        this.errors.errors = this.errors.errors.slice(0, savedErrors)
+        return null
+      }
+      this.advance()
+
+      const params: { name: Token; type?: TypeNode; isOptional?: boolean; isRest?: boolean }[] = []
+
+      if (!this.check(TokenType.RPAREN)) {
+        while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
+          let isRest = false
+          let isOptional = false
+
+          if (this.check(TokenType.SPREAD)) {
+            this.advance()
+            isRest = true
+          }
+
+          if (this.peek().type !== TokenType.IDENTIFIER) {
+            this.current = startPos
+            this.errors.errors = this.errors.errors.slice(0, savedErrors)
+            return null
+          }
+
+          const paramName = this.advance()
+
+          if (this.check(TokenType.QUESTION)) {
+            isOptional = true
+            this.advance()
+          }
+
+          const paramType = this.check(TokenType.COLON)
+            ? this.parseTypeAnnotation()
+            : undefined
+
+          params.push({ name: paramName, type: paramType, isOptional, isRest })
+
+          if (this.check(TokenType.COMMA)) this.advance()
+        }
+      }
+
+      if (!this.check(TokenType.RPAREN)) {
+        this.current = startPos
+        this.errors.errors = this.errors.errors.slice(0, savedErrors)
+        return null
+      }
+      this.advance()
+
       const returnType = this.check(TokenType.COLON)
         ? this.parseTypeAnnotation()
         : undefined
+
       if (!this.check(TokenType.ARROW)) {
+        this.current = startPos
+        this.errors.errors = this.errors.errors.slice(0, savedErrors)
         return null
       }
       this.advance()
-      return this.parseArrowBody(params, returnType)
+
+      return this.parseArrowBody(typeParameters, params, returnType)
+
+    } catch (e) {
+      this.current = startPos
+      this.errors.errors = this.errors.errors.slice(0, savedErrors)
+      return null
+    }
+  }
+
+  private tryParseArrowFunction(): Expr | null {
+    const params: { name: Token; type?: TypeNode; isOptional?: boolean; isRest?: boolean }[] = []
+
+    if (this.check(TokenType.RPAREN)) {
+      this.advance()
+      const returnType = this.check(TokenType.COLON) ? this.parseTypeAnnotation() : undefined
+      if (!this.check(TokenType.ARROW)) return null
+      this.advance()
+      return this.parseArrowBody([], params, returnType)
     }
 
-    // Case: (x, y, ...) or (x: int, y?: string, ...rest: int[])
     while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
       let isRest = false
       let isOptional = false
-      if (this.check(TokenType.SPREAD)) {
-        this.advance()
-        isRest = true
-      }
+      if (this.check(TokenType.SPREAD)) { this.advance(); isRest = true }
+      if (this.peek().type !== TokenType.IDENTIFIER) return null
 
-      if (this.peek().type !== TokenType.IDENTIFIER) {
-        return null
-      }
-
-const paramName = this.advance()
-
-      // Optional: name?
-      if (this.check(TokenType.QUESTION)) {
-        isOptional = true
-        this.advance()
-      }
-
-      // Type annotation: name: type
-      const paramType = this.check(TokenType.COLON)
-        ? this.parseTypeAnnotation()
-        : undefined
-
-      // Validate rest parameter
-      if (isRest && isOptional) {
-        this.error("Rest parameter cannot be optional", paramName)
-      }
-      if (isRest && paramType && paramType.kind !== 'ArrayType') {
-        const typeName = this.typeNodeToString(paramType)
-        this.error(
-          `Rest parameter '${paramName.value}' must have array type. Use '${typeName}[]' instead of '${typeName}'`,
-          paramName
-        )
-      }
+      const paramName = this.advance()
+      if (this.check(TokenType.QUESTION)) { isOptional = true; this.advance() }
+      const paramType = this.check(TokenType.COLON) ? this.parseTypeAnnotation() : undefined
 
       params.push({ name: paramName, type: paramType, isOptional, isRest })
-
-      if (this.check(TokenType.COMMA)) {
-        this.advance()
-      }
+      if (this.check(TokenType.COMMA)) this.advance()
     }
 
-    if (!this.check(TokenType.RPAREN)) {
-      return null
-    }
-
+    if (!this.check(TokenType.RPAREN)) return null
     this.advance()
 
-    // Return type: ): type =>
-    const returnType = this.check(TokenType.COLON)
-      ? this.parseTypeAnnotation()
-      : undefined
-
-    if (!this.check(TokenType.ARROW)) {
-      return null
-    }
-
+    const returnType = this.check(TokenType.COLON) ? this.parseTypeAnnotation() : undefined
+    if (!this.check(TokenType.ARROW)) return null
     this.advance()
 
-    return this.parseArrowBody(params, returnType)
+    return this.parseArrowBody([], params, returnType)
   }
 
   private isObjectTypeAnnotation(lbracePos: number): boolean {
@@ -403,6 +472,7 @@ const paramName = this.advance()
   }
 
 private parseArrowBody(
+    typeParameters: TypeParameterNode[],
     params: { name: Token; type?: TypeNode; isOptional?: boolean; isRest?: boolean }[],
     returnType?: TypeNode
   ): Expr {
@@ -411,6 +481,7 @@ private parseArrowBody(
         const body = this.parseBlockStatement()
         return {
           kind: "ArrowFunction",
+          typeParameters: typeParameters.length > 0 ? typeParameters : undefined,
           params,
           returnType,
           body
@@ -423,6 +494,7 @@ private parseArrowBody(
         const objLiteral = this.parseObjectLiteral()
         return {
           kind: "ArrowFunction",
+          typeParameters: typeParameters.length > 0 ? typeParameters : undefined,
           params,
           returnType,
           body: objLiteral
@@ -433,6 +505,7 @@ private parseArrowBody(
         const body = this.parseBlockStatement()
         return {
           kind: "ArrowFunction",
+          typeParameters: typeParameters.length > 0 ? typeParameters : undefined,
           params,
           returnType,
           body
@@ -446,6 +519,7 @@ private parseArrowBody(
       }
       return {
         kind: "ArrowFunction",
+        typeParameters: typeParameters.length > 0 ? typeParameters : undefined,
         params,
         returnType,
         body
@@ -893,8 +967,8 @@ private parseAssignment(left: Expr): Expr | null {
       return { kind: "ExpressionStmt", expression: { kind: "Literal", value: null } }
     }
 
-    // Type parameters: func name<T, U, V>()
-    const typeParameters: TypeNode[] = []
+    // Type parameters: func name<T, U extends string, V = int>()
+    const typeParameters: TypeParameterNode[] = []
     if (this.check(TokenType.LESS_THAN)) {
       this.advance()
       while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
@@ -903,7 +977,28 @@ private parseAssignment(left: Expr): Expr | null {
           break
         }
         const paramToken = this.advance()
-        typeParameters.push({ kind: "TypeReference", typeName: paramToken })
+
+        // Constraint: T extends string
+        let constraint: TypeNode | undefined
+        if (this.check(TokenType.EXTENDS_KW)) {
+          this.advance()
+          constraint = this.parseType()
+        }
+
+        // Default: T = int
+        let defaultType: TypeNode | undefined
+        if (this.check(TokenType.ASSIGN)) {
+          this.advance()
+          defaultType = this.parseType()
+        }
+
+        typeParameters.push({
+          kind: "TypeParameter",
+          name: paramToken,
+          constraint,
+          default: defaultType
+        })
+
         if (this.check(TokenType.COMMA)) this.advance()
       }
       this.consume(TokenType.GREATER_THAN, "Expected '>' after type parameters")

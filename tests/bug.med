@@ -1,0 +1,14 @@
+func line8<T extends string>(value: T): int {}
+func line11<T = int>(value: T): T {}
+val line17 = <T>(x: T): T => x
+func line29<T>(arr: readonly T[], key: keyof typeof obj): readonly { value: T; keys: keyof T }[] {}
+func line38<T>(obj: { [key: string]: T }): T {}
+
+val arrowInGeneric = <T, U>(fn: (x: T) => U, val: T): U => fn(val)
+
+const identity = <T>(arg: T): T => {
+  return arg;
+};
+
+let output = identity<string>("meuTexto"); // T é string // não funciona o call
+let output2 = identity(100); // T é inferido como number

@@ -1,0 +1,1 @@
+func h<T, U>(fn: (x: T) => U, input: T): U {}

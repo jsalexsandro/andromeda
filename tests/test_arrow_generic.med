@@ -1,0 +1,7 @@
+func identity<T>(arg: T): T { return arg }
+
+// arrow genérica — requer vírgula
+val identity = <T,>(arg: T): T => arg
+val pair = <T, U>(a: T, b: U): [T, U] => [a, b]
+val compose = <T, U, V>(f: (u: U) => V, g: (t: T) => U): (t: T) => V =>
+  t => f(g(t))

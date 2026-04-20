@@ -31,17 +31,25 @@ ParenthesizedType  →  (int | string)
 
 ---
 
--- testar paramentro com opicionais ? ex: (id?: int)
--- testar spread opicional ex (...args: int[])
+-- testar paramentro com opicionais ? ex: (id?: int) [ok]
+-- testar spread opicional ex (...args: int[]) [ok]
 
   
-[Chcecked]
 
 Fase 3 — Operadores de tipo
 keyof T
 typeof x
 readonly T
 
+
+Fase 3.5 - Suporte completo a generics
+Generics Annotation
+Generics Function
+Generics Arrow Function
+
+[Chcecked]
+
+Generics Call
 
 Fase 4 — Tipos avançados
 IndexedAccessType   →  T[K], T["key"]
