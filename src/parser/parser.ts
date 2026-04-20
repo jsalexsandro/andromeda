@@ -59,7 +59,7 @@ export class Parser {
 
     this.infixParselets.set(TokenType.EQUAL, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.NOT_EQUAL, this.parseBinary.bind(this))
-    this.infixParselets.set(TokenType.LESS_THAN, this.parseBinary.bind(this))
+    this.infixParselets.set(TokenType.LESS_THAN, this.parseBinaryOrGenericCall.bind(this))
     this.infixParselets.set(TokenType.GREATER_THAN, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.LESS_EQUAL, this.parseBinary.bind(this))
     this.infixParselets.set(TokenType.GREATER_EQUAL, this.parseBinary.bind(this))
@@ -673,6 +673,72 @@ private parseAssignment(left: Expr): Expr | null {
       left,
       right
     }
+  }
+
+  private parseBinaryOrGenericCall(left: Expr): Expr | null {
+    if (this.looksLikeGenericCallInParser()) {
+      return this.parseGenericCall(left)
+    }
+
+    const operator = this.previous()
+    const precedence = getPrecedence(operator.type)
+    const right = this.parseExpression(precedence)
+    if (!right) {
+      this.error(`Expected expression after '<'`, operator)
+      return null
+    }
+    return {
+      kind: "Binary",
+      left,
+      operator,
+      right
+    }
+  }
+
+  private looksLikeGenericCallInParser(): boolean {
+    let i = this.current
+    let depth = 1
+
+    while (i < this.tokens.length && depth > 0) {
+      const t = this.tokens[i]
+      if (t.type === TokenType.LESS_THAN) depth++
+      if (t.type === TokenType.GREATER_THAN) depth--
+      if (t.type === TokenType.EOF) return false
+      if (depth > 0) i++
+      else break
+    }
+
+    if (depth !== 0) return false
+
+    const next = this.tokens[i + 1]
+    return next?.type === TokenType.LPAREN
+  }
+
+  private parseGenericCall(callee: Expr): Expr | null {
+    const typeArguments: TypeNode[] = []
+
+    while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
+      typeArguments.push(this.parseType())
+      if (this.check(TokenType.COMMA)) this.advance()
+    }
+
+    this.consume(TokenType.GREATER_THAN, "Expected '>' after type arguments")
+    if (!this.check(TokenType.LPAREN)) return callee
+    this.advance()
+
+    const args: Expr[] = []
+    if (!this.check(TokenType.RPAREN)) {
+      while (!this.isAtEnd()) {
+        const arg = this.parseExpression(Precedence.LOWEST)
+        if (arg) args.push(arg)
+        if (this.check(TokenType.RPAREN)) break
+        if (!this.check(TokenType.COMMA)) break
+        this.advance()
+      }
+    }
+    if (this.check(TokenType.RPAREN)) this.advance()
+
+    return { kind: "Call", callee, args, typeArguments }
   }
 
   private parseBinary(left: Expr): Expr | null {

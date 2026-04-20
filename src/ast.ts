@@ -85,6 +85,7 @@ export interface CallExpr {
   kind: "Call"
   callee: Expr
   args: Expr[]
+  typeArguments?: TypeNode[]
 }
 
 export interface ArrayExpr {

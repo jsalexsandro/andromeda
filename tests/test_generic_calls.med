@@ -1,0 +1,6 @@
+const a = map<string>(["Olá"])
+const b = identity<int>(42)
+const c = filter<User>(users)
+const d = fn<string, int>("a", 1)
+const f = a < b
+const g = a < b && c > d

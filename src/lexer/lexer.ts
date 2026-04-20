@@ -1164,9 +1164,9 @@ readNumber(): Token {
           return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
         }
 
-        // Generic arrow: <T,> ou <T, U> → não é Androx
+        // Generic arrow ou call: <T,> ou <T, U> ou map<string> → não é Androx
         if (this.isLetter() || this.ch === '_' || this.ch === '$') {
-          if (this.looksLikeGenericArrow()) {
+          if (this.looksLikeGenericArrow() || this.looksLikeGenericCall()) {
             this.genericDepth++
             return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
           }
@@ -1354,5 +1354,25 @@ readNumber(): Token {
     while (i < this.input.length && /[a-zA-Z_$0-9]/.test(this.input[i])) i++
     const next = this.input[i]
     return next === ',' || this.input.slice(i, i + 7) === ' extend' || next === '='
+  }
+
+  private looksLikeGenericCall(): boolean {
+    let i = this.position
+    let depth = 1
+
+    while (i < this.input.length && depth > 0) {
+      const c = this.input[i]
+      if (c === '<') depth++
+      if (c === '>') depth--
+      if (depth > 0) i++
+      else break
+    }
+
+    if (depth !== 0) return false
+
+    i++
+    while (i < this.input.length && (this.input[i] === ' ' || this.input[i] === '\t')) i++
+
+    return this.input[i] === '('
   }
 }
