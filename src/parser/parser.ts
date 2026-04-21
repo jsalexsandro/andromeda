@@ -446,6 +446,7 @@ export class Parser {
     if (token.type === TokenType.RBRACE) return false
     
     if (token.type === TokenType.KEYWORD) {
+      // variavel usa as keywords, atualizar para usar de uma varivel global sendo mais facil atualizar no futuro
       const keywords = ['if', 'while', 'for', 'return', 'var', 'val', 'const', 'func', 'break', 'continue']
       if (keywords.includes(token.value as string)) return true
     }
@@ -1272,6 +1273,7 @@ private parseAssignment(left: Expr): Expr | null {
 
       if (currentType === TokenType.KEYWORD) {
         const val = this.peek().value
+        // mais um local usando as keyword, usar keywords de um variavel global
         if (['func', 'val', 'const', 'var', 'if', 'for', 'while', 'return', 'class'].includes(val as string)) {
           return
         }
@@ -1698,7 +1700,7 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
 
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
 
-      // ✅ Index Signature: [key: string]: valueType
+      //  Index Signature: [key: string]: valueType
       if (this.check(TokenType.LBRACKET)) {
         this.advance() // consume '['
 

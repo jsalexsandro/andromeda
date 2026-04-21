@@ -1,1 +1,0 @@
-func test<T>(x: T): T {}

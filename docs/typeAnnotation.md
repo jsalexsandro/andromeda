@@ -45,11 +45,11 @@ readonly T
 Fase 3.5 - Suporte completo a generics
 Generics Annotation
 Generics Function
+Generics Call
 Generics Arrow Function
 
 [Chcecked]
 
-Generics Call
 
 Fase 4 — Tipos avançados
 IndexedAccessType   →  T[K], T["key"]
@@ -61,3 +61,12 @@ NullableTypes
 Fase 5 — Mapped e Template types
 MappedType          →  { [K in keyof T]: T[K] }
 TemplateLiteralType →  `${string}-${number}`
+
+--
+
+Generics Implements
+const sum = <T: Addable & Compareble>(a: T, b: T) => a + b
+const sum = <T implements Addable & Compareble>(a: T, b: T) => a + b
+
+shortHands Func:
+func add(a: int, b: int): int => a + b
