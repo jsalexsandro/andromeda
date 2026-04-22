@@ -1319,7 +1319,10 @@ private parseAssignment(left: Expr): Expr | null {
       this.check(TokenType.LBRACKET) ||
       this.check(TokenType.KEYOF)   ||
       this.check(TokenType.TYPEOF)  ||
-      this.check(TokenType.READONLY)
+      this.check(TokenType.READONLY) ||
+      this.check(TokenType.STRING)  ||  // string literal type "name"
+      this.check(TokenType.NUMBER)    ||  // number literal type 0, 1
+      this.check(TokenType.BOOLEAN)     // boolean literal type true
 
     if (!isValidTypeStart) {
       this.error(`Expected type after ':'`, nextToken)
@@ -2018,6 +2021,30 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
     if (this.check(TokenType.OBJECT_TYPE)) {
       this.advance()
       return { kind: "ObjectType" }
+    }
+
+    // String literal type: "name", "admin", "user"
+    if (this.check(TokenType.STRING)) {
+      const tok = this.advance()
+      return { kind: "StringLiteralType", value: tok.value as string }
+    }
+
+    // Number literal type: 0, 1, 42, 3.14
+    if (this.check(TokenType.NUMBER)) {
+      const tok = this.advance()
+      const numValue = tok.value as number
+      // Check if it's a float (has decimal part)
+      if (Number.isInteger(numValue)) {
+        return { kind: "IntLiteralType", value: numValue }
+      } else {
+        return { kind: "FloatLiteralType", value: numValue }
+      }
+    }
+
+    // Boolean literal type: true, false
+    if (this.check(TokenType.BOOLEAN)) {
+      const tok = this.advance()
+      return { kind: "BooleanLiteralType", value: tok.value as boolean }
     }
 
     if (this.check(TokenType.IDENTIFIER)) {

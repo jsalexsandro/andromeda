@@ -312,6 +312,10 @@ export type TypeNode =
   | IntTypeNode
   | FloatTypeNode
   | StringTypeNode
+  | StringLiteralTypeNode
+  | IntLiteralTypeNode
+  | FloatLiteralTypeNode
+  | BooleanLiteralTypeNode
   | BoolTypeNode
   | UndefinedTypeNode
   | NullTypeNode
@@ -346,6 +350,26 @@ export interface FloatTypeNode {
 
 export interface StringTypeNode {
   kind: "StringType"
+}
+
+export interface StringLiteralTypeNode {
+  kind: "StringLiteralType"
+  value: string
+}
+
+export interface IntLiteralTypeNode {
+  kind: "IntLiteralType"
+  value: number
+}
+
+export interface FloatLiteralTypeNode {
+  kind: "FloatLiteralType"
+  value: number
+}
+
+export interface BooleanLiteralTypeNode {
+  kind: "BooleanLiteralType"
+  value: boolean
 }
 
 export interface BoolTypeNode {
