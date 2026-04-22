@@ -1322,7 +1322,8 @@ private parseAssignment(left: Expr): Expr | null {
       this.check(TokenType.READONLY) ||
       this.check(TokenType.STRING)  ||  // string literal type "name"
       this.check(TokenType.NUMBER)    ||  // number literal type 0, 1
-      this.check(TokenType.BOOLEAN)     // boolean literal type true
+      this.check(TokenType.BOOLEAN) ||   // boolean literal type true
+      this.check(TokenType.LESS_THAN)    // arrow function type <T>(x: T) => R
 
     if (!isValidTypeStart) {
       this.error(`Expected type after ':'`, nextToken)
@@ -1687,6 +1688,92 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
     return { kind: "FunctionType", parameters, returnType }
   }
 
+  // Parse arrow function type: <T>(x: T) => R or <W extends T>(item: W) => R
+  // First parses type parameters <T>, then function parameters (x: T), then return
+  private parseArrowFunctionType(): TypeNode {
+    this.advance() // consume '<'
+
+    // Parse type parameters: T, U extends X, V = default
+    const typeParameters: TypeParameterNode[] = []
+    while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
+      if (!this.check(TokenType.IDENTIFIER)) {
+        this.error("Expected type parameter name", this.peek())
+        break
+      }
+      const paramToken = this.advance()
+
+      let constraint: TypeNode | undefined
+      if (this.check(TokenType.EXTENDS_KW)) {
+        this.advance()
+        constraint = this.parseType()
+      }
+
+      let defaultType: TypeNode | undefined
+      if (this.check(TokenType.ASSIGN)) {
+        this.advance()
+        defaultType = this.parseType()
+      }
+
+      typeParameters.push({ kind: "TypeParameter", name: paramToken, constraint, default: defaultType })
+
+      if (this.check(TokenType.COMMA)) {
+        this.advance()
+      }
+    }
+
+    this.consume(TokenType.GREATER_THAN, "Expected '>' after type parameters")
+
+    // Now parse function parameters: (x: T) => R
+    if (!this.check(TokenType.LPAREN)) {
+      this.error("Expected '(' after type parameters in arrow function type", this.peek())
+      return { kind: "AnyType" }
+    }
+
+    this.advance() // consume '('
+    const parameters: { name: Token; type: TypeNode; isOptional?: boolean; isRest?: boolean }[] = []
+
+    while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
+      let isRest = false
+      if (this.check(TokenType.SPREAD)) {
+        isRest = true
+        this.advance()
+      }
+
+      if (!this.check(TokenType.IDENTIFIER)) {
+        this.error("Expected parameter name in arrow function type", this.peek())
+        break
+      }
+      const nameToken = this.advance()
+
+      let isOptional = false
+      if (this.check(TokenType.QUESTION)) {
+        isOptional = true
+        this.advance()
+      }
+
+      if (!this.check(TokenType.COLON)) {
+        this.error("Expected ':' after parameter name", this.peek())
+        break
+      }
+      this.advance()
+
+      const type = this.parseType()
+      parameters.push({ name: nameToken, type, isOptional, isRest })
+
+      if (this.check(TokenType.COMMA)) {
+        this.advance()
+      }
+    }
+
+    this.consume(TokenType.RPAREN, "Expected ')' after function parameters")
+    this.consume(TokenType.ARROW, "Expected '=>' after function parameters")
+
+    const returnType = this.parseType()
+
+    console.log(`[TypeDebug] ArrowFunctionType with ${typeParameters.length} type params, ${parameters.length} params`)
+    return { kind: "FunctionType", parameters, returnType, typeParameters }
+  }
+
   // <system-reminder>
   // Helper to consume ')' and parse the type inside parentheses
   // </system-reminder>
@@ -1888,6 +1975,11 @@ private groupTypeOps(types: TypeNode[], ops: string[]): TypeNode {
 
   private parseBaseType(): TypeNode | null {
     const token = this.peek()
+
+    // Handle arrow function type: <T>(x: T) => R
+    if (this.check(TokenType.LESS_THAN)) {
+      return this.parseArrowFunctionType()
+    }
 
     // Handle object literal types { name: type, age: int }
     // Only consume if it looks like an object type, not function body
