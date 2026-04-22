@@ -1007,8 +1007,22 @@ private parseAssignment(left: Expr): Expr | null {
 
   // ========================================
   // Type Annotation Parser
+  // Parses type annotations for variables and function parameters.
+  // Supports:
+  //   - Primitive types: int, float, string, bool, void, null, any, unknown
+  //   - Named types (custom): User, Product, Order, etc.
   // ========================================
 
+  /**
+   * Parses a type annotation after `:`.
+   * Examples:
+   *   val age: int           → PrimitiveTypeNode { name: "int" }
+   *   val name: string     → PrimitiveTypeNode { name: "string" }
+   *   val user: User      → NamedTypeNode { name: "User" }
+   *   val data: MyType    → NamedTypeNode { name: "MyType" }
+   *
+   * @returns {TypeNode | undefined} The parsed type node, or undefined if no annotation.
+   */
   private parseAnnotation(): TypeNode | undefined {
     if (!this.check(TokenType.COLON)) {
       return undefined
@@ -1057,8 +1071,28 @@ private parseAssignment(left: Expr): Expr | null {
       return { kind: "PrimitiveType", name: "null" }
     }
 
+    // NamedTypeNode - custom types (User, Product, Order, etc.)
+    if (typeToken.type === TokenType.IDENTIFIER) {
+      return this.parseNamedTypeNode()
+    }
+
     this.error(`Expected type name, got '${typeToken.value}'`, typeToken)
     return undefined
+  }
+
+  /**
+   * Parses a named type node (custom types like User, Product, etc.)
+   * Examples:
+   *   val user: User       → NamedTypeNode { name: "User" }
+   *   val item: Product    → NamedTypeNode { name: "Product" }
+   */
+  private parseNamedTypeNode(): TypeNode {
+    const nameToken = this.advance()
+    console.log(`DEBUG - [${nameToken.value}]`)
+    return {
+      kind: "NamedType",
+      name: nameToken
+    }
   }
 
 }
