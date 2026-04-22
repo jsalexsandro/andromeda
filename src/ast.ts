@@ -438,6 +438,7 @@ export interface FunctionTypeNode {
   kind: "FunctionType"
   parameters: FunctionParameter[]
   returnType: TypeNode
+  typeParameters?: TypeParameterNode[]
 }
 
 export interface FunctionParameter {
