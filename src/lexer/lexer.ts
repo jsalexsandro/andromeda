@@ -27,6 +27,15 @@ const CC_7 = 55
 
 // ============ OTIMIZAÇÕES: Set for O(1) lookup ============
 const KEYWORDS_SET = new Set(KEYWORDS)
+const TYPE_KEYWORDS: Record<string, TokenType> = {
+  'int': TokenType.INT_TYPE,
+  'float': TokenType.FLOAT_TYPE,
+  'string': TokenType.STRING_TYPE,
+  'bool': TokenType.BOOLEAN_TYPE,
+  'void': TokenType.VOID_TYPE,
+  'any': TokenType.ANY_TYPE,
+  'unknown': TokenType.UNKNOWN_TYPE,
+}
 
 type LexerMode = 'NORMAL' | 'ANDROX_TAG' | 'ANDROX_CHILDREN' | 'ANDROX_EXPR'
 
@@ -48,6 +57,7 @@ export class Lexer {
   private pendingAttrValue: Token | null = null
   private inTypeAnnotation = false
   private genericDepth = 0
+  private expectingGenericParams = false
 
   constructor(input: string, templateMode: boolean = true) {
     this.input = input
@@ -981,6 +991,10 @@ readNumber(): Token {
       return { type: TokenType.UNDEFINED_TYPE, value: 'undefined', line: this.line, column: startColumn }
     }
 
+    if (ident === 'null') {
+      return { type: TokenType.NULL_TYPE, value: 'null', line: this.line, column: startColumn }
+    }
+
     if (ident === 'void') {
       return { type: TokenType.VOID_TYPE, value: 'void', line: this.line, column: startColumn }
     }
@@ -1012,12 +1026,31 @@ readNumber(): Token {
       return { type: TokenType.READONLY, value: 'readonly', line: this.line, column: startColumn }
     }
 
+    if (ident === 'extends') {
+      return { type: TokenType.EXTENDS_KW, value: 'extends', line: this.line, column: startColumn }
+    }
+
     // ========================================
     // Regular Keywords and Identifiers
     // ========================================
     // OTIMIZAÇÃO: Set.has() é O(1) vs Array.includes() que é O(n)
     const isKeyword = KEYWORDS_SET.has(ident)
-    const type = isKeyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
+    let type = isKeyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
+
+    // Check for type keywords
+    if (type === TokenType.IDENTIFIER && TYPE_KEYWORDS[ident]) {
+      type = TYPE_KEYWORDS[ident]
+    }
+
+    if (type === TokenType.KEYWORD && ident === 'func') {
+      this.expectingGenericParams = true
+    }
+
+    if (this.expectingGenericParams && type === TokenType.IDENTIFIER) {
+      // Este é o nome da função — mantém flag ativa para próximo '<'
+    } else if (type !== TokenType.KEYWORD || (ident !== 'func' && !this.expectingGenericParams)) {
+      this.expectingGenericParams = false
+    }
 
     return { type, value: ident, line: this.line, column: startColumn }
   }
@@ -1136,8 +1169,27 @@ readNumber(): Token {
           this.genericDepth++
           return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
         }
-        // Comportamento original: ANDROX
+
+        // Logo após nome de função → type parameter, não Androx
+        if (this.expectingGenericParams && (this.isLetter() || this.ch === '_' || this.ch === '$')) {
+          this.expectingGenericParams = false
+          this.inTypeAnnotation = true
+          this.genericDepth++
+          return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+        }
+
+        // Já estamos dentro de um generic — qualquer < é outro generic
+        if (this.genericDepth > 0 && (this.isLetter() || this.ch === '_' || this.ch === '$')) {
+          this.genericDepth++
+          return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+        }
+
+        // Generic arrow ou call: <T,> ou <T, U> ou map<string> → não é Androx
         if (this.isLetter() || this.ch === '_' || this.ch === '$') {
+          if (this.looksLikeGenericArrow() || this.looksLikeGenericCall()) {
+            this.genericDepth++
+            return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+          }
           return this.readAndroxOpenTag()
         }
         return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
@@ -1149,11 +1201,9 @@ readNumber(): Token {
           return { type: TokenType.GREATER_EQUAL, value: '>=', line: this.line, column: startColumn }
         }
         // Se estava em generic, fecha o generic e controle profundidade
-        if (this.inTypeAnnotation && this.genericDepth > 0) {
+        // NÃO reseta inTypeAnnotation aqui - precisa durar até fim da type annotation
+        if (this.genericDepth > 0) {
           this.genericDepth--
-          if (this.genericDepth === 0) {
-            this.inTypeAnnotation = false
-          }
           return { type: TokenType.GREATER_THAN, value: '>', line: this.line, column: startColumn }
         }
         return { type: TokenType.GREATER_THAN, value: '>', line: this.line, column: startColumn }
@@ -1172,7 +1222,7 @@ readNumber(): Token {
           this.readChar()
           return { type: TokenType.AND, value: '&&', line: this.line, column: startColumn }
         }
-        return { type: TokenType.OPERATOR, value: '&', line: this.line, column: startColumn }
+        return { type: TokenType.AMPERSAND, value: '&', line: this.line, column: startColumn }
       
       case '|':
         this.readChar()
@@ -1196,6 +1246,9 @@ readNumber(): Token {
       
       case '}':
         this.readChar()
+        // Reseta modo tipo - fecha object type ou block
+        this.inTypeAnnotation = false
+        this.genericDepth = 0
         return { type: TokenType.RBRACE, value: '}', line: this.line, column: startColumn }
       
       case '[':
@@ -1221,6 +1274,9 @@ readNumber(): Token {
       
       case ';':
         this.readChar()
+        // Reseta modo tipo - fim de statement
+        this.inTypeAnnotation = false
+        this.genericDepth = 0
         return { type: TokenType.SEMICOLON, value: ';', line: this.line, column: startColumn }
       
       case ':':
@@ -1311,5 +1367,32 @@ readNumber(): Token {
       
       tokens.push(token)
     }
+  }
+
+  private looksLikeGenericArrow(): boolean {
+    let i = this.position
+    while (i < this.input.length && /[a-zA-Z_$0-9]/.test(this.input[i])) i++
+    const next = this.input[i]
+    return next === ',' || this.input.slice(i, i + 7) === ' extend' || next === '='
+  }
+
+  private looksLikeGenericCall(): boolean {
+    let i = this.position
+    let depth = 1
+
+    while (i < this.input.length && depth > 0) {
+      const c = this.input[i]
+      if (c === '<') depth++
+      if (c === '>') depth--
+      if (depth > 0) i++
+      else break
+    }
+
+    if (depth !== 0) return false
+
+    i++
+    while (i < this.input.length && (this.input[i] === ' ' || this.input[i] === '\t')) i++
+
+    return this.input[i] === '('
   }
 }

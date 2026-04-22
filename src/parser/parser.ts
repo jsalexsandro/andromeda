@@ -731,11 +731,7 @@ private parseAssignment(left: Expr): Expr | null {
       return null
     }
     
-    // Parse type annotation (ex: : string)
-    const typeAnnotation = this.parseTypeAnnotation()
-    if (typeAnnotation) {
-      console.log('[TypeDebug] Variable type annotation:', JSON.stringify(typeAnnotation))
-    }
+    const typeAnnotation = this.parseAnnotation()
     
     let initializer: Expr | undefined
     if (this.peek().type === TokenType.ASSIGN) {
@@ -1013,285 +1009,56 @@ private parseAssignment(left: Expr): Expr | null {
   // Type Annotation Parser
   // ========================================
 
-  private parseTypeAnnotation(): TypeNode | undefined {
+  private parseAnnotation(): TypeNode | undefined {
     if (!this.check(TokenType.COLON)) {
       return undefined
     }
-
-    const colonToken = this.previous()
     this.advance()
 
-    // Verificar se após o ":" existe um tipo válido
-    const nextToken = this.peek()
-    const isValidTypeStart = 
-      this.check(TokenType.INT_TYPE) ||
-      this.check(TokenType.FLOAT_TYPE) ||
-      this.check(TokenType.STRING_TYPE) ||
-      this.check(TokenType.BOOLEAN_TYPE) ||
-      this.check(TokenType.ANY_TYPE) ||
-      this.check(TokenType.VOID_TYPE) ||
-      this.check(TokenType.UNKNOWN_TYPE) ||
-      this.check(TokenType.UNDEFINED_TYPE) ||
-      this.check(TokenType.OBJECT_TYPE) ||
-      this.check(TokenType.IDENTIFIER) ||
-      this.check(TokenType.LPAREN) ||
-      this.check(TokenType.LBRACE) ||
-      this.check(TokenType.LBRACKET)
-
-    if (!isValidTypeStart) {
-      this.error(`Expected type after ':'`, nextToken)
-      return undefined
+    const typeToken = this.peek()
+    if (typeToken.type === TokenType.INT_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [int]`)
+      return { kind: "PrimitiveType", name: "int" }
+    }
+    if (typeToken.type === TokenType.FLOAT_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [float]`)
+      return { kind: "PrimitiveType", name: "float" }
+    }
+    if (typeToken.type === TokenType.STRING_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [string]`)
+      return { kind: "PrimitiveType", name: "string" }
+    }
+    if (typeToken.type === TokenType.BOOLEAN_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [bool]`)
+      return { kind: "PrimitiveType", name: "bool" }
+    }
+    if (typeToken.type === TokenType.VOID_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [void]`)
+      return { kind: "PrimitiveType", name: "void" }
+    }
+    if (typeToken.type === TokenType.ANY_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [any]`)
+      return { kind: "PrimitiveType", name: "any" }
+    }
+    if (typeToken.type === TokenType.UNKNOWN_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [unknown]`)
+      return { kind: "PrimitiveType", name: "unknown" }
+    }
+    if (typeToken.type === TokenType.NULL) {
+      this.advance()
+      console.log(`DEBUG - [null]`)
+      return { kind: "PrimitiveType", name: "null" }
     }
 
-    return this.parseType()
+    this.error(`Expected type name, got '${typeToken.value}'`, typeToken)
+    return undefined
   }
 
-  private parseType(): TypeNode {
-    const firstType = this.parseSingleType()
-    if (!firstType) {
-      this.error(`Expected type, got '${this.peek().value}'`, this.peek())
-      return { kind: "AnyType" }
-    }
-
-    if (this.check(TokenType.PIPE)) {
-      return this.parseUnionType(firstType)
-    }
-
-    return firstType
-  }
-
-  // Keep old method for compatibility
-  private parseTypeLegacy(): TypeNode {
-    const token = this.peek()
-
-    // Tipo: int
-    if (this.check(TokenType.INT_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] IntTypeNode detected')
-      return this.parseArrayType({ kind: "IntType" })
-    }
-
-    // Tipo: float
-    if (this.check(TokenType.FLOAT_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] FloatTypeNode detected')
-      return this.parseArrayType({ kind: "FloatType" })
-    }
-
-    // Tipo: string
-    if (this.check(TokenType.STRING_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] StringTypeNode detected')
-      return this.parseArrayType({ kind: "StringType" })
-    }
-
-    // Tipo: bool
-    if (this.check(TokenType.BOOLEAN_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] BoolTypeNode detected')
-      return this.parseArrayType({ kind: "BoolType" })
-    }
-
-    // Tipo: any
-    if (this.check(TokenType.ANY_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] AnyTypeNode detected')
-      return this.parseArrayType({ kind: "AnyType" })
-    }
-
-    // Tipo: void
-    if (this.check(TokenType.VOID_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] VoidTypeNode detected')
-      return this.parseArrayType({ kind: "VoidType" })
-    }
-
-    // Tipo: unknown
-    if (this.check(TokenType.UNKNOWN_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] UnknownTypeNode detected')
-      return this.parseArrayType({ kind: "UnknownType" })
-    }
-
-    // Tipo: undefined
-    if (this.check(TokenType.UNDEFINED_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] UndefinedTypeNode detected')
-      return this.parseArrayType({ kind: "UndefinedType" })
-    }
-
-    // Tipo: object
-    if (this.check(TokenType.OBJECT_TYPE)) {
-      this.advance()
-      console.log('[TypeDebug] ObjectTypeNode detected')
-      return this.parseArrayType({ kind: "ObjectType" })
-    }
-
-    // Tipo personalizado (Identifier) - ex: UserDefinedType, Array<T>
-    if (this.check(TokenType.IDENTIFIER)) {
-      const typeName = this.advance()
-      console.log('[TypeDebug] TypeReference detected:', typeName.value)
-
-      let typeArguments: TypeNode[] | undefined
-      if (this.check(TokenType.LESS_THAN)) {
-        this.advance()
-        typeArguments = []
-
-        while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
-          typeArguments.push(this.parseType())
-          if (this.check(TokenType.COMMA)) {
-            this.advance()
-          }
-        }
-
-        if (this.check(TokenType.GREATER_THAN)) {
-          this.advance()
-        }
-      }
-
-      const typeRef = {
-        kind: "TypeReference" as const,
-        typeName,
-        typeArguments
-      }
-
-      return this.parseArrayType(typeRef)
-    }
-
-    // Se não reconheceu o tipo, retorna AnyType como fallback
-    console.log('[TypeDebug] Unknown type, defaulting to AnyType')
-    return this.parseArrayType({ kind: "AnyType" })
-  }
-
-  // ========================================
-  // Array Type Parser (degrees)
-  // ========================================
-  private parseArrayType(baseType: TypeNode): TypeNode {
-    let degrees = 0
-
-    while (this.check(TokenType.LBRACKET)) {
-      this.advance()
-      
-      if (!this.check(TokenType.RBRACKET)) {
-        this.error("Expected ']' in array type", this.peek())
-        break
-      }
-      this.advance()
-      
-      degrees++
-    }
-
-    if (degrees > 0) {
-      console.log(`[TypeDebug] ArrayType with degrees: ${degrees}`)
-      return {
-        kind: "ArrayType",
-        elementType: baseType,
-        degrees
-      }
-    }
-
-    return baseType
-  }
-
-  // ========================================
-  // Union Type Parser (int | string)
-  // ========================================
-  private parseUnionType(firstType: TypeNode): TypeNode {
-    const types: TypeNode[] = [firstType]
-
-    while (this.check(TokenType.PIPE)) {
-      this.advance()
-      const nextType = this.parseSingleType()
-      if (!nextType) {
-        this.error("Expected type after '|'", this.peek())
-        break
-      }
-      types.push(nextType)
-    }
-
-    if (types.length === 1) {
-      return firstType
-    }
-
-    console.log(`[TypeDebug] UnionType with ${types.length} types`)
-    return { kind: "UnionType", types }
-  }
-
-  // Parse a single type (without union)
-  private parseSingleType(): TypeNode | null {
-    const baseType = this.parseBaseType()
-    if (!baseType) return null
-
-    return this.parseArrayType(baseType)
-  }
-
-  // Parse a base type (the raw type without arrays)
-  private parseBaseType(): TypeNode | null {
-    const token = this.peek()
-
-    if (this.check(TokenType.INT_TYPE)) {
-      this.advance()
-      return { kind: "IntType" }
-    }
-
-    if (this.check(TokenType.FLOAT_TYPE)) {
-      this.advance()
-      return { kind: "FloatType" }
-    }
-
-    if (this.check(TokenType.STRING_TYPE)) {
-      this.advance()
-      return { kind: "StringType" }
-    }
-
-    if (this.check(TokenType.BOOLEAN_TYPE)) {
-      this.advance()
-      return { kind: "BoolType" }
-    }
-
-    if (this.check(TokenType.ANY_TYPE)) {
-      this.advance()
-      return { kind: "AnyType" }
-    }
-
-    if (this.check(TokenType.VOID_TYPE)) {
-      this.advance()
-      return { kind: "VoidType" }
-    }
-
-    if (this.check(TokenType.UNKNOWN_TYPE)) {
-      this.advance()
-      return { kind: "UnknownType" }
-    }
-
-    if (this.check(TokenType.UNDEFINED_TYPE)) {
-      this.advance()
-      return { kind: "UndefinedType" }
-    }
-
-    if (this.check(TokenType.OBJECT_TYPE)) {
-      this.advance()
-      return { kind: "ObjectType" }
-    }
-
-    if (this.check(TokenType.IDENTIFIER)) {
-      const typeName = this.advance()
-
-      let typeArguments: TypeNode[] | undefined
-      if (this.check(TokenType.LESS_THAN)) {
-        this.advance()
-        typeArguments = []
-        while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
-          typeArguments.push(this.parseType())
-          if (this.check(TokenType.COMMA)) this.advance()
-        }
-        this.consume(TokenType.GREATER_THAN, "Expected '>' after type arguments")
-      }
-
-      return { kind: "TypeReference", typeName, typeArguments }
-    }
-
-    this.error(`Expected type, got '${token.value}'`, token)
-    return null
-  }
 }
