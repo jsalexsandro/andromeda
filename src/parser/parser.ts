@@ -1036,6 +1036,10 @@ private parseAssignment(left: Expr): Expr | null {
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
+      console.log(`DEBUG - [int]`)
       return typeNode
     }
     if (typeToken.type === TokenType.FLOAT_TYPE) {
@@ -1044,6 +1048,10 @@ private parseAssignment(left: Expr): Expr | null {
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
+      console.log(`DEBUG - [float]`)
       return typeNode
     }
     if (typeToken.type === TokenType.STRING_TYPE) {
@@ -1052,6 +1060,10 @@ private parseAssignment(left: Expr): Expr | null {
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
+      console.log(`DEBUG - [string]`)
       return typeNode
     }
     if (typeToken.type === TokenType.BOOLEAN_TYPE) {
@@ -1060,6 +1072,10 @@ private parseAssignment(left: Expr): Expr | null {
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
+      console.log(`DEBUG - [bool]`)
       return typeNode
     }
     if (typeToken.type === TokenType.VOID_TYPE) {
@@ -1068,6 +1084,10 @@ private parseAssignment(left: Expr): Expr | null {
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
+      console.log(`DEBUG - [void]`)
       return typeNode
     }
     if (typeToken.type === TokenType.UNKNOWN_TYPE) {
@@ -1076,6 +1096,10 @@ private parseAssignment(left: Expr): Expr | null {
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
+      console.log(`DEBUG - [unknown]`)
       return typeNode
     }
     if (typeToken.type === TokenType.NULL) {
@@ -1084,6 +1108,10 @@ private parseAssignment(left: Expr): Expr | null {
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
+      console.log(`DEBUG - [null]`)
       return typeNode
     }
 
@@ -1094,24 +1122,40 @@ private parseAssignment(left: Expr): Expr | null {
       if (this.check(TokenType.LBRACKET)) {
         baseType = this.parseArrayType(baseType)
       }
+      // Check for union: User | string
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(baseType)
+      }
       return baseType
     }
 
     // LiteralTypeNode - literal types (3.14, "active", 200, true)
     if (typeToken.type === TokenType.NUMBER) {
       this.advance()
+      let typeNode = { kind: "LiteralType", value: typeToken.value as number }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
       console.log(`DEBUG - [${typeToken.value}]`)
-      return { kind: "LiteralType", value: typeToken.value as number }
+      return typeNode
     }
     if (typeToken.type === TokenType.STRING) {
       this.advance()
+      let typeNode = { kind: "LiteralType", value: typeToken.value as string }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
       console.log(`DEBUG - [${typeToken.value}]`)
-      return { kind: "LiteralType", value: typeToken.value as string }
+      return typeNode
     }
     if (typeToken.type === TokenType.BOOLEAN) {
       this.advance()
+      let typeNode = { kind: "LiteralType", value: typeToken.value as boolean }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
       console.log(`DEBUG - [${typeToken.value}]`)
-      return { kind: "LiteralType", value: typeToken.value as boolean }
+      return typeNode
     }
 
     // ArrayType - int[], string[][], User[], etc.
@@ -1315,6 +1359,52 @@ private parseAssignment(left: Expr): Expr | null {
       kind: "ArrayType",
       elementType: baseType,
       dimensions
+    }
+  }
+
+  /**
+   * Parses a union type expression.
+   * Examples:
+   *   int | string      → UnionTypeNode { types: [PrimitiveType, PrimitiveType] }
+   *   string | User    → UnionTypeNode { types: [PrimitiveType, NamedType] }
+   *   int | string | null → UnionTypeNode { types: [PrimitiveType, PrimitiveType, PrimitiveType] }
+   *
+   * @param {TypeNode} firstType - O primeiro tipo já parseado
+   * @returns {TypeNode} O tipo union com todos os tipos
+   */
+  private parseUnionType(firstType: TypeNode): TypeNode {
+    const types: TypeNode[] = [firstType]
+
+    while (this.check(TokenType.PIPE)) {
+      this.advance() // consume '|'
+
+      // Parse next type in union
+      const nextType = this.parseAnnotationType()
+      if (nextType) {
+        types.push(nextType)
+      }
+    }
+
+    const typesDebug = types.map(t => {
+      if (t.kind === "PrimitiveType") return t.name
+      if (t.kind === "NamedType") return t.name.value
+      if (t.kind === "GenericType") return `${t.name.value}<...>`
+      if (t.kind === "LiteralType") return String(t.value)
+      if (t.kind === "ArrayType") {
+        const elemName = t.elementType.kind === "PrimitiveType"
+          ? t.elementType.name
+          : t.elementType.kind === "NamedType"
+            ? t.elementType.name.value
+            : t.elementType.kind
+        return `${elemName}${'[]'.repeat(t.dimensions)}`
+      }
+      return t.kind
+    }).join(' | ')
+
+    console.log(`DEBUG - [${typesDebug}]`)
+    return {
+      kind: "UnionType",
+      types
     }
   }
 
