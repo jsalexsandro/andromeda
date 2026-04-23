@@ -1,0 +1,104 @@
+// ========================================
+// Type Annotation Tests
+// ========================================
+
+// ----------------------------------------
+// Primitive Types
+// ----------------------------------------
+val a: int
+val b: float
+val c: string
+val d: bool
+val e: void
+val f: null
+val g: any
+val h: unknown
+
+// ----------------------------------------
+// Named Types (custom)
+// ----------------------------------------
+val user: User
+val product: Product
+val order: Order
+val item: Item
+val data: Data
+
+// ----------------------------------------
+// Generics - Single Type Parameter
+// ----------------------------------------
+val items: Array<int>
+val names: List<string>
+val flags: Set<bool>
+val promise: Promise<User>
+
+// ----------------------------------------
+// Generics - Multiple Type Parameters
+// ----------------------------------------
+val pairs: Map<string, int>
+val map: Map<User, Product>
+
+// ----------------------------------------
+// Generics - Nested
+// ----------------------------------------
+val matrix: Array<Array<float>>
+val nested: List<List<User>>
+val deep: Map<string, Array<User>>
+
+// ----------------------------------------
+// Generics - Multiple Arguments
+// ----------------------------------------
+val multi: Map<string, int, bool>
+
+// ----------------------------------------
+// Combined Examples
+val users: List<User>
+val cache: Map<string, Array<Product>>
+val result: Promise<Result<User>>
+
+// ----------------------------------------
+// Literal Types
+// ----------------------------------------
+val pi: 3.14 = 3.14
+val status: "active" = "active"
+val code: 200 = 200
+val enabled: true = true
+val disabled: false = false
+val zero: 0 = 0
+val empty: "" = ""
+
+// ========================================
+// Function Types (NEW!)
+// ========================================
+
+// Basic function types
+val fn1: (int) => string
+val fn2: (int, string) => bool
+val fn3: () => void
+val fn4: (int[]) => string[]
+val fn5: (User) => Product
+
+// Function with union parameter
+val fnUnion: (int | string) => bool
+
+// Function returning function
+val fnNested: (int) => (string) => bool
+
+// Array of functions
+val fnArr1: ((int) => int)[]
+val fnArr2: ((string) => bool)[]
+
+// ========================================
+// Grouping Types (NEW!)
+// ========================================
+
+val grp1: (int)
+val grp2: (int | string)
+val grp3: ((int) => int)
+
+// Grouping with array
+val grpArr1: (int)[]
+val grpArr2: (int | string)[]
+val grpArr3: ((int) => int)[]
+
+// Grouping with union
+val grpUnion: (int | string) | null
