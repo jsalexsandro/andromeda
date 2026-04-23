@@ -1032,48 +1032,94 @@ private parseAssignment(left: Expr): Expr | null {
     const typeToken = this.peek()
     if (typeToken.type === TokenType.INT_TYPE) {
       this.advance()
-      console.log(`DEBUG - [int]`)
-      return { kind: "PrimitiveType", name: "int" }
+      let typeNode = { kind: "PrimitiveType", name: "int" as const }
+      if (this.check(TokenType.LBRACKET)) {
+        typeNode = this.parseArrayType(typeNode)
+      }
+      return typeNode
     }
     if (typeToken.type === TokenType.FLOAT_TYPE) {
       this.advance()
-      console.log(`DEBUG - [float]`)
-      return { kind: "PrimitiveType", name: "float" }
+      let typeNode = { kind: "PrimitiveType", name: "float" as const }
+      if (this.check(TokenType.LBRACKET)) {
+        typeNode = this.parseArrayType(typeNode)
+      }
+      return typeNode
     }
     if (typeToken.type === TokenType.STRING_TYPE) {
       this.advance()
-      console.log(`DEBUG - [string]`)
-      return { kind: "PrimitiveType", name: "string" }
+      let typeNode = { kind: "PrimitiveType", name: "string" as const }
+      if (this.check(TokenType.LBRACKET)) {
+        typeNode = this.parseArrayType(typeNode)
+      }
+      return typeNode
     }
     if (typeToken.type === TokenType.BOOLEAN_TYPE) {
       this.advance()
-      console.log(`DEBUG - [bool]`)
-      return { kind: "PrimitiveType", name: "bool" }
+      let typeNode = { kind: "PrimitiveType", name: "bool" as const }
+      if (this.check(TokenType.LBRACKET)) {
+        typeNode = this.parseArrayType(typeNode)
+      }
+      return typeNode
     }
     if (typeToken.type === TokenType.VOID_TYPE) {
       this.advance()
-      console.log(`DEBUG - [void]`)
-      return { kind: "PrimitiveType", name: "void" }
-    }
-    if (typeToken.type === TokenType.ANY_TYPE) {
-      this.advance()
-      console.log(`DEBUG - [any]`)
-      return { kind: "PrimitiveType", name: "any" }
+      let typeNode = { kind: "PrimitiveType", name: "void" as const }
+      if (this.check(TokenType.LBRACKET)) {
+        typeNode = this.parseArrayType(typeNode)
+      }
+      return typeNode
     }
     if (typeToken.type === TokenType.UNKNOWN_TYPE) {
       this.advance()
-      console.log(`DEBUG - [unknown]`)
-      return { kind: "PrimitiveType", name: "unknown" }
+      let typeNode = { kind: "PrimitiveType", name: "unknown" as const }
+      if (this.check(TokenType.LBRACKET)) {
+        typeNode = this.parseArrayType(typeNode)
+      }
+      return typeNode
     }
     if (typeToken.type === TokenType.NULL) {
       this.advance()
-      console.log(`DEBUG - [null]`)
-      return { kind: "PrimitiveType", name: "null" }
+      let typeNode = { kind: "PrimitiveType", name: "null" as const }
+      if (this.check(TokenType.LBRACKET)) {
+        typeNode = this.parseArrayType(typeNode)
+      }
+      return typeNode
     }
 
     // NamedTypeNode - custom types (User, Product, Order, etc.)
     if (typeToken.type === TokenType.IDENTIFIER) {
-      return this.parseNamedTypeNode()
+      let baseType = this.parseNamedTypeNode()
+      // Check for array suffix: int[], string[][], etc.
+      if (this.check(TokenType.LBRACKET)) {
+        baseType = this.parseArrayType(baseType)
+      }
+      return baseType
+    }
+
+    // LiteralTypeNode - literal types (3.14, "active", 200, true)
+    if (typeToken.type === TokenType.NUMBER) {
+      this.advance()
+      console.log(`DEBUG - [${typeToken.value}]`)
+      return { kind: "LiteralType", value: typeToken.value as number }
+    }
+    if (typeToken.type === TokenType.STRING) {
+      this.advance()
+      console.log(`DEBUG - [${typeToken.value}]`)
+      return { kind: "LiteralType", value: typeToken.value as string }
+    }
+    if (typeToken.type === TokenType.BOOLEAN) {
+      this.advance()
+      console.log(`DEBUG - [${typeToken.value}]`)
+      return { kind: "LiteralType", value: typeToken.value as boolean }
+    }
+
+    // ArrayType - int[], string[][], User[], etc.
+    if (typeToken.type === TokenType.LBRACKET) {
+      this.advance() // consume '['
+      // This shouldn't happen at the start of annotation
+      this.error("Expected type before '['", typeToken)
+      return undefined
     }
 
     this.error(`Expected type name, got '${typeToken.value}'`, typeToken)
@@ -1137,6 +1183,23 @@ private parseAssignment(left: Expr): Expr | null {
     // NamedTypeNode - custom types (User, Product, Order, etc.)
     if (typeToken.type === TokenType.IDENTIFIER) {
       return this.parseNamedTypeNode()
+    }
+
+    // LiteralTypeNode - literal types (3.14, "active", 200, true)
+    if (typeToken.type === TokenType.NUMBER) {
+      this.advance()
+      console.log(`DEBUG - [${typeToken.value}]`)
+      return { kind: "LiteralType", value: typeToken.value as number }
+    }
+    if (typeToken.type === TokenType.STRING) {
+      this.advance()
+      console.log(`DEBUG - [${typeToken.value}]`)
+      return { kind: "LiteralType", value: typeToken.value as string }
+    }
+    if (typeToken.type === TokenType.BOOLEAN) {
+      this.advance()
+      console.log(`DEBUG - [${typeToken.value}]`)
+      return { kind: "LiteralType", value: typeToken.value as boolean }
     }
 
     this.error(`Expected type in generic, got '${typeToken.value}'`, typeToken)
@@ -1212,6 +1275,46 @@ private parseAssignment(left: Expr): Expr | null {
       kind: "GenericType",
       name: typeName,
       args
+    }
+  }
+
+  /**
+   * Parses an array type expression.
+   * Examples:
+   *   int[]         → ArrayTypeNode { elementType: PrimitiveType, dimensions: 1 }
+   *   string[][]    → ArrayTypeNode { elementType: ArrayTypeNode, dimensions: 2 }
+   *   User[]       → ArrayTypeNode { elementType: NamedType, dimensions: 1 }
+   *   T[]          → ArrayTypeNode { elementType: NamedType, dimensions: 1 }
+   *
+   * @param {TypeNode} baseType - The base type of the array
+   * @returns {TypeNode} The array type with dimensions.
+   */
+  private parseArrayType(baseType: TypeNode): TypeNode {
+    let dimensions = 0
+
+    while (this.check(TokenType.LBRACKET)) {
+      this.advance() // consume '['
+      if (!this.check(TokenType.RBRACKET)) {
+        this.error("Expected ']' to close array type", this.peek())
+        break
+}
+      this.advance() // consume ']'
+      dimensions++
+    }
+
+    const baseTypeName = baseType.kind === "PrimitiveType"
+      ? baseType.name
+      : baseType.kind === "NamedType"
+        ? baseType.name.value
+        : baseType.kind === "GenericType"
+          ? `${baseType.name.value}<...>`
+          : baseType.kind
+
+    console.log(`DEBUG - [${baseTypeName}${'[]'.repeat(dimensions)}]`)
+    return {
+      kind: "ArrayType",
+      elementType: baseType,
+      dimensions
     }
   }
 

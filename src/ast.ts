@@ -1,4 +1,5 @@
 import { Token } from "./lexer"
+import type { PrimitiveTypes } from "./types"
 
 export type Expr =
   | BinaryExpr
@@ -122,6 +123,10 @@ export type Stmt =
   | ReturnStmt
   | ImportStmt
   | ExportStmt
+  | TypeAliasStmt   // ← Fase 3
+  | StructStmt      // ← Fase 4
+  | EnumStmt        // ← Fase 5
+  | ProtocolStmt    // ← Fase 6
 
 export interface ExpressionStmt {
   kind: "ExpressionStmt"
@@ -297,189 +302,149 @@ export interface SpreadExpr {
   argument: Expr
 }
 
+
+
 // ========================================
-// TypeNode - AST de Tipos (igual TypeScript)
+// TypeNode - AST de Tipos Nominal
+// (Swift / Kotlin / Rust style)
 // ========================================
 
 export type TypeNode =
-  | IntTypeNode
-  | FloatTypeNode
-  | StringTypeNode
-  | BoolTypeNode
-  | UndefinedTypeNode
-  | NullTypeNode
-  | VoidTypeNode
-  | AnyTypeNode
-  | UnknownTypeNode
-  | ObjectTypeNode
-  | TypeReference
+  | PrimitiveTypeNode
+  | NamedTypeNode
+  | GenericTypeNode
   | ArrayTypeNode
+  | NullableTypeNode
   | TupleTypeNode
-  | UnionTypeNode
-  | IntersectionTypeNode
   | FunctionTypeNode
-  | ObjectLiteralTypeNode
-  | ParenthesizedTypeNode
-  | TypeOperatorNode
-  | TypePredicateNode
-  | TypeQueryNode
-  | ConditionalTypeNode
-  | TypeParameterNode
-  | MappedTypeNode
-  | IndexedAccessTypeNode
-  | ImportTypeNode
+  | UnionTypeNode
+  | LiteralTypeNode
 
-export interface IntTypeNode {
-  kind: "IntType"
+// int, float, string, bool, void, null, any, unknown
+export interface PrimitiveTypeNode {
+  kind: "PrimitiveType"
+  name: PrimitiveTypes
 }
 
-export interface FloatTypeNode {
-  kind: "FloatType"
+// User, Product, Status — tipos com nome
+export interface NamedTypeNode {
+  kind: "NamedType"
+  name: Token
 }
 
-export interface StringTypeNode {
-  kind: "StringType"
+// List<T>, Map<K, V>, Promise<User>
+export interface GenericTypeNode {
+  kind: "GenericType"
+  name: Token
+  args: TypeNode[]
 }
 
-export interface BoolTypeNode {
-  kind: "BoolType"
+// 3.14, "active", 200, true — literal types
+export interface LiteralTypeNode {
+  kind: "LiteralType"
+  value: string | number | boolean
 }
 
-export interface UndefinedTypeNode {
-  kind: "UndefinedType"
-}
-
-export interface NullTypeNode {
-  kind: "NullType"
-}
-
-export interface VoidTypeNode {
-  kind: "VoidType"
-}
-
-export interface AnyTypeNode {
-  kind: "AnyType"
-}
-
-export interface UnknownTypeNode {
-  kind: "UnknownType"
-}
-
-export interface ObjectTypeNode {
-  kind: "ObjectType"
-}
-
-export interface TypeReference {
-  kind: "TypeReference"
-  typeName: Token
-  typeArguments?: TypeNode[]
-}
-
+// T[], string[], User[]
 export interface ArrayTypeNode {
   kind: "ArrayType"
   elementType: TypeNode
-  degrees: number
+  dimensions: number
 }
 
+// T? — nullable, açúcar pra T | null
+export interface NullableTypeNode {
+  kind: "NullableType"
+  type: TypeNode
+}
+
+// [T, U, V] — tuple
 export interface TupleTypeNode {
   kind: "TupleType"
-  elements: TupleTypeElement[]
+  elements: TypeNode[]
 }
 
-export interface TupleTypeElement {
-  name?: string
-  type: TypeNode
-  isOptional?: boolean
+// (T, U) => V — function type anônimo
+export interface FunctionTypeNode {
+  kind: "FunctionType"
+  params: TypeNode[]
+  returnType: TypeNode
 }
 
+// T | U | null — union
 export interface UnionTypeNode {
   kind: "UnionType"
   types: TypeNode[]
 }
 
-export interface IntersectionTypeNode {
-  kind: "IntersectionType"
-  types: TypeNode[]
-}
-
-export interface FunctionTypeNode {
-  kind: "FunctionType"
-  parameters: FunctionParameter[]
-  returnType: TypeNode
-}
-
-export interface FunctionParameter {
-  name: Token
-  type: TypeNode
-  isOptional?: boolean
-  isRest?: boolean
-}
-
-export interface ObjectLiteralTypeNode {
-  kind: "ObjectLiteralType"
-  members: TypeElement[]
-}
-
-export interface TypeElement {
-  name: string
-  type: TypeNode
-  isOptional?: boolean
-  isReadonly?: boolean
-}
-
-export interface ParenthesizedTypeNode {
-  kind: "ParenthesizedType"
-  type: TypeNode
-}
-
-export interface TypeOperatorNode {
-  kind: "TypeOperator"
-  operator: "keyof" | "readonly" | "unique"
-  type: TypeNode
-}
-
-export interface TypePredicateNode {
-  kind: "TypePredicate"
-  parameterName: Token
-  type?: TypeNode
-}
-
-export interface TypeQueryNode {
-  kind: "TypeQuery"
-  typeName: Token
-}
-
-export interface ConditionalTypeNode {
-  kind: "ConditionalType"
-  checkType: TypeNode
-  extendsType: TypeNode
-  trueType: TypeNode
-  falseType: TypeNode
-}
+// ========================================
+// TypeParameterNode — generics em funções/structs
+// func f<T extends Comparable, U = string>()
+// ========================================
 
 export interface TypeParameterNode {
   kind: "TypeParameter"
   name: Token
-  constraint?: TypeNode
-  default?: TypeNode
+  constraint?: TypeNode   // T extends Comparable
+  default?: TypeNode      // T = string
 }
 
-export interface MappedTypeNode {
-  kind: "MappedType"
-  typeParameter: TypeParameterNode
-  type?: TypeNode
-  isReadonly?: boolean
-  isOptional?: boolean
+// ========================================
+// Statements de Tipo Nominal (Fases 3-7)
+// ========================================
+
+// Fase 3 — type alias
+// type UserId = int
+// type Handler = (Request) => Response
+export interface TypeAliasStmt {
+  kind: "TypeAliasStmt"
+  name: Token
+  typeParameters?: TypeParameterNode[]
+  type: TypeNode
 }
 
-export interface IndexedAccessTypeNode {
-  kind: "IndexedAccessType"
-  objectType: TypeNode
-  indexType: TypeNode
+// Fase 4 — struct
+// struct User { id: int; name: string }
+export interface StructStmt {
+  kind: "StructStmt"
+  name: Token
+  typeParameters?: TypeParameterNode[]
+  fields: StructField[]
+  protocols?: Token[]     // implements Printable, Comparable
 }
 
-export interface ImportTypeNode {
-  kind: "ImportType"
-  path: Token
-  qualifier?: Token
+export interface StructField {
+  name: Token
+  type: TypeNode
+  mutable: boolean        // var vs val
+  defaultValue?: Expr
+}
+
+// Fase 5 — enum
+// enum Status { Active; Inactive; Pending(string) }
+export interface EnumStmt {
+  kind: "EnumStmt"
+  name: Token
+  typeParameters?: TypeParameterNode[]
+  variants: EnumVariant[]
+}
+
+export interface EnumVariant {
+  name: Token
+  payload?: TypeNode[]    // Ok(T), Err(string) — sem payload = unit variant
+}
+
+// Fase 6 — protocol
+// protocol Printable { func print(): void }
+export interface ProtocolStmt {
+  kind: "ProtocolStmt"
+  name: Token
+  typeParameters?: TypeParameterNode[]
+  methods: ProtocolMethod[]
+}
+
+export interface ProtocolMethod {
+  name: Token
+  params: FunctionStmtParam[]
+  returnType?: TypeNode
 }
