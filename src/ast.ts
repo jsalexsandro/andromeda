@@ -319,6 +319,7 @@ export type TypeNode =
   | FunctionTypeNode
   | UnionTypeNode
   | LiteralTypeNode
+  | GroupingTypeNode
 
 // int, float, string, bool, void, null, any, unknown
 export interface PrimitiveTypeNode {
@@ -355,6 +356,16 @@ export interface ArrayTypeNode {
 // T? — nullable, açúcar pra T | null
 export interface NullableTypeNode {
   kind: "NullableType"
+  type: TypeNode
+}
+
+// ========================================
+// GroupingType — (int | string)
+// Agrupamento de tipos com parênteses
+// Útil para precedência: (int | string)[] vs int | string[]
+// ========================================
+export interface GroupingTypeNode {
+  kind: "GroupingType"
   type: TypeNode
 }
 

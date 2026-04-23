@@ -1043,12 +1043,21 @@ private parseAssignment(left: Expr): Expr | null {
         TokenType.BOOLEAN_TYPE, TokenType.VOID_TYPE, TokenType.ANY_TYPE,
         TokenType.UNKNOWN_TYPE, TokenType.NULL, TokenType.IDENTIFIER,
         TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN,
-        TokenType.LBRACKET  // Nested tuple: [[int, string], [bool, User]]
+        TokenType.LBRACKET,  // Nested tuple: [[int, string], [bool, User]]
+        TokenType.LPAREN     // Grouping type: (int | string)
       ].includes(nextToken?.type)
 
       if (isTypeToken) {
         return this.parseAnnotationType()!
       }
+    }
+
+    // ========================================
+    // GroupingType — (int | string)
+    // Agrupamento com parênteses para precedência
+    // ========================================
+    if (typeToken.type === TokenType.LPAREN) {
+      return this.parseGroupingType()
     }
 
     if (typeToken.type === TokenType.INT_TYPE) {
@@ -1109,6 +1118,18 @@ private parseAssignment(left: Expr): Expr | null {
         return this.parseUnionType(typeNode)
       }
       console.log(`DEBUG - [void]`)
+      return typeNode
+    }
+    if (typeToken.type === TokenType.ANY_TYPE) {
+      this.advance()
+      let typeNode = { kind: "PrimitiveType", name: "any" as const }
+      if (this.check(TokenType.LBRACKET)) {
+        typeNode = this.parseArrayType(typeNode)
+      }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
+      console.log(`DEBUG - [any]`)
       return typeNode
     }
     if (typeToken.type === TokenType.UNKNOWN_TYPE) {
@@ -1233,6 +1254,14 @@ private parseAssignment(left: Expr): Expr | null {
         return this.parseUnionType(baseType)
       }
       return baseType
+    }
+
+    // ========================================
+    // GroupingType — (int | string)
+    // Agrupamento com parênteses para precedência
+    // ========================================
+    if (typeToken.type === TokenType.LPAREN) {
+      return this.parseGroupingType()
     }
 
     // Primitivos
@@ -1512,6 +1541,69 @@ private parseAssignment(left: Expr): Expr | null {
     return {
       kind: "TupleType",
       elements
+    }
+  }
+
+  // ========================================
+  // parseGroupingType — (int | string)
+  // Agrupa tipos com parênteses para
+  // controlar precedência em arrays:
+  // (int | string)[] = array de union
+  // int | string[] = union com array
+  // ========================================
+  private parseGroupingType(): TypeNode | undefined {
+    const lparen = this.peek()
+    this.advance() // consume '('
+
+    // Parse o tipo interno (pode ser union, tuple, etc)
+    const innerType = this.parseAnnotationType()
+
+    if (!innerType) {
+      this.error("Expected type inside grouping", lparen)
+      return undefined
+    }
+
+    if (this.check(TokenType.RPAREN)) {
+      this.advance()
+    } else {
+      this.error("Expected ')' to close grouping type", this.peek())
+      return { kind: "GroupingType", type: innerType }
+    }
+
+    // Debug: mostra o tipo agrupado
+    const innerDebug = this.getTypeNodeName(innerType)
+    console.log(`DEBUG - [(${innerDebug})]`)
+
+    return {
+      kind: "GroupingType",
+      type: innerType
+    }
+  }
+
+  // ========================================
+  // getTypeNodeName — helper para debug
+  // Retorna string representando o tipo
+  // ========================================
+  private getTypeNodeName(type: TypeNode): string {
+    switch (type.kind) {
+      case "PrimitiveType":
+        return type.name
+      case "NamedType":
+        return type.name.value as string
+      case "UnionType":
+        return type.types.map(t => this.getTypeNodeName(t)).join(' | ')
+      case "TupleType":
+        return `[${type.elements.map(t => this.getTypeNodeName(t)).join(', ')}]`
+      case "ArrayType":
+        return `${this.getTypeNodeName(type.elementType)}${'[]'.repeat(type.dimensions)}`
+      case "GenericType":
+        return `${type.name.value}<...>`
+      case "LiteralType":
+        return String(type.value)
+      case "GroupingType":
+        return `(${this.getTypeNodeName(type.type)})`
+      default:
+        return type.kind
     }
   }
 
