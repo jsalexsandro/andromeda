@@ -1030,6 +1030,26 @@ private parseAssignment(left: Expr): Expr | null {
     this.advance()
 
     const typeToken = this.peek()
+
+    // Check for TupleType: [string, int, bool]
+    if (typeToken.type === TokenType.LBRACKET) {
+      const savedPos = this.current
+      this.advance() // consume '['
+      const nextToken = this.peek()
+      this.current = savedPos // restore position
+
+      const isTypeToken = [
+        TokenType.INT_TYPE, TokenType.FLOAT_TYPE, TokenType.STRING_TYPE,
+        TokenType.BOOLEAN_TYPE, TokenType.VOID_TYPE, TokenType.ANY_TYPE,
+        TokenType.UNKNOWN_TYPE, TokenType.NULL, TokenType.IDENTIFIER,
+        TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN
+      ].includes(nextToken?.type)
+
+      if (isTypeToken) {
+        return this.parseTupleType()
+      }
+    }
+
     if (typeToken.type === TokenType.INT_TYPE) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "int" as const }
@@ -1160,8 +1180,25 @@ private parseAssignment(left: Expr): Expr | null {
 
     // ArrayType - int[], string[][], User[], etc.
     if (typeToken.type === TokenType.LBRACKET) {
+      // Check if this is a tuple: [string, int]
+      // We need to look ahead to see if there's a comma
+      const savedPos = this.current
       this.advance() // consume '['
-      // This shouldn't happen at the start of annotation
+      const nextToken = this.peek()
+      this.current = savedPos // restore position
+
+      // If the next token after '[' is a type (not ']'), it's a tuple
+      const isTypeToken = [
+        TokenType.INT_TYPE, TokenType.FLOAT_TYPE, TokenType.STRING_TYPE,
+        TokenType.BOOLEAN_TYPE, TokenType.VOID_TYPE, TokenType.ANY_TYPE,
+        TokenType.UNKNOWN_TYPE, TokenType.NULL, TokenType.IDENTIFIER,
+        TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN
+      ].includes(nextToken?.type)
+
+      if (isTypeToken) {
+        return this.parseTupleType()
+      }
+
       this.error("Expected type before '['", typeToken)
       return undefined
     }
@@ -1405,6 +1442,63 @@ private parseAssignment(left: Expr): Expr | null {
     return {
       kind: "UnionType",
       types
+    }
+  }
+
+  /**
+   * Parses a tuple type expression.
+   * Examples:
+   *   [string, int]       → TupleTypeNode { elements: [PrimitiveType, PrimitiveType] }
+   *   [string, int, bool] → TupleTypeNode { elements: [PrimitiveType, PrimitiveType, PrimitiveType] }
+   *   [User, string]     → TupleTypeNode { elements: [NamedType, PrimitiveType] }
+   *
+   * @returns {TypeNode} The parsed tuple type node.
+   */
+  private parseTupleType(): TypeNode {
+    this.advance() // consume '['
+
+    const elements: TypeNode[] = []
+
+    while (!this.check(TokenType.RBRACKET) && !this.isAtEnd()) {
+      const typeArg = this.parseAnnotationType()
+      if (typeArg) {
+        elements.push(typeArg)
+      }
+
+      if (this.check(TokenType.COMMA)) {
+        this.advance() // consume ','
+      } else {
+        break
+      }
+    }
+
+    if (!this.check(TokenType.RBRACKET)) {
+      this.error("Expected ']' to close tuple type", this.peek())
+      return { kind: "TupleType", elements: [] }
+    }
+
+    this.advance() // consume ']'
+
+    const elementsDebug = elements.map(t => {
+      if (t.kind === "PrimitiveType") return t.name
+      if (t.kind === "NamedType") return t.name.value
+      if (t.kind === "GenericType") return `${t.name.value}<...>`
+      if (t.kind === "LiteralType") return String(t.value)
+      if (t.kind === "ArrayType") {
+        const elemName = t.elementType.kind === "PrimitiveType"
+          ? t.elementType.name
+          : t.elementType.kind === "NamedType"
+            ? t.elementType.name.value
+            : t.elementType.kind
+        return `${elemName}${'[]'.repeat(t.dimensions)}`
+      }
+      return t.kind
+    }).join(', ')
+
+    console.log(`DEBUG - [${elementsDebug}]`)
+    return {
+      kind: "TupleType",
+      elements
     }
   }
 
