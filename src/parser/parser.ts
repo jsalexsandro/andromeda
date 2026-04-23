@@ -1053,11 +1053,10 @@ private parseAssignment(left: Expr): Expr | null {
     }
 
     // ========================================
-    // GroupingType — (int | string)
-    // Agrupamento com parênteses para precedência
+    // FunctionType or GroupingType — (int) => string ou (int | string)
     // ========================================
     if (typeToken.type === TokenType.LPAREN) {
-      return this.parseGroupingType()
+      return this.parseFunctionOrGroupingType()
     }
 
     if (typeToken.type === TokenType.INT_TYPE) {
@@ -1257,11 +1256,10 @@ private parseAssignment(left: Expr): Expr | null {
     }
 
     // ========================================
-    // GroupingType — (int | string)
-    // Agrupamento com parênteses para precedência
+    // FunctionType or GroupingType — (int) => string ou (int | string)
     // ========================================
     if (typeToken.type === TokenType.LPAREN) {
-      return this.parseGroupingType()
+      return this.parseFunctionOrGroupingType()
     }
 
     // Primitivos
@@ -1539,45 +1537,95 @@ private parseAssignment(left: Expr): Expr | null {
 
     console.log(`DEBUG - [${elementsDebug}]`)
     return {
-      kind: "TupleType",
+kind: "TupleType",
       elements
     }
   }
 
   // ========================================
-  // parseGroupingType — (int | string)
-  // Agrupa tipos com parênteses para
-  // controlar precedência em arrays:
-  // (int | string)[] = array de union
-  // int | string[] = union com array
+  // parseFunctionOrGroupingType — (int) => string ou (int | string)
+  // Decide entre FunctionType e GroupingType usando lookahead
   // ========================================
-  private parseGroupingType(): TypeNode | undefined {
-    const lparen = this.peek()
+  private parseFunctionOrGroupingType(): TypeNode | undefined {
     this.advance() // consume '('
 
-    // Parse o tipo interno (pode ser union, tuple, etc)
-    const innerType = this.parseAnnotationType()
+    // Caso: () => R
+    if (this.check(TokenType.RPAREN)) {
+      this.advance() // consume ')'
+      if (!this.check(TokenType.ARROW)) {
+        this.error("Expected '=>' after '()' in type position", this.peek())
+        return undefined
+      }
+      this.advance() // consume '=>'
+      const returnType = this.parseAnnotationType()
+      if (!returnType) {
+        this.error("Expected return type after '=>'", this.peek())
+        return { kind: "FunctionType", params: [], returnType: { kind: "PrimitiveType", name: "void" } }
+      }
+      console.log(`DEBUG - [() => ${this.getTypeNodeName(returnType)}]`)
+      return { kind: "FunctionType", params: [], returnType }
+    }
 
+    // Lookahead — é FunctionType ou GroupingType?
+    if (this.looksLikeFunctionTypeAnnotation()) {
+      // Caso: (T, U) => R — '(' já consumido, parseia params diretamente
+      const params: TypeNode[] = []
+      while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
+        const param = this.parseAnnotationType()
+        if (param) params.push(param)
+        if (this.check(TokenType.COMMA)) this.advance()
+      }
+      this.consume(TokenType.RPAREN, "Expected ')' after function type params")
+      this.consume(TokenType.ARROW, "Expected '=>' after function type params")
+      const returnType = this.parseAnnotationType()
+      if (!returnType) {
+        this.error("Expected return type after '=>'", this.peek())
+        return { kind: "FunctionType", params, returnType: { kind: "PrimitiveType", name: "void" } }
+      }
+      const paramsDebug = params.map(p => this.getTypeNodeName(p)).join(', ')
+      console.log(`DEBUG - [(${paramsDebug}) => ${this.getTypeNodeName(returnType)}]`)
+      return { kind: "FunctionType", params, returnType }
+    }
+
+    // Caso: (int | string) — GroupingType
+    const innerType = this.parseAnnotationType()
     if (!innerType) {
-      this.error("Expected type inside grouping", lparen)
+      this.error("Expected type inside grouping", this.peek())
       return undefined
     }
+    this.consume(TokenType.RPAREN, "Expected ')' to close grouping type")
 
-    if (this.check(TokenType.RPAREN)) {
+    let result: TypeNode = { kind: "GroupingType", type: innerType }
+    if (this.check(TokenType.LBRACKET)) {
+      result = this.parseArrayType(result)
+    }
+    if (this.check(TokenType.PIPE)) {
+      return this.parseUnionType(result)
+    }
+    console.log(`DEBUG - [(${this.getTypeNodeName(innerType)})]`)
+    return result
+  }
+
+  // ========================================
+  // looksLikeFunctionTypeAnnotation — lookahead puro, não consome nada
+  // Retorna true se encontrar ')' + '=>' depois dos params
+  // ========================================
+  private looksLikeFunctionTypeAnnotation(): boolean {
+    const saved = this.current
+    let depth = 1
+
+    // Acha o ')' correspondente
+    while (!this.isAtEnd() && depth > 0) {
+      const t = this.peek()
+      if (t.type === TokenType.LPAREN) depth++
+      if (t.type === TokenType.RPAREN) depth--
       this.advance()
-    } else {
-      this.error("Expected ')' to close grouping type", this.peek())
-      return { kind: "GroupingType", type: innerType }
     }
 
-    // Debug: mostra o tipo agrupado
-    const innerDebug = this.getTypeNodeName(innerType)
-    console.log(`DEBUG - [(${innerDebug})]`)
-
-    return {
-      kind: "GroupingType",
-      type: innerType
-    }
+    // Após ')', tem '=>'?
+    const hasArrow = this.check(TokenType.ARROW)
+    this.current = saved // restaura — lookahead puro
+    return hasArrow
   }
 
   // ========================================
@@ -1602,6 +1650,8 @@ private parseAssignment(left: Expr): Expr | null {
         return String(type.value)
       case "GroupingType":
         return `(${this.getTypeNodeName(type.type)})`
+      case "FunctionType":
+        return `(${type.params.map(p => this.getTypeNodeName(p)).join(', ')}) => ${this.getTypeNodeName(type.returnType)}`
       default:
         return type.kind
     }

@@ -1,0 +1,11 @@
+// ============================================
+// FUNCTION TYPES TEST
+// ============================================
+val a: (int) => string
+val b: (int, string) => bool
+val c: () => void
+val d: (int | string) => bool
+val e: (int) => (string) => bool
+val f: (int | string)[]
+val g: (int | string) | null
+val h: ((int) => bool)[]
