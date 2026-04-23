@@ -1,2 +1,0 @@
-// Test case 1 separately
-val godMode: [ ((int, string) => { run: () => any })[] ][] = []

@@ -1,6 +1,67 @@
-var x: int = 10
-var y: float = 1.5
-var z: string = "hello"
-var b: bool = true
-var a: any = null
-var u: undefined = undefined
+// ========================================
+// Type Annotation Tests
+// ========================================
+
+// ----------------------------------------
+// Primitive Types
+// ----------------------------------------
+val a: int
+val b: float
+val c: string
+val d: bool
+val e: void
+val f: null
+val g: any
+val h: unknown
+
+// ----------------------------------------
+// Named Types (custom)
+// ----------------------------------------
+val user: User
+val product: Product
+val order: Order
+val item: Item
+val data: Data
+
+// ----------------------------------------
+// Generics - Single Type Parameter
+// ----------------------------------------
+val items: Array<int>
+val names: List<string>
+val flags: Set<bool>
+val promise: Promise<User>
+
+// ----------------------------------------
+// Generics - Multiple Type Parameters
+// ----------------------------------------
+val pairs: Map<string, int>
+val map: Map<User, Product>
+
+// ----------------------------------------
+// Generics - Nested
+// ----------------------------------------
+val matrix: Array<Array<float>>
+val nested: List<List<User>>
+val deep: Map<string, Array<User>>
+
+// ----------------------------------------
+// Generics - Multiple Arguments
+// ----------------------------------------
+val multi: Map<string, int, bool>
+
+// ----------------------------------------
+// Combined Examples
+val users: List<User>
+val cache: Map<string, Array<Product>>
+val result: Promise<Result<User>>
+
+// ----------------------------------------
+// Literal Types
+// ----------------------------------------
+val pi: 3.14 = 3.14
+val status: "active" = "active"
+val code: 200 = 200
+val enabled: true = true
+val disabled: false = false
+val zero: 0 = 0
+val empty: "" = ""

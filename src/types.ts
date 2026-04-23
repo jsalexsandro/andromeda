@@ -1,0 +1,1 @@
+export type PrimitiveTypes = "int" | "float" | "string" | "bool" | "void" | "null" | "any" | "unknown"

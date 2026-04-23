@@ -1,3 +1,0 @@
-val obj = { "huling-ss": 2093948 }
-val x = obj["huling-ss"]
-print(x)

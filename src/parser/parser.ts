@@ -1042,11 +1042,12 @@ private parseAssignment(left: Expr): Expr | null {
         TokenType.INT_TYPE, TokenType.FLOAT_TYPE, TokenType.STRING_TYPE,
         TokenType.BOOLEAN_TYPE, TokenType.VOID_TYPE, TokenType.ANY_TYPE,
         TokenType.UNKNOWN_TYPE, TokenType.NULL, TokenType.IDENTIFIER,
-        TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN
+        TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN,
+        TokenType.LBRACKET  // Nested tuple: [[int, string], [bool, User]]
       ].includes(nextToken?.type)
 
       if (isTypeToken) {
-        return this.parseTupleType()
+        return this.parseAnnotationType()!
       }
     }
 
@@ -1220,71 +1221,83 @@ private parseAssignment(left: Expr): Expr | null {
   private parseAnnotationType(): TypeNode | undefined {
     const typeToken = this.peek()
 
+    // Tuple aninhada: [int, string]
+    if (typeToken.type === TokenType.LBRACKET) {
+      let baseType = this.parseTupleType() as TypeNode
+      // Array de tuple: [int, string][]
+      if (this.check(TokenType.LBRACKET)) {
+        baseType = this.parseArrayType(baseType)
+      }
+      // Union: [int, string] | [bool, User]
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(baseType)
+      }
+      return baseType
+    }
+
+    // Primitivos
+    let baseType: TypeNode | undefined
+
     if (typeToken.type === TokenType.INT_TYPE) {
       this.advance()
-      console.log(`DEBUG - [int]`)
-      return { kind: "PrimitiveType", name: "int" }
-    }
-    if (typeToken.type === TokenType.FLOAT_TYPE) {
+      baseType = { kind: "PrimitiveType", name: "int" }
+    } else if (typeToken.type === TokenType.FLOAT_TYPE) {
       this.advance()
-      console.log(`DEBUG - [float]`)
-      return { kind: "PrimitiveType", name: "float" }
-    }
-    if (typeToken.type === TokenType.STRING_TYPE) {
+      baseType = { kind: "PrimitiveType", name: "float" }
+    } else if (typeToken.type === TokenType.STRING_TYPE) {
       this.advance()
-      console.log(`DEBUG - [string]`)
-      return { kind: "PrimitiveType", name: "string" }
-    }
-    if (typeToken.type === TokenType.BOOLEAN_TYPE) {
+      baseType = { kind: "PrimitiveType", name: "string" }
+    } else if (typeToken.type === TokenType.BOOLEAN_TYPE) {
       this.advance()
-      console.log(`DEBUG - [bool]`)
-      return { kind: "PrimitiveType", name: "bool" }
-    }
-    if (typeToken.type === TokenType.VOID_TYPE) {
+      baseType = { kind: "PrimitiveType", name: "bool" }
+    } else if (typeToken.type === TokenType.VOID_TYPE) {
       this.advance()
-      console.log(`DEBUG - [void]`)
-      return { kind: "PrimitiveType", name: "void" }
-    }
-    if (typeToken.type === TokenType.ANY_TYPE) {
+      baseType = { kind: "PrimitiveType", name: "void" }
+    } else if (typeToken.type === TokenType.ANY_TYPE) {
       this.advance()
-      console.log(`DEBUG - [any]`)
-      return { kind: "PrimitiveType", name: "any" }
-    }
-    if (typeToken.type === TokenType.UNKNOWN_TYPE) {
+      baseType = { kind: "PrimitiveType", name: "any" }
+    } else if (typeToken.type === TokenType.UNKNOWN_TYPE) {
       this.advance()
-      console.log(`DEBUG - [unknown]`)
-      return { kind: "PrimitiveType", name: "unknown" }
-    }
-    if (typeToken.type === TokenType.NULL) {
+      baseType = { kind: "PrimitiveType", name: "unknown" }
+    } else if (typeToken.type === TokenType.NULL) {
       this.advance()
-      console.log(`DEBUG - [null]`)
-      return { kind: "PrimitiveType", name: "null" }
+      baseType = { kind: "PrimitiveType", name: "null" }
     }
 
-    // NamedTypeNode - custom types (User, Product, Order, etc.)
-    if (typeToken.type === TokenType.IDENTIFIER) {
-      return this.parseNamedTypeNode()
+    // Named + Generic: User, Array<T>, Map<K, V>
+    else if (typeToken.type === TokenType.IDENTIFIER) {
+      baseType = this.parseNamedTypeNode()
     }
 
-    // LiteralTypeNode - literal types (3.14, "active", 200, true)
-    if (typeToken.type === TokenType.NUMBER) {
+    // Literal types
+    else if (typeToken.type === TokenType.NUMBER) {
       this.advance()
-      console.log(`DEBUG - [${typeToken.value}]`)
-      return { kind: "LiteralType", value: typeToken.value as number }
-    }
-    if (typeToken.type === TokenType.STRING) {
+      baseType = { kind: "LiteralType", value: typeToken.value as number }
+    } else if (typeToken.type === TokenType.STRING) {
       this.advance()
-      console.log(`DEBUG - [${typeToken.value}]`)
-      return { kind: "LiteralType", value: typeToken.value as string }
-    }
-    if (typeToken.type === TokenType.BOOLEAN) {
+      baseType = { kind: "LiteralType", value: typeToken.value as string }
+    } else if (typeToken.type === TokenType.BOOLEAN) {
       this.advance()
-      console.log(`DEBUG - [${typeToken.value}]`)
-      return { kind: "LiteralType", value: typeToken.value as boolean }
+      baseType = { kind: "LiteralType", value: typeToken.value as boolean }
     }
 
-    this.error(`Expected type in generic, got '${typeToken.value}'`, typeToken)
-    return undefined
+    if (!baseType) {
+      this.error(`Expected type in generic, got '${typeToken.value}'`, typeToken)
+      return undefined
+    }
+
+    // Array suffix: int[], User[][], etc.
+    if (this.check(TokenType.LBRACKET)) {
+      baseType = this.parseArrayType(baseType)
+    }
+
+
+    // Union: int | string, User | null
+    if (this.check(TokenType.PIPE)) {
+      return this.parseUnionType(baseType)
+    }
+
+    return baseType
   }
 
   /**

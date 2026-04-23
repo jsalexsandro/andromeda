@@ -1244,7 +1244,7 @@ readNumber(): Token {
         this.readChar()
         return { type: TokenType.LBRACE, value: '{', line: this.line, column: startColumn }
       
-      case '}':
+      case '}': 
         this.readChar()
         // Reseta modo tipo - fecha object type ou block
         this.inTypeAnnotation = false

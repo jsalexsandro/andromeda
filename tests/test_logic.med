@@ -1,8 +1,0 @@
-// A expressão deve ser lida da direita para a esquerda ou seguindo a precedência correta
-val complexLogic = a ?? b ?? c ? d ?? e : f ? g : h ?? i ?? j
-
-// Misturando com acesso a membros e chamadas
-val result = (cache.get(id) ?? fetch(id) ?? defaultUser).profile.settings[key] ?? "fallback"
-
-// O "Ternário de Schrödinger"
-val nested = cond1 ? cond2 ? cond3 ? a : b : c : d 

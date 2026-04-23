@@ -1,0 +1,1 @@
+amanha testa cases mais complexos e implementar func 

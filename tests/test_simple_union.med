@@ -1,2 +1,0 @@
-val x: int | string = 1
-print(x)

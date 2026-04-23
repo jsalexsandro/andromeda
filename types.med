@@ -1,1 +1,1 @@
-var s: string = 20
+const e: [string | int]
