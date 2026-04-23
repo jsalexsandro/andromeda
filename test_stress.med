@@ -1,0 +1,59 @@
+// ========================================
+// EXTREME STRESS TESTS
+// ========================================
+
+// Deep nesting
+val d1: Promise<Map<string, Array<User>>>
+val d2: Map<string, Array<Set<User>>>
+val d3: Array<Set<Map<string, User>>>
+
+// Function returning union of functions
+val fnReturnUnionFn: (int) => ((string) => bool) | ((User) => Product)
+
+// Function with parameter that is union of functions
+val fnParamUnionFn: ( ((int) => string) | ((string) => int) ) => boolean
+
+// Function returning function returning tuple
+val fnToFnToTuple: (boolean) => (int) => [string, User]
+
+// Union of function types and tuple
+val unionFnTuple: ((int) => string) | [string, int]
+
+// Extreme grouping with arrays and union
+val grpExtreme: (((int | string)[] | null)[])
+
+// Function with literal type parameter and literal return
+val fnLiteralTypes: (1) => "ok"
+
+// Union of literals with functions
+val wildUnion: 200 | "OK" | ((int) => string) | null
+
+// Array of union of functions with tuples
+val arrUnionFnTuple: ((int) => string | [boolean, User])[]
+
+// Map where value is function returning array of tuples
+val mapFnArrTuple: Map<string, (int) => [string, Promise<User>][]>
+
+// Generic type with function that has generic
+val genericFn: Array<(Map<string, int>) => Promise<string[]>>
+
+// Function with void parameter and void return
+val fnVoidVoid: (void) => void
+
+// All nulls/undefined in unusual places
+val weirdNulls: Map<null, undefined> | (null) => undefined
+
+// Grouped type with union of literals and function
+val grpLiteralFn: ("error" | ((int) => string))
+
+// Function receiving tuple of functions
+val fnTupleOfFns: ([(int) => string, (boolean) => User]) => Product
+
+// Array of arrays of grouped functions
+val arrArrFn: ((int) => string)[][]
+
+// Union of void with function
+val voidOrFn: void | ((string) => void)
+
+// Monster type
+val monster: Array<Map<string, ((int) => Promise<User | null>)[]>> | null

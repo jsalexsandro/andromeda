@@ -120,10 +120,10 @@ export class Parser {
   }
 
   private parseArrayLiteral(): Expr {
-    const bracket = this.previous().type === TokenType.LBRACKET 
-      ? this.previous() 
+    const bracket = this.previous().type === TokenType.LBRACKET
+      ? this.previous()
       : this.peek()
-    
+
     if (this.previous().type !== TokenType.LBRACKET) {
       this.advance()
     }
@@ -195,8 +195,8 @@ export class Parser {
         if (spreadArg) {
           properties.push({ key: null, value: { kind: "Spread", argument: spreadArg } })
         }
-      } else if (this.check(TokenType.IDENTIFIER) || 
-          this.check(TokenType.KEYWORD) || 
+      } else if (this.check(TokenType.IDENTIFIER) ||
+          this.check(TokenType.KEYWORD) ||
           this.check(TokenType.BOOLEAN) ||
           this.check(TokenType.NULL)) {
         key = this.advance().value as string
@@ -278,7 +278,7 @@ export class Parser {
 
     if (this.check(TokenType.RPAREN)) {
       this.advance()
-      
+
       if (!this.check(TokenType.ARROW)) {
         return null
       }
@@ -326,14 +326,14 @@ export class Parser {
     let i = this.current + 1
     const token = this.tokens[i]
     if (!token) return false
-    
+
     if (token.type === TokenType.RBRACE) return false
-    
+
     if (token.type === TokenType.KEYWORD) {
       const keywords = ['if', 'while', 'for', 'return', 'var', 'val', 'const', 'func', 'break', 'continue']
       if (keywords.includes(token.value as string)) return true
     }
-    
+
     if (token.type === TokenType.IDENTIFIER) {
       i++
       const nextToken = this.tokens[i]
@@ -343,15 +343,15 @@ export class Parser {
       if (nextToken && nextToken.type === TokenType.COMMA) return true
       if (nextToken && nextToken.type === TokenType.ASSIGN) return true
     }
-    
-    if (token.type === TokenType.NUMBER || token.type === TokenType.STRING || 
+
+    if (token.type === TokenType.NUMBER || token.type === TokenType.STRING ||
         token.type === TokenType.BOOLEAN || token.type === TokenType.NULL) {
       i++
       const nextToken = this.tokens[i]
       if (nextToken && nextToken.type === TokenType.SEMICOLON) return true
       if (nextToken && nextToken.type === TokenType.RBRACE) return true
     }
-    
+
     return false
   }
 
@@ -365,7 +365,7 @@ private parseArrowBody(params: { name: Token; isRest?: boolean }[]): Expr {
           body
         }
       }
-      
+
       const savedPos = this.current
       const savedErrorsLength = this.errors.errors.length
       try {
@@ -651,7 +651,7 @@ private parseAssignment(left: Expr): Expr | null {
         return true
       }
     }
-    if (this.tokens[i]?.type === TokenType.KEYWORD || 
+    if (this.tokens[i]?.type === TokenType.KEYWORD ||
         this.tokens[i]?.type === TokenType.BOOLEAN ||
         this.tokens[i]?.type === TokenType.NULL) {
       i++
@@ -723,22 +723,22 @@ private parseAssignment(left: Expr): Expr | null {
   private parseVariableDeclaration(): Stmt | null {
     const keywordToken = this.advance()
     const keyword = keywordToken.value as string
-    
+
     const nameToken = this.advance()
     if (nameToken.type !== TokenType.IDENTIFIER) {
       this.error(`Expected variable name after '${keyword}'`, nameToken)
       this.advance()
       return null
     }
-    
+
     const typeAnnotation = this.parseAnnotation()
-    
+
     let initializer: Expr | undefined
     if (this.peek().type === TokenType.ASSIGN) {
       this.advance()
       initializer = this.parseExpression(Precedence.LOWEST)
     }
-    
+
     return {
       kind: "VariableStmt",
       declarationType: keyword as "var" | "val" | "const",
@@ -909,7 +909,7 @@ private parseAssignment(left: Expr): Expr | null {
 
     if (!prefix) {
       this.error(`Unexpected token '${token.value ?? token.type}', expected expression.`, token)
-      throw new Error('ParseError') 
+      throw new Error('ParseError')
     }
 
     let left = prefix()
@@ -1143,6 +1143,21 @@ private parseAssignment(left: Expr): Expr | null {
       console.log(`DEBUG - [unknown]`)
       return typeNode
     }
+    // ========================================
+    // undefined type - Promise<undefined>, string | undefined
+    // ========================================
+    if (typeToken.type === TokenType.UNDEFINED_TYPE) {
+      this.advance()
+      let typeNode = { kind: "PrimitiveType", name: "undefined" as const }
+      if (this.check(TokenType.LBRACKET)) {
+        typeNode = this.parseArrayType(typeNode)
+      }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode)
+      }
+      console.log(`DEBUG - [undefined]`)
+      return typeNode
+    }
     if (typeToken.type === TokenType.NULL) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "null" as const }
@@ -1201,19 +1216,24 @@ private parseAssignment(left: Expr): Expr | null {
 
     // ArrayType - int[], string[][], User[], etc.
     if (typeToken.type === TokenType.LBRACKET) {
-      // Check if this is a tuple: [string, int]
-      // We need to look ahead to see if there's a comma
+      // Check if this is a tuple: [string, int] or empty tuple: []
       const savedPos = this.current
       this.advance() // consume '['
       const nextToken = this.peek()
       this.current = savedPos // restore position
 
-      // If the next token after '[' is a type (not ']'), it's a tuple
+      // Empty tuple: []
+      if (nextToken?.type === TokenType.RBRACKET) {
+        return this.parseTupleType()
+      }
+
+      // If the next token after '[' is a type, it's a tuple
       const isTypeToken = [
         TokenType.INT_TYPE, TokenType.FLOAT_TYPE, TokenType.STRING_TYPE,
         TokenType.BOOLEAN_TYPE, TokenType.VOID_TYPE, TokenType.ANY_TYPE,
-        TokenType.UNKNOWN_TYPE, TokenType.NULL, TokenType.IDENTIFIER,
-        TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN
+        TokenType.UNKNOWN_TYPE, TokenType.NULL, TokenType.UNDEFINED_TYPE,
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING,
+        TokenType.BOOLEAN, TokenType.LBRACKET, TokenType.LPAREN
       ].includes(nextToken?.type)
 
       if (isTypeToken) {
@@ -1289,6 +1309,9 @@ private parseAssignment(left: Expr): Expr | null {
     } else if (typeToken.type === TokenType.NULL) {
       this.advance()
       baseType = { kind: "PrimitiveType", name: "null" }
+    } else if (typeToken.type === TokenType.UNDEFINED_TYPE) {
+      this.advance()
+      baseType = { kind: "PrimitiveType", name: "undefined" }
     }
 
     // Named + Generic: User, Array<T>, Map<K, V>
@@ -1498,6 +1521,13 @@ private parseAssignment(left: Expr): Expr | null {
     this.advance() // consume '['
 
     const elements: TypeNode[] = []
+
+    // Empty tuple: []
+    if (this.check(TokenType.RBRACKET)) {
+      this.advance() // consume ']'
+      console.log(`DEBUG - []`)
+      return { kind: "TupleType", elements }
+    }
 
     while (!this.check(TokenType.RBRACKET) && !this.isAtEnd()) {
       const typeArg = this.parseAnnotationType()
