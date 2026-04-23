@@ -1081,17 +1081,137 @@ private parseAssignment(left: Expr): Expr | null {
   }
 
   /**
+   * Parses a type inside generic brackets (without `:` prefix).
+   * Used by parseNamedTypeWithGenerics to parse type arguments.
+   * Examples:
+   *   <int>              → PrimitiveTypeNode { name: "int" }
+   *   <User>             → NamedTypeNode { name: "User" }
+   *   <Array<T>>        → GenericTypeNode
+   *
+   * @returns {TypeNode | undefined} The parsed type node, or undefined if no type.
+   */
+  private parseAnnotationType(): TypeNode | undefined {
+    const typeToken = this.peek()
+
+    if (typeToken.type === TokenType.INT_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [int]`)
+      return { kind: "PrimitiveType", name: "int" }
+    }
+    if (typeToken.type === TokenType.FLOAT_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [float]`)
+      return { kind: "PrimitiveType", name: "float" }
+    }
+    if (typeToken.type === TokenType.STRING_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [string]`)
+      return { kind: "PrimitiveType", name: "string" }
+    }
+    if (typeToken.type === TokenType.BOOLEAN_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [bool]`)
+      return { kind: "PrimitiveType", name: "bool" }
+    }
+    if (typeToken.type === TokenType.VOID_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [void]`)
+      return { kind: "PrimitiveType", name: "void" }
+    }
+    if (typeToken.type === TokenType.ANY_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [any]`)
+      return { kind: "PrimitiveType", name: "any" }
+    }
+    if (typeToken.type === TokenType.UNKNOWN_TYPE) {
+      this.advance()
+      console.log(`DEBUG - [unknown]`)
+      return { kind: "PrimitiveType", name: "unknown" }
+    }
+    if (typeToken.type === TokenType.NULL) {
+      this.advance()
+      console.log(`DEBUG - [null]`)
+      return { kind: "PrimitiveType", name: "null" }
+    }
+
+    // NamedTypeNode - custom types (User, Product, Order, etc.)
+    if (typeToken.type === TokenType.IDENTIFIER) {
+      return this.parseNamedTypeNode()
+    }
+
+    this.error(`Expected type in generic, got '${typeToken.value}'`, typeToken)
+    return undefined
+  }
+
+  /**
    * Parses a named type node (custom types like User, Product, etc.)
    * Examples:
    *   val user: User       → NamedTypeNode { name: "User" }
    *   val item: Product    → NamedTypeNode { name: "Product" }
+   *   val items: Array<T>  → GenericTypeNode { name: "Array", args: [...] }
    */
   private parseNamedTypeNode(): TypeNode {
     const nameToken = this.advance()
+
+    // Check for generic parameters: Array<T>, Map<K, V>, etc.
+    if (this.check(TokenType.LESS_THAN)) {
+      return this.parseNamedTypeWithGenerics(nameToken)
+    }
+
     console.log(`DEBUG - [${nameToken.value}]`)
     return {
       kind: "NamedType",
       name: nameToken
+    }
+  }
+
+  /**
+   * Parses a named type with generic parameters.
+   * Examples:
+   *   Array<int>        → GenericTypeNode { name: "Array", args: [PrimitiveTypeNode] }
+   *   Map<K, V>         → GenericTypeNode { name: "Map", args: [NamedType, NamedType] }
+   *   Array<Array<T>>  → GenericTypeNode { name: "Array", args: [GenericType] }
+   *
+   * @param {Token} typeName - The name of the type (e.g., "Array", "Map")
+   * @returns {TypeNode} The parsed generic type node.
+   */
+  private parseNamedTypeWithGenerics(typeName: Token): TypeNode {
+    this.advance() // consume '<'
+
+    const args: TypeNode[] = []
+
+    while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
+      const typeArg = this.parseAnnotationType()
+      if (typeArg) {
+        args.push(typeArg)
+      }
+
+      if (this.check(TokenType.COMMA)) {
+        this.advance() // consume ','
+      } else {
+        break
+      }
+    }
+
+    if (!this.check(TokenType.GREATER_THAN)) {
+      this.error("Expected '>' to close generic type", this.peek())
+      return { kind: "NamedType", name: typeName }
+    }
+
+    this.advance() // consume '>'
+
+    const argsDebug = args.map(arg => {
+      if (arg.kind === "PrimitiveType") return arg.name
+      if (arg.kind === "NamedType") return arg.name.value
+      if (arg.kind === "GenericType") return `${arg.name.value}<...>`
+      return arg.kind
+    }).join(', ')
+
+    console.log(`DEBUG - [${typeName.value}<${argsDebug}>]`)
+    return {
+      kind: "GenericType",
+      name: typeName,
+      args
     }
   }
 
