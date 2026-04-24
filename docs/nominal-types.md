@@ -49,6 +49,8 @@ LiteralsTypes
 ArrayType (int[], string[][], T[])
 UnionType (int | string | null)
 TupleType          →  [string, int, bool, Array<int>]
+Grouping Type ()
+(T) => U     function type 
 
 IntersectionType   →  TypeA & TypeB 
 

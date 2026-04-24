@@ -20,21 +20,38 @@ var full = greeting + " " + name
 ```
 **Status:** Semantic erro - operador + com strings não implementado
 
----
-
-## Como Testar Novamente
-
-```bash
-.\andro.bat run <arquivo>.med
+### 4. Precedência de Nullable vs Array (BUG)
+```med
+val a1: int?[]        // array de nullable int (esperado)
+val a2: int[]?        // nullable de array int (ok)
+val a3: User?[]       // array de nullable User (esperado)
+val a4: string[][]?   // nullable de array de arrays (ok)
+val a5: int?[][]      // array de arrays de nullable int (esperado)
 ```
+**Status:** BUG - A precedência está invertida
 
-### Testes de Stress Anteriores
-- 41 statements com 0 erros ✅
-- 73 statements com 1 erro (string concat) ✅
+| Código | Esperado | Obtido |
+|--------|--------|-------|
+| `int?[]` | Array de Nullable | Nullable de Array ❌ |
+| `int[]?` | Nullable de Array | OK |
+| `User?[]` | Array de Nullable | Nullable de Array ❌ |
+| `int?[][]` | Array de Array de Nullable | Nullable de Array ❌ |
 
+** Problema:** O parser está aplicando `?` antes de `[]`, invertendo a semântica.
+- `T?[]` deveria ser `(NullableType T)[]`
+- Atualmente está sendo parseado como `NullableType(T[])`
 
+### 5. Nullable com Generics (BUG)
+```med
+val x2: Map<string?, int[]?>?
+```
+**Status:** BUG - Generics com nullable dentro
 
-var s:int = () => 2
-no futuro:
+| Código | Status |
+|--------|--------|
+| `Map<string?, int>` | ❌ Falha no parser |
+| `Map<string?, int[]>` | ❌ Falha no parser |
+| `Map<string, int?>` | ✅ OK |
+| `List<int>?` | ✅ OK |
 
-var s:Func<int> = () => 2
+**Problema:** O parser não suporta `?` como type argument dentro de generics (`<T?>`).
