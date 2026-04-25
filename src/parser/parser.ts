@@ -621,6 +621,9 @@ private parseAssignment(left: Expr): Expr | null {
       if (keyword === 'return') {
         return this.parseReturnStatement()
       }
+      if (keyword === 'protocol') {
+        return this.parseProtocolStatement()
+      }
     }
 
     const expr = this.parseExpression(Precedence.LOWEST)
@@ -1799,4 +1802,106 @@ kind: "TupleType",
     return baseType
   }
 
+  // ========================================
+  // Protocol Statement
+  // protocol Printable { func print(): void }
+  // ========================================
+  private parseProtocolStatement(): Stmt {
+    this.advance() // consume 'protocol'
+
+    const nameToken = this.advance()
+    if (nameToken.type !== TokenType.IDENTIFIER) {
+      this.error("Expected protocol name", nameToken)
+      return { kind: "BlockStmt", statements: [] }
+    }
+
+    if (this.peek().type !== TokenType.LBRACE) {
+      this.error("Expected '{' after protocol name", this.peek())
+      return { kind: "BlockStmt", statements: [] }
+    }
+    this.advance() // consume '{'
+
+    const methods: ProtocolMethod[] = []
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      if (this.check(TokenType.KEYWORD) && this.peek().value === 'func') {
+        const method = this.parseProtocolMethod()
+        if (method) {
+          methods.push(method)
+        }
+      } else {
+        this.error("Expected 'func' in protocol", this.peek())
+        this.advance()
+      }
+    }
+
+    if (this.check(TokenType.RBRACE)) {
+      this.advance() // consume '}'
+    } else {
+      this.error("Expected '}' to close protocol", this.peek())
+    }
+
+    return {
+      kind: "ProtocolStmt",
+      name: nameToken,
+      methods
+    }
+  }
+
+  private parseProtocolMethod(): ProtocolMethod | null {
+    if (!this.check(TokenType.KEYWORD) || this.peek().value !== 'func') {
+      this.error("Expected 'func' in protocol method", this.peek())
+      return null
+    }
+    this.advance() // consume 'func'
+
+    const nameToken = this.advance()
+    if (nameToken.type !== TokenType.IDENTIFIER) {
+      this.error("Expected method name", nameToken)
+      return null
+    }
+
+    const params: FunctionStmtParam[] = []
+    if (this.check(TokenType.LPAREN)) {
+      this.advance() // consume '('
+      while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
+        const paramName = this.advance()
+        if (paramName.type !== TokenType.IDENTIFIER) {
+          this.error("Expected parameter name", paramName)
+          break
+        }
+        if (!this.check(TokenType.COLON)) {
+          this.error("Expected ':' after parameter name", this.peek())
+          break
+        }
+        this.advance() // consume ':'
+        const paramType = this.parseAnnotationType()
+        if (!paramType) {
+          this.error("Expected parameter type", this.peek())
+          break
+        }
+        params.push({ name: paramName, type: paramType })
+        
+        if (this.check(TokenType.COMMA)) {
+          this.advance() // consume ','
+        } else if (!this.check(TokenType.RPAREN)) {
+          break
+        }
+      }
+      if (this.check(TokenType.RPAREN)) {
+        this.advance() // consume ')'
+      }
+    }
+
+    let returnType: TypeNode | undefined
+    if (this.check(TokenType.COLON)) {
+      this.advance()
+      returnType = this.parseAnnotationType()
+    }
+
+    return {
+      name: nameToken,
+      params,
+      returnType
+    }
+  }
 }

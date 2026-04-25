@@ -26,6 +26,7 @@ export const KEYWORDS = [
   'throw',
   'break',
   'continue',
+  'protocol',
 ]
 
 export const TYPES_NATIVE = [
