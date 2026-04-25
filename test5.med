@@ -1,0 +1,4 @@
+val t1: [string, int]?
+val t2: [string?, int]
+val t3: [string, int?]
+val t4: [string?, int?]

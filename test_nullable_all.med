@@ -1,0 +1,8 @@
+val a: int?
+val b: string?
+val c: User?
+val d: List<int>?
+val e: int[]?
+val f: int? | string
+val g: (int) => string?
+val h: [int, string]?

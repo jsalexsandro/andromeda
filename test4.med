@@ -1,0 +1,4 @@
+val u1: int | string?
+val u2: int? | string?
+val u3: (int | string)?
+val u4: int | null?

@@ -1062,6 +1062,9 @@ private parseAssignment(left: Expr): Expr | null {
     if (typeToken.type === TokenType.INT_TYPE) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "int" as const }
+      if (this.check(TokenType.QUESTION)) {
+        typeNode = this.parseNullableSuffix(typeNode)
+      }
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
@@ -1077,6 +1080,9 @@ private parseAssignment(left: Expr): Expr | null {
     if (typeToken.type === TokenType.FLOAT_TYPE) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "float" as const }
+      if (this.check(TokenType.QUESTION)) {
+        typeNode = this.parseNullableSuffix(typeNode)
+      }
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
@@ -1092,6 +1098,9 @@ private parseAssignment(left: Expr): Expr | null {
     if (typeToken.type === TokenType.STRING_TYPE) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "string" as const }
+      if (this.check(TokenType.QUESTION)) {
+        typeNode = this.parseNullableSuffix(typeNode)
+      }
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
@@ -1107,6 +1116,9 @@ private parseAssignment(left: Expr): Expr | null {
     if (typeToken.type === TokenType.BOOLEAN_TYPE) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "bool" as const }
+      if (this.check(TokenType.QUESTION)) {
+        typeNode = this.parseNullableSuffix(typeNode)
+      }
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
@@ -1122,6 +1134,9 @@ private parseAssignment(left: Expr): Expr | null {
     if (typeToken.type === TokenType.VOID_TYPE) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "void" as const }
+      if (this.check(TokenType.QUESTION)) {
+        typeNode = this.parseNullableSuffix(typeNode)
+      }
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
@@ -1137,6 +1152,9 @@ private parseAssignment(left: Expr): Expr | null {
     if (typeToken.type === TokenType.ANY_TYPE) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "any" as const }
+      if (this.check(TokenType.QUESTION)) {
+        typeNode = this.parseNullableSuffix(typeNode)
+      }
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
@@ -1152,6 +1170,9 @@ private parseAssignment(left: Expr): Expr | null {
     if (typeToken.type === TokenType.UNKNOWN_TYPE) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "unknown" as const }
+      if (this.check(TokenType.QUESTION)) {
+        typeNode = this.parseNullableSuffix(typeNode)
+      }
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
@@ -1170,6 +1191,9 @@ private parseAssignment(left: Expr): Expr | null {
     if (typeToken.type === TokenType.UNDEFINED_TYPE) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "undefined" as const }
+      if (this.check(TokenType.QUESTION)) {
+        typeNode = this.parseNullableSuffix(typeNode)
+      }
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
@@ -1185,6 +1209,9 @@ private parseAssignment(left: Expr): Expr | null {
     if (typeToken.type === TokenType.NULL) {
       this.advance()
       let typeNode = { kind: "PrimitiveType", name: "null" as const }
+      if (this.check(TokenType.QUESTION)) {
+        typeNode = this.parseNullableSuffix(typeNode)
+      }
       if (this.check(TokenType.LBRACKET)) {
         typeNode = this.parseArrayType(typeNode)
       }
@@ -1201,11 +1228,15 @@ private parseAssignment(left: Expr): Expr | null {
     // NamedTypeNode - custom types (User, Product, Order, etc.)
     if (typeToken.type === TokenType.IDENTIFIER) {
       let baseType = this.parseNamedTypeNode()
+      // Check for nullable: User?
+      if (this.check(TokenType.QUESTION)) {
+        baseType = this.parseNullableSuffix(baseType)
+      }
       // Check for array suffix: int[], string[][], etc.
       if (this.check(TokenType.LBRACKET)) {
         baseType = this.parseArrayType(baseType)
       }
-      // Check for nullable: User?
+      // Check for nullable after array: User[]?
       if (this.check(TokenType.QUESTION)) {
         baseType = this.parseNullableSuffix(baseType)
       }
@@ -1380,12 +1411,17 @@ private parseAssignment(left: Expr): Expr | null {
       return undefined
     }
 
+    // Nullable: int?, User?, List<T>?
+    if (this.check(TokenType.QUESTION)) {
+      baseType = this.parseNullableSuffix(baseType)
+    }
+
     // Array suffix: int[], User[][], etc.
     if (this.check(TokenType.LBRACKET)) {
       baseType = this.parseArrayType(baseType)
     }
 
-    // Nullable: int?, User?, List<T>?
+    // Nullable after array: int[]?, User[]?
     if (this.check(TokenType.QUESTION)) {
       baseType = this.parseNullableSuffix(baseType)
     }
@@ -1751,11 +1787,11 @@ kind: "TupleType",
   }
 
   private parseTypeSuffixes(baseType: TypeNode): TypeNode {
-    if (this.check(TokenType.LBRACKET)) {
-      baseType = this.parseArrayType(baseType)
-    }
     if (this.check(TokenType.QUESTION)) {
       baseType = this.parseNullableSuffix(baseType)
+    }
+    if (this.check(TokenType.LBRACKET)) {
+      baseType = this.parseArrayType(baseType)
     }
     if (this.check(TokenType.PIPE)) {
       return this.parseUnionType(baseType)

@@ -102,3 +102,92 @@ val grpArr3: ((int) => int)[]
 
 // Grouping with union
 val grpUnion: (int | string) | null
+
+//  
+
+val a: (int) => string
+val b: (int, string) => bool
+val c: () => void
+val d: (int | string) => bool
+val e: (int) => (string) => bool
+val f: (int | string)[]
+val g: (int | string) | null
+val h: ((int) => bool)[]
+
+// ========================================
+// Nullable Types (NEW!)
+// ========================================
+
+val n1: int?
+val n2: string?
+val n3: User?
+val n4: (int) => string?
+
+// ========================================
+// Array Types with Nullable
+// ========================================
+
+// Array of nullable element: int?[] means "array where each element can be null"
+val an1: int?[]
+val an2: string?[]
+val an3: bool?[]
+val an4: User?[]
+
+// Nullable array: int[]? means "the array itself can be null"
+val an5: int[]?
+val an6: string[]?
+val an7: bool[]?
+val an8: User[][]?
+
+// Combination: nullable inside array, then array itself nullable
+val an9: int?[]?
+val an10: string?[]?
+val an11: User?[]?
+
+// Multi-dimensional arrays with nullable
+val an12: int[][]
+val an13: int[][]?
+val an14: int?[][]
+val an15: int?[][]?
+val an16: string[][]?
+val an17: User[][]?
+
+// ========================================
+// Function Types with Nullable Arrays
+// ========================================
+
+val fa1: () => int?[]
+val fa2: () => int[]?
+val fa3: (int?) => string
+val fa4: (int[]?) => string
+val fa5: (int?[]) => string
+
+// ========================================
+// Generics with Nullable Arrays
+// ========================================
+
+val ga1: Array<int?>[]
+val ga2: Array<int[]>?[]
+val ga3: Array<int?[]>?[]
+val ga4: Map<string?, int>[]
+val ga5: Map<string, int?>[]
+
+// ========================================
+// Tuple Types with Nullable
+// ========================================
+
+val ta1: [int, string][]
+val ta2: [int?, string][]
+val ta3: [int, string?][]
+val ta4: [int?, string?][]
+
+// ========================================
+// Union Types with Nullable Arrays
+// ========================================
+
+val ua1: int | string?[]
+val ua2: int[] | string[]
+val ua3: User? | null
+val ua4: int? | null
+val ua5: [int, string?][]
+val ua6: (int | string?)[]

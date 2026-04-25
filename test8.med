@@ -1,0 +1,4 @@
+val x1: int?[]?
+val x2: Map<string?, int[]?>?
+val x3: [string?, (int) => bool?]?
+val x4: ((int?) => string[])?

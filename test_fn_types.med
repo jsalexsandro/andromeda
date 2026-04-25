@@ -1,6 +1,3 @@
-// ============================================
-// FUNCTION TYPES TEST
-// ============================================
 val a: (int) => string
 val b: (int, string) => bool
 val c: () => void

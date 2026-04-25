@@ -1,0 +1,5 @@
+val a1: int?[]
+val a2: int[]?
+val a3: User?[]
+val a4: string[][]?
+val a5: int?[][]

@@ -1,0 +1,3 @@
+val g1: (int)?
+val g2: (int | string)?
+val g3: (int?)[]

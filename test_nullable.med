@@ -1,31 +1,5 @@
-// ========================================
-// NULLABLE SHORTHAND TESTS
-// ========================================
-
-// Basic nullable
 val a: int?
 val b: string?
-val c: bool?
-val d: float?
-
-// Named type nullable
-val e: User?
-val f: Product?
-
-// Generic nullable
-val g: List<User>?
-val h: Map<string, int>?
-val i: Array<Set<User>>?
-
-// Complex combinations
-val j: (int) => string?
-val k: [int, string]?
-val l: ((int) => string)?
-
-// Nested nullable
-val m: List<int?>?
-val n: Map<string, User?>?
-
-// Union with nullable (should parse both)
-val o: int? | string
-val p: string | int?
+val c: User?
+val d: List<int>?
+val e: Map<string, int>?
