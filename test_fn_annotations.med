@@ -1,0 +1,104 @@
+// ========================================
+// Function Return Type Tests (from annotations.med)
+// ========================================
+
+// Primitive Types
+func f1(): int {}
+func f2(): float {}
+func f3(): string {}
+func f4(): bool {}
+func f5(): void {}
+func f6(): null {}
+func f7(): any {}
+func f8(): unknown {}
+
+// Named Types (custom)
+func fUser(): User {}
+func fProduct(): Product {}
+
+// Generics - Single Type Parameter
+func fItems(): Array<int> {}
+func fNames(): List<string> {}
+
+// Generics - Multiple Type Parameters
+func fPairs(): Map<string, int> {}
+
+// Generics - Nested
+func fMatrix(): Array<Array<float>> {}
+
+// Function Types
+func fn1(): (int) => string {}
+func fn2(): (int, string) => bool {}
+func fn3(): () => void {}
+func fn4(): (int[]) => string[] {}
+
+// Function returning function
+func fnNested(): (int) => (string) => bool {}
+
+// Array of functions
+func fnArr1(): ((int) => int)[] {}
+
+// Grouping Types
+func grp1(): (int) {}
+func grp2(): (int | string) {}
+
+// Grouping with array
+func grpArr1(): (int)[] {}
+
+// Nullable Types
+func n1(): int? {}
+func n2(): string? {}
+func n3(): User? {}
+func n4(): (int) => string? {}
+
+// Array Types with Nullable
+func an1(): int?[] {}
+func an2(): int[]? {}
+func an3(): int?[]? {}
+
+// Multi-dimensional arrays with nullable
+func an12(): int[][] {}
+func an13(): int[][]? {}
+func an14(): int?[][] {}
+func an15(): int?[][]? {}
+
+// Function Types with Nullable Arrays
+func fa1(): () => int?[] {}
+func fa2(): () => int[]? {}
+func fa3(): (int?) => string {}
+func fa4(): (int[]?) => string {}
+
+// Generics with Nullable Arrays
+func ga1(): Array<int?>[] {}
+func ga2(): Array<int[]>?[] {}
+
+// Tuple Types
+func ta1(): [int, string] {}
+
+// Union Types
+func ua1(): int | string {}
+func ua2(): int[] | string[] {}
+
+// Nullable with Generics
+func ng1(): Map<string?, int> {}
+func ng2(): Map<string?, int[]> {}
+func ng3(): Map<string, int?> {}
+func ng4(): List<int?>? {}
+func ng5(): Array<int?> {}
+func ng6(): List<User?> {}
+func ng7(): Promise<User?> {}
+
+// Complex nullable generics
+func ng8(): Map<string?, int?> {}
+func ng9(): Map<string?, int[]?> {}
+func ng10(): Map<string?, () => int?> {}
+func ng11(): (List<int?>) => Map<string, int?> {}
+
+// Nested nullable generics
+func ng12(): Map<string, List<int?>> {}
+func ng13(): List<Array<int?>> {}
+func ng14(): Array<List<int?>?> {}
+func ng15(): Map<string, Map<int?, string>> {}
+
+// Nullable inner generic type
+func ng16(): [Map<string?, int>, List<User?>] {}

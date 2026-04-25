@@ -177,7 +177,9 @@ export interface ContinueStmt {
 
 export interface FunctionStmtParam {
   name: Token
+  type?: TypeNode
   isRest?: boolean
+  isOptional?: boolean
 }
 
 export interface FunctionStmt {
@@ -186,6 +188,7 @@ export interface FunctionStmt {
   params: FunctionStmtParam[]
   body: BlockStmt
   async?: boolean
+  returnType?: TypeNode
 }
 
 export interface ReturnStmt {

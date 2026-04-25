@@ -1,0 +1,22 @@
+func noReturn() {}
+func voidReturn(): void {}
+func intReturn(): int {}
+func stringReturn(): string {}
+func boolReturn(): bool {}
+func floatReturn(): float {}
+func nullableReturn(): int? {}
+func arrayReturn(): int[] {}
+func array2DReturn(): int[][] {}
+func genericReturn(): List<int> {}
+func multiGenericReturn(): Map<string, int> {}
+func nestedGeneric(): Array<List<User>> {}
+func nullableGeneric(): List<int>? {}
+func nullableArray(): int[]? {}
+func unionReturn(): int | string {}
+func nullableUnion(): int | string? {}
+func tupleReturn(): [int, string] {}
+func functionReturn(): (int) => string {}
+func complex(x): Map<string, int[]> {}
+func allTypes(x, y, z): [int, string[], List<bool>] {}
+func withRest(x, ...xs): int? {}
+func everything(a, b, ...c): Map<string, Array<int>>? {}
