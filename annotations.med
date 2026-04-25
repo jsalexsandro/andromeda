@@ -191,3 +191,31 @@ val ua3: User? | null
 val ua4: int? | null
 val ua5: [int, string?][]
 val ua6: (int | string?)[]
+
+// ========================================
+// Nullable with Generics (NEW!)
+// ========================================
+
+// Nullable type argument inside generic
+val ng1: Map<string?, int>
+val ng2: Map<string?, int[]>
+val ng3: Map<string, int?>
+val ng4: List<int?>?
+val ng5: Array<int?>
+val ng6: List<User?>
+val ng7: Promise<User?>
+
+// Complex nullable generics
+val ng8: Map<string?, int?>
+val ng9: Map<string?, int[]?>
+val ng10: Map<string?, () => int?>
+val ng11: (List<int?>) => Map<string, int?>
+
+// Nested nullable generics
+val ng12: Map<string, List<int?>>
+val ng13: List<Array<int?>>
+val ng14: Array<List<int?>?>
+val ng15: Map<string, Map<int?, string>>
+
+// Nullable inner generic type
+val ng16: [Map<string?, int>, List<User?>]
