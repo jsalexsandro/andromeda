@@ -261,6 +261,13 @@ export class TypeChecker {
     return false;
   }
 
+  private isBoolType(type: TypeNode): boolean {
+    if (type.kind === "PrimitiveType" && type.name === "bool") {
+      return true;
+    }
+    return false;
+  }
+
   private typeToString(type: TypeNode): string {
     switch (type.kind) {
       case "PrimitiveType":
@@ -421,7 +428,10 @@ export class TypeChecker {
   }
 
   private checkIfStmt(stmt: Extract<Stmt, { kind: "IfStmt" }>): void {
-    this.checkExpression(stmt.condition);
+    const condType = this.checkExpression(stmt.condition);
+    if (!this.isBoolType(condType)) {
+      this.errors.push(Errors.invalidCondition(stmt.condition.kind === "Identifier" ? stmt.condition.name : { line: 0, column: 0, type: 0, value: "if" } as Token));
+    }
     this.checkStatement(stmt.thenBranch);
 
     if (stmt.elseBranch) {
@@ -430,6 +440,10 @@ export class TypeChecker {
   }
 
   private checkWhileStmt(stmt: Extract<Stmt, { kind: "WhileStmt" }>): void {
+    const condType = this.checkExpression(stmt.condition);
+    if (!this.isBoolType(condType)) {
+      this.errors.push(Errors.invalidCondition(stmt.condition.kind === "Identifier" ? stmt.condition.name : { line: 0, column: 0, type: 0, value: "while" } as Token));
+    }
     this.loopDepth++;
     this.checkStatement(stmt.body);
     this.loopDepth--;

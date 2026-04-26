@@ -23,7 +23,8 @@ export type ErrorCode =
   | "UNDEFINED_TYPE"
   | "INVALID_UNARY"
   | "REST_NOT_LAST"
-  | "INVALID_RETURN_TYPE";
+  | "INVALID_RETURN_TYPE"
+  | "INVALID_CONDITION";
 
 export class SemanticError {
   constructor(
@@ -112,4 +113,7 @@ export const Errors = {
 
   invalidReturnType: (expected: string, got: string, token: Token) =>
     createError("INVALID_RETURN_TYPE", `return type mismatch: expected '${expected}', got '${got}'`, token, "typecheck"),
+
+  invalidCondition: (token: Token) =>
+    createError("INVALID_CONDITION", "condition must be boolean", token, "typecheck"),
 };
