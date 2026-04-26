@@ -1,0 +1,118 @@
+// ============================================================
+// Suite 16 - Real World Scenarios & Edge Cases
+// ============================================================
+
+// ============================================================
+// VALID CASES - All these SHOULD compile
+// ============================================================
+
+// Callback patterns
+val onClick: ((int) => void) = (id) => id
+val onChange: ((string, int) => void)[] = [(name, value) => name]
+val onEvent: (((string) => void) | ((int) => void))[] = [(s) => s, (n) => n]
+
+// Result/Either pattern simulation
+val resultOk: (int | ((string) => int)) = 42
+val resultErr: (int | ((string) => int)) = (msg) => 0
+
+// Option pattern
+val optionSome: (int | null)? = 42
+val optionNone: (int | null)? = null
+val optionChain: ((int | null)?)? = optionSome
+
+// Config patterns
+val config1: (int | string | bool)[] = [8080, "localhost", true]
+val configMap: ((string) => (int | string))[] = [(key) => key]
+
+// Validation patterns
+val validator1: ((int) => bool) | ((string) => bool) = (x) => x > 0
+val validatorList: (((int) => bool) | ((string) => bool))[] = [(x) => x > 0]
+val validatorGroup: ((((int) => bool) | ((string) => bool))[])? = null
+
+// Factory pattern
+val factory1: ((string) => ((int) => string))[] = [(type) => (id) => type]
+
+// Event system
+val events1: (string | ((int, string) => void))[] = ["click", (data, msg) => data]
+val eventMap: ((string) => (string | ((int) => void)))? = null
+val eventBus: (((string) => (string | ((int) => void)))?)? = null
+
+// Pipeline/Chain patterns
+val pipe1: ((int) => int)[] = [(x) => x, (x) => x + 1, (x) => x * 2]
+val pipe2: (((int) => int) | ((int) => (int) => int))[] = [(x) => x, (x) => (y) => x + y]
+val pipeChain: ((((int) => int) | ((int) => (int) => int))[])? = null
+
+// Parser/Matcher patterns
+val parse1: ((string) => (int | null)) = (s) => 42
+val parse2: ((string) => (int | ((string) => int)))? = null
+
+// Async patterns (simulated)
+val async1: ((int) => ((string) => void)) = (id) => (result) => result
+val async2: (((int) => ((string) => void)) | ((int) => ((int) => void)))? = null
+val asyncChain: (((((int) => ((string) => void)) | ((int) => ((int) => void)))?)[])? = null
+
+// Middleware pattern
+val middleware1: ((int) => (int | string)) = (id) => id
+val middleware2: (((int) => (int | string)) | ((string) => (string | int)))[] = [(x) => x]
+val middlewareChain: (((((int) => (int | string)) | ((string) => (string | int)))[])?)? = null
+
+// Combined patterns
+val combined1: (((int) => (int | string)) | ((string) => (string | int)) | ((int) => ((int) => void)))[] = [(x) => x]
+val combined2: ((((int) => (int | string)) | ((string) => (string | int)))[] | (((int) => (int | string)) | ((string) => (string | int)))?)? = [(x) => x]
+
+// Deep nesting with all patterns
+val deep1: (((((int | null)?)?)?)?) = null
+val deep2: (((((int | null)?)?)?)?) = 42
+val deep3: (((((int | null)?)?)?)?) = deep1
+
+// Union with function returning complex type
+val complexReturn: (int | ((int) => (int | null)?)) = (x) => x
+
+// Array of complex unions
+val arrComplex: ((int | null)? | (int) => (int | null)?)[] = [null, (x) => x]
+
+// ============================================================
+// ERROR CASES - All these SHOULD fail
+// ============================================================
+
+// Callback type error
+val errCallback1: ((int) => void) = "not a function"
+
+// Result type error
+val errResult1: (int | ((string) => int)) = true
+
+// Option type error
+val errOption1: (int | null)? = "string"
+
+// Config type error
+val errConfig1: (int | string | bool)[] = [1, 2, 3, 4, 5]
+
+// Validator type error
+val errValidator1: ((int) => bool) | ((string) => bool) = (x) => x + 1
+
+// Factory type error
+val errFactory1: ((string) => ((int) => string))[] = [(type) => (id) => id + 1]
+
+// Event type error
+val errEvent1: (string | ((int, string) => void))[] = [1, 2, 3]
+
+// Pipe type error
+val errPipe1: ((int) => int)[] = [(x) => x, (x) => "string"]
+
+// Parse type error
+val errParse1: ((string) => (int | null)) = (s) => s + "suffix"
+
+// Async type error
+val errAsync1: ((int) => ((string) => void)) = (id) => (result) => result + 1
+
+// Middleware type error
+val errMiddleware1: ((int) => (int | string)) = (id) => id > 0
+
+// Combined type error
+val errCombined1: (((int) => (int | string)) | ((string) => (string | int)))[] = [(x) => x + "a"]
+
+// Deep type error
+val errDeep1: (((((int | null)?)?)?)?) = "string"
+
+// Complex return error
+val errComplexReturn: (int | ((int) => (int | null)?)) = (x) => x > 0
