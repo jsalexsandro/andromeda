@@ -1,0 +1,10 @@
+// ========================================
+// Teste: Binários - Aritmética
+// ========================================
+var add = 1 + 2
+var sub = 5 - 3
+var mul = 4 * 5
+var div = 10 / 2
+var mod = 10 % 3
+var mixed = 1 + 2.5
+var concat = "hello" + "world"

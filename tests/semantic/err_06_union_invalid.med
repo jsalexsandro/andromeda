@@ -1,0 +1,6 @@
+// ========================================
+// Teste: UnionTypeNode - erros
+// ========================================
+
+// Erro: union com tipo inválido
+var badUnion: int | invalidType

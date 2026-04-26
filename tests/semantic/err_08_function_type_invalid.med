@@ -1,0 +1,6 @@
+// ========================================
+// Teste: FunctionTypeNode - erros
+// ========================================
+
+// Erro: parâmetro com tipo inválido
+var badFn: (invalidType) => int

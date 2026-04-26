@@ -1,0 +1,32 @@
+// ============================================================
+// SEÇÃO 9 — COMBINAÇÕES COMPLEXAS
+// ============================================================
+
+// [OK] expressão complexa de tipos compatíveis
+val comp1 = (1 + 2) * 3 - (4 / 2) + (10 % 3)
+
+// [OK] lógica combinada com comparações
+val comp2 = (1 + 1 == 2) && (3 * 3 > 8) || !(5 == 6)
+
+// [OK] string ops combinadas
+val comp3 = "a" + "b" + "c"
+val comp4 = ("prefix" + "_" + "suffix") == "prefix_suffix"
+
+// [OK] expressão muito aninhada
+val stress1 = ((1 + 2) * (3 - 1)) / ((4 + 4) - (2 * 3))
+val stress2 = !((1 == 1) && (2 != 3)) || ((10 > 5) && (3 <= 3))
+val stress3 = (1 < 2) && (2 < 3) && (3 < 4) && (4 < 5)
+
+// [OK] operações com resultado usado em comparação
+val edgeComp1 = (2 * 3) == (1 + 5)
+val edgeComp2 = (10 / 2) != (3 + 3)
+
+// [OK] negativo usado em comparação
+val edgeNeg1 = -5 < 0
+val edgeNeg2 = -3.14 < 3.14
+val edgeNeg3 = -1 == -1
+
+// [OK] dupla negação lógica
+val edgeBool1 = !!true
+val edgeBool2 = !!!false
+val edgeBool3 = !!(1 == 1)

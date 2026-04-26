@@ -1,0 +1,6 @@
+// ========================================
+// Teste: GenericTypeNode - erros
+// ========================================
+
+// Erro: Generic com parâmetros demais
+var bad: Map<string, int, bool>

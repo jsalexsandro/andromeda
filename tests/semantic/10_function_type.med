@@ -1,0 +1,15 @@
+// ========================================
+// Teste: FunctionTypeNode
+// ========================================
+
+// ----------------------------------------
+// Function type válido
+// ----------------------------------------
+var fn1: (int) => int
+var fn2: (int, string) => bool
+var fnVoid: () => void
+var fnArray: (int) => int[]
+
+// ----------------------------------------
+// Erro: parâmetro com tipo inválido
+// var badFn: (invalidType) => int

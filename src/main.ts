@@ -1,6 +1,7 @@
 import * as fs from 'fs'
 import { Lexer } from './lexer/lexer'
 import { Parser } from './parser/parser'
+import { analyze } from './semantic/TypeChecker'
 
 function showHelp() {
   console.log(`Andromeda Language CLI v1.0.0`)
@@ -9,7 +10,9 @@ function showHelp() {
   console.log('Commands:')
   console.log('  run <file>          Run an andromeda file (syntax + semantic)')
   console.log('    --gen, -g         Also generate JavaScript output')
+  console.log('  compile <file>      Compile (lexer + parser + semantic)')
   console.log('  tokens <file>       Print the token stream of a file')
+  console.log('  ast <file>          Print AST of a file')
   console.log('  help                Show this help message')
   console.log('  version             Show the version')
 }
@@ -36,11 +39,12 @@ export function main() {
 
   let filename = args[1]
   let isRun = command === 'run'
+  let isCompile = command === 'compile'
   let isTokens = command === 'tokens'
   let isAst = command === 'ast' || command === 'parse'
   let genJs = false
 
-  if (isRun) {
+  if (isRun || isCompile) {
     const extraArgs = args.slice(2)
     genJs = extraArgs.includes('--gen') || extraArgs.includes('-g')
     if (extraArgs.length > 0 && !genJs) {
@@ -50,7 +54,7 @@ export function main() {
     }
   }
 
-  if (!isRun && !isTokens && !isAst) {
+  if (!isRun && !isCompile && !isTokens && !isAst) {
     if (fs.existsSync(command)) {
       filename = command
       isTokens = true
@@ -86,10 +90,38 @@ export function main() {
     const ast = parser.parse()
     console.timeEnd("parser")
 
-if (parser.errors.hasErrors()) {
+    if (parser.errors.hasErrors()) {
       parser.errors.renderAll()
       process.exit(1)
     }
+
+  } else if (isCompile) {
+    console.log(`[Andromeda] Compiling ${filename}...`)
+
+    console.time("parser")
+    const parser = new Parser(tokens, input)
+    const ast = parser.parse()
+    console.timeEnd("parser")
+
+    if (parser.errors.hasErrors()) {
+      parser.errors.renderAll()
+      process.exit(1)
+    }
+
+    console.time("semantic")
+    const { errors, symbolCount } = analyze(ast)
+    console.timeEnd("semantic")
+
+    if (errors.length > 0) {
+      console.log(`\n[Semantic Errors] (${errors.length}):\n`)
+      for (const error of errors) {
+        console.log(`  ${error.render()}`)
+      }
+      process.exit(1)
+    }
+
+    console.log(`[Compilation successful!]`)
+    console.log(`  Symbols registered: ${symbolCount}`)
 
   } else if (isAst) {
     console.log(`[Andromeda] Parsing ${filename}...`)

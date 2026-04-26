@@ -1,0 +1,2 @@
+// Teste de mensagens de erro
+var x = naoDeclarado + 1

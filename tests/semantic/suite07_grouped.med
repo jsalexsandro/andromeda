@@ -1,0 +1,19 @@
+// ============================================================
+// SEÇÃO 7 — EXPRESSÕES AGRUPADAS
+// ============================================================
+
+// [OK] grupo básico
+val grp1 = (42)
+val grp2 = (3.14)
+val grp3 = ("texto")
+val grp4 = (true)
+
+// [OK] grupo com expressões
+val grpExpr1 = (1 + 2) * 3
+val grpExpr2 = -(10 - 3)
+val grpExpr3 = !(true && false)
+
+// [OK] grupos aninhados
+val grpNested1 = ((1 + 2))
+val grpNested2 = ((true || false) && (!false))
+val grpNested3 = (((10 * 2) - 5) / 3)

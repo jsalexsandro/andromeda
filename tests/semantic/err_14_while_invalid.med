@@ -1,0 +1,5 @@
+// Teste: WhileStatement - erro
+var naoBool = 10
+while (naoBool) {
+  val x = 1
+}

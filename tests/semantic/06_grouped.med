@@ -1,0 +1,6 @@
+// ========================================
+// Teste: GroupedExpression
+// ========================================
+var group = (1 + 2)
+var groupFloat = (1.0 + 2.5)
+var precedence = (1 + 2) * 3

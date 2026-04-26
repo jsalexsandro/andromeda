@@ -1,0 +1,6 @@
+// ========================================
+// Teste: ArrayTypeNode - erros
+// ========================================
+
+// Erro: array de tipo inválido
+var badArr: invalidType[]

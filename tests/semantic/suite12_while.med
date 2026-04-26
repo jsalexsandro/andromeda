@@ -1,0 +1,34 @@
+// ============================================================
+// Teste: WhileStatement
+// ============================================================
+
+// [OK] WhileStatement básico
+var i = 0
+while (i < 5) {
+  i = i + 1
+}
+
+// [OK] While com break
+var count = 0
+while (count < 10) {
+  count = count + 1
+  if (count == 5) {
+    break
+  }
+}
+
+// [OK] While com continue
+var j = 0
+while (j < 5) {
+  j = j + 1
+  if (j == 2) {
+    continue
+  }
+  val x = j
+}
+
+// [ERRO] condição não é bool
+var naoBool = 10
+while (naoBool) {
+  val x = 1
+}

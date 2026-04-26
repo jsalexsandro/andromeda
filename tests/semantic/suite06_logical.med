@@ -1,0 +1,22 @@
+// ============================================================
+// SEÇÃO 6 — EXPRESSÕES BINÁRIAS: LÓGICA
+// ============================================================
+
+// [OK] lógica entre bools
+val log1 = true && false
+val log2 = true || false
+val log3 = !true && !false
+val log4 = (true || false) && (false || true)
+
+// [OK] lógica com variáveis bool
+val ativo = true
+val logV1 = ativo && true
+val logV2 = ativo || false
+
+// [OK] cadeia lógica longa
+val logCadeia = true && true && false && true
+
+// [OK] combinação de comparação e lógica
+val combina1 = (1 < 2) && (3 > 0)
+val combina2 = (10 == 10) || (5 != 5)
+val combina3 = !(1 == 2) && !(3 > 10)

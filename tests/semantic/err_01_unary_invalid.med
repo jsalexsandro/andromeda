@@ -1,0 +1,7 @@
+// ========================================
+// Teste: Erros em Unários
+// ========================================
+// Erro: - com string
+var badNeg = -"text"
+// Erro: ! com int
+var badNot = !1

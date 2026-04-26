@@ -1,0 +1,8 @@
+// ========================================
+// Teste: Unários (-, +, !)
+// ========================================
+var negInt = -10
+var posInt = +20
+var negFloat = -1.5
+var notBool = !false
+var notTrue = !true

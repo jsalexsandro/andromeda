@@ -1,0 +1,10 @@
+// ========================================
+// Teste: Assignment - mais erros
+// ========================================
+
+// Erro: atribuir a variável não declarada
+x = 10
+
+// Erro: tipo incompatível
+var num: int = 5
+num = "text"

@@ -1,0 +1,17 @@
+// ============================================================
+// SEÇÃO 2 — IDENTIFICADORES
+// ============================================================
+
+// [OK] usar variável declarada antes
+val base = 100
+val dobro = base + base
+
+// [OK] encadeamento de declarações usando anterior
+val base2 = 10
+val duplo = base2 * 2
+val triplo = duplo + base2
+
+// [OK] encadeamento simples
+val a = 1
+val b = 2
+val c = a + b

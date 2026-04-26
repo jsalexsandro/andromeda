@@ -1,0 +1,5 @@
+// [ERRO] IfStatement - condição não é bool
+val naoBool = 10
+if (naoBool) {
+  val x = 1
+}

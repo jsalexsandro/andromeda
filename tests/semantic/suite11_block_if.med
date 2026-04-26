@@ -1,0 +1,44 @@
+// ============================================================
+// Teste: BlockStatement + IfStatement
+// ============================================================
+
+// [OK] BlockStatement - novo escopo
+val x = 10
+{
+  val y = 20
+  val z = x + y
+}
+
+// [OK] IfStatement básico
+val a = 10
+if (a > 5) {
+  val resultado = "maior"
+}
+
+// [OK] If-else
+if (a < 5) {
+  val r1 = "menor"
+} else {
+  val r2 = "maior ou igual"
+}
+
+// [OK] If-else-if
+val b = 80
+if (b > 90) {
+  val status = "excelente"
+} else if (b > 70) {
+  val status2 = "bom"
+} else {
+  val status3 = "precisa melhorar"
+}
+
+// [OK] Condição é bool
+val ativo = true
+if (ativo) {
+  val x = 1
+}
+
+// [OK] Escopo isolado em cada branch
+if (true) {
+  val branchVar = 100
+}

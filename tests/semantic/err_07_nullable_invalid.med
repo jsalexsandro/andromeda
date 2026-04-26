@@ -1,0 +1,6 @@
+// ========================================
+// Teste: NullableTypeNode - erros
+// ========================================
+
+// Erro: nullable de tipo inválido
+var badNullable: invalidType?

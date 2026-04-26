@@ -1,0 +1,7 @@
+// ========================================
+// Teste: Lógicos (&&, ||)
+// ========================================
+var and1 = true && true
+var and2 = false && true
+var or1 = true || false
+var or2 = false || false

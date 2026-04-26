@@ -1,0 +1,28 @@
+// ============================================================
+// SEÇÃO 10 — EDGE CASES + ASSIGNMENT
+// ============================================================
+
+// [OK] var pode reassign com mesmo tipo
+var mutavel = 10
+mutavel = 20
+mutavel = mutavel + 1
+
+// [OK] assignment básico
+var x = 10
+x = 20
+
+// [OK] compound assignments
+var y = 5
+y += 3
+y -= 2
+y *= 2
+y /= 1
+y %= 2
+
+// [OK] increment/decrement
+var i = 10
+i++
+i--
+
+var f = 5.0
+f++

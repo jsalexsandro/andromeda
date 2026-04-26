@@ -1,0 +1,5 @@
+// ========================================
+// Teste: TupleTypeNode - erros
+// ========================================
+
+var badTuple: [int, invalidType]

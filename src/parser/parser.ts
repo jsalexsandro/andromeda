@@ -1793,7 +1793,19 @@ export class Parser {
       }
     }
 
-    const typesDebug = types
+    // Flatten: extract UnionType from inside GroupingType or standalone UnionType
+    const flattened: TypeNode[] = [];
+    for (const t of types) {
+      if (t.kind === "GroupingType" && t.type.kind === "UnionType") {
+        flattened.push(...t.type.types);
+      } else if (t.kind === "UnionType") {
+        flattened.push(...t.types);
+      } else {
+        flattened.push(t);
+      }
+    }
+
+    const typesDebug = flattened
       .map((t) => {
         if (t.kind === "PrimitiveType") return t.name;
         if (t.kind === "NamedType") return t.name.value;
@@ -1815,7 +1827,7 @@ export class Parser {
     console.log(`DEBUG - [${typesDebug}]`);
     return {
       kind: "UnionType",
-      types,
+      types: flattened,
     };
   }
 

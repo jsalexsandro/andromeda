@@ -1,0 +1,19 @@
+// ============================================================
+// SEÇÃO 3 — EXPRESSÕES UNÁRIAS
+// ============================================================
+
+// [OK] negação numérica
+val neg1 = -42
+val neg2 = -3.14
+val pos1 = +10
+val pos2 = +0.5
+
+// [OK] negação booleana
+val inv1 = !true
+val inv2 = !false
+val inv3 = !!true
+
+// [OK] unário em expressão composta
+val composta1 = -(10 + 5)
+val composta2 = !(true && false)
+val composta3 = -(-10)

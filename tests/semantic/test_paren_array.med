@@ -1,0 +1,2 @@
+val parenArray: (int | string)[] = [1, "two", 3]
+val parenMulti: (int | string | bool)[] = [1, "two", true]

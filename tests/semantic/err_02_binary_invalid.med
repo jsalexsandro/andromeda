@@ -1,0 +1,7 @@
+// ========================================
+// Teste: Erros em Binários
+// ========================================
+// Erro: int + string
+var badAdd = 1 + "text"
+// Erro: int * bool
+var badMul = 2 * true

@@ -1,0 +1,11 @@
+// ========================================
+// Teste: Assignment - erros
+// ========================================
+
+// Erro: atribuir a const
+const PI = 3.14
+PI = 3
+
+// Erro: atribuir a val
+// val z = 10
+// z = 20

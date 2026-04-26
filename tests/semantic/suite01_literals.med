@@ -1,0 +1,29 @@
+// ============================================================
+// SEMANTIC TESTS — Fase 1 (Arquitetura Base + Expressões)
+// ============================================================
+
+
+// ============================================================
+// SEÇÃO 1 — LITERAIS
+// ============================================================
+
+// [OK] literais básicos inferindo tipo corretamente
+val inteiro: int = 42
+val flutuante: float = 3.14
+val texto: string = "hello"
+val booleano: bool = true
+val nulo: null = null
+
+// [OK] literal sem anotação (type inference)
+val x = 10
+val y = "mundo"
+val z = false
+
+// [ERRO] tipo incompatível — anotação vs inicializador
+// val errado1: int = "não sou int"
+// val errado2: bool = 42
+
+// [OK] literal types exatos
+// val status: "active" = "active"
+// val code: 200 = 200
+// val flag: true = true

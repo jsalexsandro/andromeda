@@ -1,0 +1,8 @@
+// ========================================
+// Teste: Declaração de Variáveis
+// ========================================
+var x: int = 10
+var y: float = 3.14
+var inferred = 42
+var inferredFloat = 3.14
+val immutable: int = 10

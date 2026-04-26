@@ -1,0 +1,9 @@
+// ========================================
+// Teste: Literais - Type Inference
+// ========================================
+var intLit = 42
+var floatLit = 3.14
+var stringLit = "hello"
+var boolLit = true
+var falseLit = false
+var nullLit = null

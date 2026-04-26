@@ -1,0 +1,16 @@
+// ========================================
+// Teste: UnionTypeNode
+// ========================================
+
+// ----------------------------------------
+// Union válido
+// ----------------------------------------
+var union1: int | string
+var union2: bool | int | float
+
+// ----------------------------------------
+// NullableTypeNode
+// ----------------------------------------
+var nullable: int?
+var nullableString: string?
+var nullableArr: int?[]

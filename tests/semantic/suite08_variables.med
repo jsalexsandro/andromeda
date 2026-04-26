@@ -1,0 +1,23 @@
+// ============================================================
+// SEÇÃO 8 — DECLARAÇÃO DE VARIÁVEL + ESCOPO
+// ============================================================
+
+// [OK] var com inicializador
+var contador = 0
+var nome = "inicial"
+
+// [OK] const com inicializador
+const PI = 3.14159
+const APP_NAME = "MinhaLinguagem"
+
+// [OK] encadeamento de declarações usando anterior
+val base2 = 10
+val duplo = base2 * 2
+val triplo = duplo + base2
+
+// [OK] escopos encadeados com leitura do externo
+val externo = 100
+{
+  val interno = externo + 1
+  val mais = interno * 2
+}

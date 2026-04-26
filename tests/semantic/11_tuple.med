@@ -1,0 +1,6 @@
+// ========================================
+// Teste: TupleTypeNode
+// ========================================
+
+var tuple1: [int, string]
+var tuple2: [bool, int, float]

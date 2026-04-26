@@ -1,0 +1,28 @@
+// ============================================================
+// SEÇÃO 4 — EXPRESSÕES BINÁRIAS: ARITMÉTICA
+// ============================================================
+
+// [OK] aritmética entre ints
+val soma1 = 1 + 2
+val sub1 = 10 - 3
+val mul1 = 4 * 5
+val div1 = 20 / 4
+val mod1 = 10 % 3
+
+// [OK] aritmética entre floats
+val soma2 = 1.5 + 2.5
+val mul2 = 2.0 * 3.0
+val div2 = 7.0 / 2.0
+
+// [OK] aritmética int + float
+val misto1 = 1 + 2.0
+val misto2 = 3.14 * 2
+
+// [OK] concatenação de strings
+val concat1 = "hello" + " " + "world"
+val concat2 = "valor: " + "42"
+
+// [OK] expressões aritméticas aninhadas
+val aninhada1 = (1 + 2) * (3 - 4)
+val aninhada2 = 10 / (2 + 3)
+val aninhada3 = ((4 * 5) - 2) % 7

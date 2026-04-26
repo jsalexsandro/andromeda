@@ -1,0 +1,8 @@
+// ========================================
+// Teste: Erros em Variáveis
+// ========================================
+// Erro: tipo incompatível
+var badType: int = "text"
+// Erro: duplicado
+var dup = 1
+var dup = 2

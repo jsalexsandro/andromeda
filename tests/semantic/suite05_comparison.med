@@ -1,0 +1,29 @@
+// ============================================================
+// SEÇÃO 5 — EXPRESSÕES BINÁRIAS: COMPARAÇÃO
+// ============================================================
+
+// [OK] comparação entre ints
+val cmp1 = 1 == 1
+val cmp2 = 2 != 3
+val cmp3 = 4 < 5
+val cmp4 = 6 > 3
+val cmp5 = 7 <= 7
+val cmp6 = 8 >= 9
+
+// [OK] comparação entre floats
+val cmpF1 = 1.0 < 2.0
+val cmpF2 = 3.14 >= 3.14
+
+// [OK] comparação entre strings
+val cmpS1 = "abc" < "abd"
+val cmpS2 = "z" > "a"
+val cmpS3 = "hello" == "hello"
+val cmpS4 = "hello" != "world"
+
+// [OK] comparação de bools
+val cmpB1 = true == true
+val cmpB2 = false != true
+
+// [OK] comparação com null
+val nullCmp1 = null == null
+val nullCmp2 = null != null

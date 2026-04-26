@@ -1,0 +1,11 @@
+val parenArray: (int | string)[] = [1, "two", 3]
+val parenMulti: (int | string | bool)[] = [1, "two", true]
+
+// Should error: float not in (int | string)
+val wrong1: (int | string)[] = [1.5, "test"]
+
+// Should error: bool not in (int | string)
+val wrong2: (int | string)[] = [true]
+
+// Should error: float not in (int | string | bool)
+val wrong3: (int | string | bool)[] = [3.14]

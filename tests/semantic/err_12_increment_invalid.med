@@ -1,0 +1,3 @@
+// Increment/Decrement - errors
+var s = "text"
+s++

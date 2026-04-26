@@ -1,0 +1,21 @@
+// ============================================================
+// Teste: ExpressionStatement
+// ============================================================
+
+// [OK] ExpressionStatement - expressão pura
+1 + 2
+
+// [OK] ExpressionStatement - chamada de função
+"hello"
+
+// [OK] ExpressionStatement - assignment em expressão
+var x = 10
+x = 20
+
+// [OK] ExpressionStatement - operador
+var y = 5
+y += 1
+
+// [OK] ExpressionStatement - incremento
+var i = 0
+i++
