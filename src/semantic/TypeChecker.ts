@@ -736,17 +736,51 @@ export class TypeChecker {
     return { kind: "PrimitiveType", name: "bool" };
   }
 
-  private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
+private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const calleeType = this.checkExpression(expr.callee);
 
-if (calleeType.kind !== "FunctionType") {
+    if (calleeType.kind !== "FunctionType") {
       this.errors.push(Errors.invalidCall({ line: 0, column: 0, type: 0, value: "" } as Token));
       return { kind: "PrimitiveType", name: "any" };
     }
 
     const paramTypes = calleeType.params;
-    if (paramTypes.length !== expr.args.length) {
-      this.errors.push(Errors.argumentCountMismatch(paramTypes.length, expr.args.length, { line: 0, column: 0, type: 0, value: "" } as Token));
+    const args = expr.args;
+
+    if (paramTypes.length !== args.length) {
+      this.errors.push(Errors.argumentCountMismatch(paramTypes.length, args.length, { line: 0, column: 0, type: 0, value: "" } as Token));
+    }
+
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i];
+      const expectedType = i < paramTypes.length ? paramTypes[i] : null;
+
+      if (!expectedType) continue;
+
+      if (arg.kind === "Spread") {
+        const spreadType = this.checkExpression((arg as Extract<Expr, { kind: "Spread" }>).argument);
+        
+        if (spreadType.kind !== "ArrayType") {
+          this.errors.push(Errors.invalidSpread({ line: 0, column: 0, type: 0, value: "" } as Token));
+          continue;
+        }
+
+        const elementType = spreadType.elementType;
+        if (!this.areTypesCompatible(expectedType, elementType)) {
+          this.errors.push(Errors.typeMismatch(
+            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', got '${this.typeToString(elementType)}'`,
+            { line: 0, column: 0, type: 0, value: "" } as Token
+          ));
+        }
+      } else {
+        const actualType = this.checkExpression(arg);
+        if (!this.areTypesCompatible(expectedType, actualType)) {
+          this.errors.push(Errors.typeMismatch(
+            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', got '${this.typeToString(actualType)}'`,
+            { line: 0, column: 0, type: 0, value: "" } as Token
+          ));
+        }
+      }
     }
 
     return calleeType.returnType;
