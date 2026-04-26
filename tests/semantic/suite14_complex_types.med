@@ -1,0 +1,79 @@
+// ============================================================
+// Complex Type Tests - All these SHOULD compile successfully
+// ============================================================
+
+// Nested arrays
+val nested1: int[][] = [[1, 2], [3, 4]]
+val nested2: (int | string)[][] = [[1, "a"], [2, "b"]]
+
+// Union of arrays - each element is int[] OR string[]
+val unionArr1: (int[] | string[])[] = [[1], ["a"]]
+val unionArr2: (int | string[])[] = [1, ["a"]]
+
+// Nullable with unions
+val nullable1: (int | string)? = null
+val nullable2: (int | string)? = 42
+val nullable3: (int | string)? = "hello"
+
+// Nullable union
+val nullableUnion1: (int | string?)? = null
+val nullableUnion2: (int | string?)? = "hello"
+
+// Function types
+val fn1: (int) => (string | int) = (x) => x
+val fn2: (int | string) => bool = (x) => true
+val fn3: ((int) => string) | ((int) => int) = (x) => x
+
+// Array of functions
+val fnArr1: ((int) => string)[] = [(x) => x]
+val fnArr2: ((int | string) => (int | string))[] = [(x) => x]
+
+// Multi-dimensional arrays - (int|string)[][] means 2D array, elements are int|string
+val multiDim1: (int | string)[] = [1, 2, "a", "b"]
+
+// Nullable arrays
+val nullableArr1: int[]? = null
+val nullableArr2: int[]? = [1, 2, 3]
+
+// Nullable function return
+val nullableFn1: ((int) => string)? = null
+val nullableFn2: ((int) => string)? = (x) => x
+
+// Deeply nested types
+val deep1: int[][] = [[1, 2], [3, 4]]
+
+// Union of function and array
+val unionMixed1: ((int) => string) | string[] = [1, 2]
+val unionMixed2: ((int) => string) | string[] = (x) => x
+
+// Complex function types
+val fnComplex1: ((int) => (string) => int) = (x) => (y) => x
+val fnComplex2: (((int) => string) | ((int) => int))[] = [(x) => x]
+
+// ============================================================
+// Should Error Cases - All these SHOULD fail
+// ============================================================
+
+// int[][] with string inner array - ERROR
+val errNested1: int[][] = [["a", "b"]]
+
+// Union array with wrong element type - ERROR
+val errUnion1: (int | string)[] = [true, 1.5]
+
+// Nullable mismatch - ERROR
+val errNullable1: int? = "hello"
+
+// Nested nullable error - ERROR
+val errNullable2: int?[] = ["nope"]
+
+// Array type mismatch - ERROR
+val errComplex1: int[] = [[true]]
+
+// Function array type mismatch - ERROR
+val errFnArr1: ((int) => string)[] = [(x) => x + 1]
+
+// Deep nested type mismatch - ERROR
+val errDeep1: int[][] = ["a"]
+
+// Union mixed type mismatch - ERROR
+val errMixed1: ((int) => string) | string[] = [true]

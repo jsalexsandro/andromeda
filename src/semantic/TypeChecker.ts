@@ -217,6 +217,19 @@ export class TypeChecker {
       return this.areTypesCompatible(expected, actual.type);
     }
 
+    if (expected.kind === "FunctionType" && actual.kind === "FunctionType") {
+      const expectedIsUnknown = expected.params.every(p => p.kind === "PrimitiveType" && p.name === "unknown") &&
+        expected.returnType.kind === "PrimitiveType" && expected.returnType.name === "unknown";
+      const actualIsUnknown = actual.params.every(p => p.kind === "PrimitiveType" && p.name === "unknown") &&
+        actual.returnType.kind === "PrimitiveType" && actual.returnType.name === "unknown";
+      if (expectedIsUnknown || actualIsUnknown) {
+        return true;
+      }
+      if (expected.params.length !== actual.params.length) return false;
+      return expected.params.every((ep, i) => this.areTypesCompatible(ep, actual.params[i])) &&
+        this.areTypesCompatible(expected.returnType, actual.returnType);
+    }
+
     if (expected.kind === "UnionType") {
       if (actual.kind === "UnionType") {
         return actual.types.every((actualMember) =>
@@ -232,7 +245,12 @@ export class TypeChecker {
 
     if (expected.kind === "NullableType") {
       if (actual.kind === "PrimitiveType" && actual.name === "null") return true;
+      if (actual.kind === "PrimitiveType" && actual.name === "unknown") return true;
       return this.areTypesCompatible(expected.type, actual);
+    }
+
+    if (actual.kind === "NullableType" && actual.type.kind === "PrimitiveType" && actual.type.name === "null") {
+      return this.areTypesCompatible(expected, { kind: "PrimitiveType", name: "null" });
     }
 
     return false;
@@ -245,7 +263,8 @@ export class TypeChecker {
       case "ArrayType":
         const elemStr = this.typeToString(type.elementType);
         const needsParens = type.elementType.kind === "UnionType" || type.elementType.kind === "FunctionType";
-        return `${needsParens ? `(${elemStr})` : elemStr}[]`;
+        const suffix = "[]".repeat(type.dimensions);
+        return `${needsParens ? `(${elemStr})` : elemStr}${suffix}`;
       case "FunctionType":
         const params = type.params.map(p => this.typeToString(p)).join(", ");
         return `(${params}) => ${this.typeToString(type.returnType)}`;
@@ -699,15 +718,23 @@ if (calleeType.kind !== "FunctionType") {
     const elementTypes = expr.elements.map((e) => this.checkExpression(e));
     const unique = this.deduplicateTypes(elementTypes);
 
-    const elementType: TypeNode =
-      unique.length === 1
+    let elementType: TypeNode;
+    let dimensions = 1;
+
+    if (unique.length === 1 && unique[0].kind === "ArrayType") {
+      const innerArray = unique[0];
+      elementType = innerArray.elementType;
+      dimensions = innerArray.dimensions + 1;
+    } else {
+      elementType = unique.length === 1
         ? unique[0]
         : { kind: "UnionType", types: unique };
+    }
 
     return {
       kind: "ArrayType",
       elementType,
-      dimensions: 1,
+      dimensions,
     };
   }
 
@@ -751,13 +778,15 @@ if (calleeType.kind !== "FunctionType") {
   ): TypeNode {
     const paramTypes = expr.params.map((p) => {
       if (p.type) return p.type;
-      return { kind: "PrimitiveType", name: "any" as const };
+      return { kind: "PrimitiveType", name: "unknown" as const };
     });
 
-    const returnType = expr.returnType || {
-      kind: "PrimitiveType",
-      name: "any",
-    };
+    let returnType: TypeNode;
+    if (expr.returnType) {
+      returnType = expr.returnType;
+    } else {
+      returnType = { kind: "PrimitiveType", name: "unknown" };
+    }
 
     return {
       kind: "FunctionType",
