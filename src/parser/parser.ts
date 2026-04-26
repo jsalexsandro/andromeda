@@ -128,7 +128,7 @@ export class Parser {
     if (this.check(TokenType.ARROW)) {
       this.advance();
       const params = [{ name }];
-      return this.parseArrowBody(params);
+      return this.parseArrowBody(params, undefined);
     }
 
     return { kind: "Identifier", name };
@@ -349,16 +349,23 @@ export class Parser {
   }
 
   private tryParseArrowFunction(): Expr | null {
-    const params: { name: Token; isRest?: boolean }[] = [];
+    const params: { name: Token; isRest?: boolean; type?: TypeNode }[] = [];
 
     if (this.check(TokenType.RPAREN)) {
       this.advance();
+
+      // Check for return type: () => int
+      let returnType: TypeNode | undefined;
+      if (this.check(TokenType.COLON)) {
+        this.advance();
+        returnType = this.parseAnnotationType();
+      }
 
       if (!this.check(TokenType.ARROW)) {
         return null;
       }
       this.advance();
-      return this.parseArrowBody(params);
+      return this.parseArrowBody(params, returnType);
     }
 
     while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
@@ -373,7 +380,17 @@ export class Parser {
       }
 
       const paramName = this.advance();
-      params.push({ name: paramName, isRest });
+
+      let paramType: TypeNode | undefined;
+      if (this.check(TokenType.COLON)) {
+        paramType = this.parseAnnotation();
+      }
+
+      params.push({ name: paramName, isRest, type: paramType });
+
+      if (isRest && !this.check(TokenType.RPAREN)) {
+        return null;
+      }
 
       if (this.check(TokenType.COMMA)) {
         this.advance();
@@ -385,12 +402,19 @@ export class Parser {
     }
     this.advance();
 
+    // Check for return type: (x: int) => int
+    let returnType: TypeNode | undefined;
+    if (this.check(TokenType.COLON)) {
+      this.advance();
+      returnType = this.parseAnnotationType();
+    }
+
     if (!this.check(TokenType.ARROW)) {
       return null;
     }
     this.advance();
 
-    return this.parseArrowBody(params);
+    return this.parseArrowBody(params, returnType);
   }
 
   private isObjectTypeAnnotation(lbracePos: number): boolean {
@@ -445,7 +469,7 @@ export class Parser {
     return false;
   }
 
-  private parseArrowBody(params: { name: Token; isRest?: boolean }[]): Expr {
+  private parseArrowBody(params: { name: Token; isRest?: boolean; type?: TypeNode }[], returnType?: TypeNode): Expr {
     if (this.check(TokenType.LBRACE)) {
       if (this.looksLikeBlockStatement()) {
         const body = this.parseBlockStatement();
@@ -464,6 +488,7 @@ export class Parser {
           kind: "ArrowFunction",
           params,
           body: objLiteral,
+          returnType,
         };
       } catch (e) {
         this.current = savedPos;
@@ -473,6 +498,7 @@ export class Parser {
           kind: "ArrowFunction",
           params,
           body,
+          returnType,
         };
       }
     } else {
@@ -485,6 +511,7 @@ export class Parser {
         kind: "ArrowFunction",
         params,
         body,
+        returnType,
       };
     }
   }
@@ -984,8 +1011,8 @@ export class Parser {
   // Extraído de parseFunctionStatement()
   // Suporta: nome, ...spread, vírgulasy
   // ========================================
-  private parseFunctionParams(): { name: Token; isRest?: boolean }[] {
-    const params: { name: Token; isRest?: boolean }[] = [];
+  private parseFunctionParams(): { name: Token; isRest?: boolean; type?: TypeNode }[] {
+    const params: { name: Token; isRest?: boolean; type?: TypeNode }[] = [];
 
     while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
       let isRest = false;
@@ -1000,7 +1027,17 @@ export class Parser {
         break;
       }
 
-      params.push({ name: paramName, isRest });
+      let paramType: TypeNode | undefined;
+      if (this.check(TokenType.COLON)) {
+        paramType = this.parseAnnotation();
+      }
+
+      params.push({ name: paramName, isRest, type: paramType });
+
+      if (isRest && !this.check(TokenType.RPAREN)) {
+        this.error("Rest parameter must be last", paramName);
+        break;
+      }
 
       if (this.check(TokenType.COMMA)) {
         this.advance();

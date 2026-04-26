@@ -260,9 +260,10 @@ export interface ClassMethod {
 
 export interface ArrowFunctionExpr {
   kind: "ArrowFunction"
-  params: { name: Token; isRest?: boolean }[]
+  params: { name: Token; isRest?: boolean; type?: TypeNode }[]
   body: Expr | Stmt
   async?: boolean
+  returnType?: TypeNode
 }
 
 export interface TemplateLiteralExpr {
