@@ -21,7 +21,9 @@ export type ErrorCode =
   | "INVALID_RETURN"
   | "INVALID_CONTINUE"
   | "UNDEFINED_TYPE"
-  | "INVALID_UNARY";
+  | "INVALID_UNARY"
+  | "REST_NOT_LAST"
+  | "INVALID_RETURN_TYPE";
 
 export class SemanticError {
   constructor(
@@ -32,7 +34,9 @@ export class SemanticError {
   ) {}
 
   public render(): string {
-    return `[${this.code}] Line ${this.token.line}, Col ${this.token.column}: ${this.message}`;
+    const line = this.token?.line ?? 0;
+    const col = this.token?.column ?? 0;
+    return `[${this.code}] Line ${line}, Col ${col}: ${this.message}`;
   }
 }
 
@@ -102,4 +106,10 @@ export const Errors = {
 
   invalidUnary: (operator: string, token: Token) =>
     createError("INVALID_UNARY", `unary operator '${operator}' is invalid for the operand`, token, "typecheck"),
+
+  restNotLast: (token: Token) =>
+    createError("REST_NOT_LAST", "rest parameter must be the last parameter", token, "analysis"),
+
+  invalidReturnType: (expected: string, got: string, token: Token) =>
+    createError("INVALID_RETURN_TYPE", `return type mismatch: expected '${expected}', got '${got}'`, token, "typecheck"),
 };

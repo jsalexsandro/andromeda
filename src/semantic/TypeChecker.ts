@@ -10,6 +10,8 @@ export class TypeChecker {
   private currentEnv: Environment;
   private loopDepth: number = 0;
   private functionDepth: number = 0;
+  private hasReturn: boolean = false;
+  private currentFunctionReturnType: TypeNode | null = null;
 
   constructor() {
     this.globalEnv = new Environment(null, true);
@@ -288,10 +290,27 @@ export class TypeChecker {
       return;
     }
 
-    const paramTypes: TypeNode[] = stmt.params.map((p) => {
-      if (p.type) return p.type;
-      return { kind: "PrimitiveType", name: "any" as const };
-    });
+    const paramTypes: TypeNode[] = [];
+    for (const param of stmt.params) {
+      if (param.type) {
+        const validationError = this.validateTypeNode(param.type, param.name);
+        if (validationError) {
+          this.errors.push(validationError);
+          paramTypes.push({ kind: "PrimitiveType", name: "unknown" });
+        } else {
+          paramTypes.push(param.type);
+        }
+      } else {
+        paramTypes.push({ kind: "PrimitiveType", name: "unknown" });
+      }
+    }
+
+    if (stmt.returnType) {
+      const returnValidation = this.validateTypeNode(stmt.returnType, stmt.name);
+      if (returnValidation) {
+        this.errors.push(returnValidation);
+      }
+    }
 
     const returnType = stmt.returnType || {
       kind: "PrimitiveType",
@@ -314,6 +333,15 @@ export class TypeChecker {
 
     this.currentEnv.define(name, symbol);
 
+    for (let i = 0; i < stmt.params.length; i++) {
+      const param = stmt.params[i];
+      if (param.isRest) {
+        for (let j = i + 1; j < stmt.params.length; j++) {
+          this.errors.push(Errors.restNotLast(param.name));
+        }
+      }
+    }
+
     this.functionDepth++;
     const fnEnv = new Environment(this.currentEnv, false);
 
@@ -321,7 +349,7 @@ export class TypeChecker {
       const paramName = param.name.value as string;
       const paramType = param.type || {
         kind: "PrimitiveType",
-        name: "any",
+        name: "unknown",
       };
       fnEnv.define(paramName, {
         name: paramName,
@@ -335,8 +363,17 @@ export class TypeChecker {
 
     const previousEnv = this.currentEnv;
     this.currentEnv = fnEnv;
+    this.currentFunctionReturnType = returnType;
+    this.hasReturn = false;
     this.checkBlockStmt(stmt.body);
     this.currentEnv = previousEnv;
+    this.currentFunctionReturnType = null;
+
+    if (returnType.kind !== "PrimitiveType" || returnType.name !== "void") {
+      if (!this.hasReturn) {
+        this.errors.push(Errors.missingReturn(stmt.name));
+      }
+    }
 
     this.functionDepth--;
   }
@@ -422,10 +459,33 @@ export class TypeChecker {
   private checkReturnStmt(stmt: Extract<Stmt, { kind: "ReturnStmt" }>): void {
     if (this.functionDepth === 0) {
       this.errors.push(Errors.invalidReturn({ line: 0, column: 0, type: 0, value: "return" } as Token));
+      return;
     }
 
+    this.hasReturn = true;
+
     if (stmt.value) {
-      this.checkExpression(stmt.value);
+      const returnValueType = this.checkExpression(stmt.value);
+      if (this.currentFunctionReturnType) {
+        if (!this.areTypesCompatible(this.currentFunctionReturnType, returnValueType)) {
+          this.errors.push(Errors.invalidReturnType(
+            this.typeToString(this.currentFunctionReturnType),
+            this.typeToString(returnValueType),
+            stmt.value.kind === "Identifier" ? stmt.value.name : { line: 0, column: 0, type: 0, value: "" } as Token
+          ));
+        }
+      }
+    } else {
+      if (this.currentFunctionReturnType) {
+        const returnTypeStr = this.typeToString(this.currentFunctionReturnType);
+        if (returnTypeStr !== "void") {
+          this.errors.push(Errors.invalidReturnType(
+            returnTypeStr,
+            "void",
+            { line: 0, column: 0, type: 0, value: "" } as Token
+          ));
+        }
+      }
     }
   }
 

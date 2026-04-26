@@ -1,0 +1,30 @@
+func testReturnInt(): int {
+    return 42
+}
+
+func testReturnString(): int {
+    return "string"
+}
+
+func noReturn(): int {
+    var x = 10
+}
+
+func testRecursive(n: int): int {
+    if (n == 0) {
+        return 1
+    }
+    return n * testRecursive(n - 1)
+}
+
+func testVoid(): void {
+    return
+}
+
+func testVoidWithValue(): void {
+    return 42
+}
+
+func add(a: int, b: int): int {
+    return a + b
+}
