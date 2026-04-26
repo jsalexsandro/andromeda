@@ -12,6 +12,7 @@ export class TypeChecker {
   private functionDepth: number = 0;
   private hasReturn: boolean = false;
   private currentFunctionReturnType: TypeNode | null = null;
+  private contextualType: TypeNode | null = null;
 
   constructor() {
     this.globalEnv = new Environment(null, true);
@@ -91,7 +92,9 @@ export class TypeChecker {
         typeNode = stmt.type;
       }
       if (stmt.initializer) {
+        this.contextualType = typeNode;
         const inferredType = this.inferType(stmt.initializer);
+        this.contextualType = null;
         if (!this.areTypesCompatible(typeNode, inferredType)) {
           this.errors.push(Errors.typeMismatch(
             `type '${this.typeToString(typeNode)}' is incompatible with initializer '${this.typeToString(inferredType)}'`,
@@ -775,7 +778,17 @@ if (calleeType.kind !== "FunctionType") {
       };
     }
 
-    const elementTypes = expr.elements.map((e) => this.checkExpression(e));
+    let unwrapped = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
+    let elementCtx: TypeNode | null = unwrapped?.kind === "ArrayType"
+      ? this.unwrapGrouping(unwrapped.elementType)
+      : null;
+
+    const elementTypes = expr.elements.map((e) => {
+      this.contextualType = elementCtx;
+      const t = this.checkExpression(e);
+      this.contextualType = null;
+      return t;
+    });
     const unique = this.deduplicateTypes(elementTypes);
 
     let elementType: TypeNode;
@@ -833,25 +846,131 @@ if (calleeType.kind !== "FunctionType") {
     return this.checkExpression(expr.right);
   }
 
+  private unwrapGrouping(type: TypeNode): TypeNode {
+    while (type.kind === "Group" || type.kind === "GroupingType") {
+      type = (type as any).expression || (type as any).type;
+    }
+    if (type.kind === "ArrayType") {
+      return {
+        ...type,
+        elementType: this.unwrapGrouping(type.elementType),
+      };
+    }
+    if (type.kind === "FunctionType") {
+      return {
+        ...type,
+        params: type.params.map(p => this.unwrapGrouping(p)),
+        returnType: this.unwrapGrouping(type.returnType),
+      };
+    }
+    return type;
+  }
+
   private checkArrowFunctionExpr(
     expr: Extract<Expr, { kind: "ArrowFunction" }>
   ): TypeNode {
-    const paramTypes = expr.params.map((p) => {
-      if (p.type) return p.type;
-      return { kind: "PrimitiveType", name: "unknown" as const };
-    });
+    let unwrapped = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
+    let fnContext: FunctionTypeNode | null = unwrapped?.kind === "FunctionType" ? unwrapped : null;
+    this.contextualType = null;
 
-    let returnType: TypeNode;
-    if (expr.returnType) {
-      returnType = expr.returnType;
-    } else {
-      returnType = { kind: "PrimitiveType", name: "unknown" };
+    const paramTypes: TypeNode[] = [];
+    for (let i = 0; i < expr.params.length; i++) {
+      const param = expr.params[i];
+      if (param.type) {
+        const err = this.validateTypeNode(param.type, param.name);
+        if (err) {
+          this.errors.push(err);
+          paramTypes.push({ kind: "PrimitiveType", name: "unknown" });
+        } else {
+          paramTypes.push(param.type);
+        }
+      } else if (fnContext && i < fnContext.params.length) {
+        paramTypes.push(fnContext.params[i]);
+      } else {
+        paramTypes.push({ kind: "PrimitiveType", name: "unknown" });
+      }
     }
 
+    for (let i = 0; i < expr.params.length - 1; i++) {
+      if (expr.params[i].isRest) {
+        this.errors.push(Errors.restNotLast(expr.params[i].name));
+      }
+    }
+
+    const annotatedReturn = expr.returnType
+      ? (() => {
+          const err = this.validateTypeNode(expr.returnType!, expr.params[0]?.name ?? { line: 0, column: 0, type: 0, value: "" } as Token);
+          if (err) this.errors.push(err);
+          return expr.returnType!;
+        })()
+      : null;
+
+    const expectedReturn: TypeNode | null =
+      annotatedReturn ?? fnContext?.returnType ?? null;
+
+    const previousEnv = this.currentEnv;
+    const previousReturnType = this.currentFunctionReturnType;
+    const previousHasReturn = this.hasReturn;
+    const previousFunctionDepth = this.functionDepth;
+
+    const fnEnv = new Environment(this.currentEnv, false);
+    for (let i = 0; i < expr.params.length; i++) {
+      const param = expr.params[i];
+      const paramName = param.name.value as string;
+      fnEnv.define(paramName, {
+        name: paramName,
+        type: paramTypes[i],
+        kind: "parameter",
+        mutable: false,
+        initialized: true,
+        declarationToken: param.name,
+      });
+    }
+
+    this.currentEnv = fnEnv;
+    this.functionDepth++;
+    this.hasReturn = false;
+    this.currentFunctionReturnType = expectedReturn;
+
+    let inferredReturn: TypeNode;
+    if (expr.body.kind !== "BlockStmt") {
+      inferredReturn = this.checkExpression(expr.body as Expr);
+      this.hasReturn = true;
+
+      if (expectedReturn && !this.areTypesCompatible(expectedReturn, inferredReturn)) {
+        const token = expr.body.kind === "Identifier"
+          ? (expr.body as Extract<Expr, { kind: "Identifier" }>).name
+          : { line: 0, column: 0, type: 0, value: "" } as Token;
+        this.errors.push(Errors.invalidReturnType(
+          this.typeToString(expectedReturn),
+          this.typeToString(inferredReturn),
+          token
+        ));
+      }
+    } else {
+      this.checkBlockStmt(expr.body as Extract<Stmt, { kind: "BlockStmt" }>);
+
+      const effectiveReturn = expectedReturn ?? { kind: "PrimitiveType", name: "void" } as TypeNode;
+      const isVoid = effectiveReturn.kind === "PrimitiveType" && effectiveReturn.name === "void";
+
+      if (!isVoid && !this.hasReturn) {
+        const token = expr.params[0]?.name ?? { line: 0, column: 0, type: 0, value: "=>" } as Token;
+        this.errors.push(Errors.missingReturn(token));
+      }
+
+      inferredReturn = expectedReturn ?? { kind: "PrimitiveType", name: "void" };
+    }
+
+    this.currentEnv = previousEnv;
+    this.currentFunctionReturnType = previousReturnType;
+    this.hasReturn = previousHasReturn;
+    this.functionDepth = previousFunctionDepth;
+
+    const finalReturn = annotatedReturn ?? inferredReturn;
     return {
       kind: "FunctionType",
       params: paramTypes,
-      returnType,
+      returnType: finalReturn,
     };
   }
 
