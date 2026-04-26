@@ -1,0 +1,133 @@
+// ============================================================
+// Suite 18 - Advanced Function Tests
+// ============================================================
+
+// Higher-order functions
+func map(arr: int[], fn: (int) => int): int[] {
+    return arr
+}
+
+func filter(arr: int[], pred: (int) => bool): int[] {
+    return arr
+}
+
+func reduce(arr: int[], fn: (int, int) => int, init: int): int {
+    return init
+}
+
+// Function composition
+func compose(f: (int) => int, g: (int) => int): (int) => int {
+    return (x) => f(g(x))
+}
+
+func pipe(fns: ((int) => int)[]): (int) => int {
+    return (x) => x
+}
+
+// Currying
+func curryAdd(a: int): (int) => int {
+    return (b) => a + b
+}
+
+func uncurry(fn: (int) => (int) => int): (int, int) => int {
+    return (a, b) => fn(a)(b)
+}
+
+// Polymorphic simulation with unions
+func process(v: int | string | bool): int | string {
+    if (v == 1) {
+        return "number"
+    }
+    return v
+}
+
+// Nullable function
+val maybeAdd: ((int, int) => int)? = null
+val addFn = maybeAdd ?? ((a, b) => a + b)
+
+// Function returning function
+func makeMultiplier(n: int): (int) => int {
+    return (x) => x * n
+}
+
+val times2 = makeMultiplier(2)
+val times3 = makeMultiplier(3)
+
+// Callback patterns
+func forEach(arr: int[], action: (int) => void): void {
+    var i = 0
+    while (i < arr.length) {
+        action(arr[i])
+        i = i + 1
+    }
+}
+
+func filterMap(arr: int[], pred: (int) => bool, mapper: (int) => int): int[] {
+    return arr
+}
+
+// Async simulation
+func then(result: int | null, callback: (int) => void): void {
+    if (result != null) {
+        callback(result)
+    }
+}
+
+// Error handling pattern
+func tryCatch(fn: (int) => int, onError: (string) => int): int {
+    return onError("error")
+}
+
+// Multiple function types
+func handle(v: int | string): int | string | bool {
+    if (v == 1) {
+        return true
+    }
+    if (v == "test") {
+        return 1
+    }
+    return v
+}
+
+// Deep function nesting
+func wrapper(fn: (int) => int): (int) => (int) => int {
+    return (x) => (y) => fn(x + y)
+}
+
+// Union of function types
+val handlers: ((int) => int) | ((string) => int) = (x) => x
+val handlers2: ((int) => int) | ((string) => int) = (s) => 0
+
+// Function array
+val ops: ((int) => int)[] = [
+    (x) => x + 1,
+    (x) => x - 1,
+    (x) => x * 2
+]
+
+// Complex return type
+func complex(): (int) => (int | null)? {
+    return (x) => x
+}
+
+// ============================================================
+// Error Cases
+// ============================================================
+
+func badReturnType(): int {
+    return "string"
+}
+
+func missingReturn(): int {
+    var x = 10
+}
+
+func voidWithReturn(): void {
+    return 42
+}
+
+func badParamType(fn: (string) => int): void {
+}
+
+func badCallback(arr: int[], fn: (string) => void): void {
+}

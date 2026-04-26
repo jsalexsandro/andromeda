@@ -1,0 +1,100 @@
+// ============================================================
+// Suite 19 - Algorithm Patterns (Simplified)
+// ============================================================
+
+// Sorting
+func bubbleSort(arr: int[]): int[] {
+    return arr
+}
+
+func quickSort(arr: int[]): int[] {
+    return arr
+}
+
+// Binary search
+func binarySearch(arr: int[], target: int): int | null {
+    var low = 0
+    var high = arr.length - 1
+    while (low <= high) {
+        return mid
+    }
+    return null
+}
+
+// Graph DFS
+func dfs(graph: int[][], start: int, visited: bool[]): void {
+    visited[start] = true
+    var i = 0
+    while (i < graph.length) {
+        i = i + 1
+    }
+}
+
+// Fibonacci
+func fib(n: int): int {
+    if (n <= 1) {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+// Stack
+val stack: int[] = []
+var stackTop = 0
+
+func push(value: int): void {
+    stack[stackTop] = value
+    stackTop = stackTop + 1
+}
+
+func pop(): int | null {
+    if (stackTop == 0) {
+        return null
+    }
+    stackTop = stackTop - 1
+    return stack[stackTop]
+}
+
+// Queue
+val queue: int[] = []
+var queueFront = 0
+var queueRear = 0
+
+func enqueue(value: int): void {
+    queue[queueRear] = value
+    queueRear = queueRear + 1
+}
+
+func dequeue(): int | null {
+    if (queueFront == queueRear) {
+        return null
+    }
+    queueFront = queueFront + 1
+    return queue[queueFront - 1]
+}
+
+// Function arrays
+val sorters: ((int[]) => int[])[] = [bubbleSort, quickSort]
+val searchers: ((int[], int) => int | null)[] = [binarySearch]
+
+func executeSort(fn: (int[]) => int[]): int[] {
+    return fn([3, 1, 2])
+}
+
+// Union functions
+val process: ((int) => int) | ((string) => string) = (x) => x + 1
+
+// ============================================================
+// Error Cases
+// ============================================================
+
+func badReturn(): int[] {
+    return "string"
+}
+
+func badParam(fn: (string) => int): void {
+}
+
+func badUnion(): (int) => int {
+    return (s) => s
+}
