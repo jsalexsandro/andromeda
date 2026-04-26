@@ -1,0 +1,117 @@
+// ============================================================
+// Suite 15 - Extreme Complex Types
+// ============================================================
+
+// ============================================================
+// VALID CASES - All these SHOULD compile
+// ============================================================
+
+// Deep function nesting
+val deepFn1: (((int)) => int) => (((string)) => string) = (f) => (x) => x
+val deepFn2: (((int) => int) => int) => (((int) => int) => int) = (f) => (g) => f(g)
+
+// Union of complex function types
+val unionFnComplex1: ((int) => (string) => int) | ((string) => (int) => int) = (x) => (y) => x
+val unionFnComplex2: (((int) => int) | ((string) => string))[] = [(x) => x, (y) => y]
+
+// Array of functions
+val arrFn1: ((int) => int)[] = [(x) => x]
+val arrFn2: ((int | string) => (int | string))[] = [(x) => x, (x) => x]
+
+// Nested union with array
+val nestedUnionArr1: ((int | string)[] | (int | string)?)[] = [[1, 2], null, ["a"]]
+
+// Nullable function array
+val nullableFnArr1: (((int) => string) | ((string) => int))? = null
+val nullableFnArr2: (((int) => string) | ((string) => int))? = (x) => x
+
+// Deep array nesting with union
+val deepArr1: (int | string)[][] = [[1, 2], [3, 4]]
+val deepArr2: (int | string)[] = [1, 2, "a", "b"]
+
+// Union of arrays with different dimensions
+val unionArrDiff1: (int[] | int[][])[] = [[1], [1, 2], [[1, 2, 3]]]
+
+// Mixed nullable and union
+val mixedNullableUnion1: (int | string | (int) => string)? = null
+val mixedNullableUnion2: (int | string | (int) => string)? = 42
+val mixedNullableUnion3: (int | string | (int) => string)? = "hello"
+val mixedNullableUnion4: (int | string | (int) => string)? = (x) => x
+
+// Nested function returning union array
+val fnReturnsUnionArr1: (int) => ((int | string)[]) = (x) => [x, "a"]
+val fnReturnsUnionArr2: (int | string) => ((int | string)[]) = (x) => [x]
+
+// Function that returns function that returns array
+val fnChain1: (int) => ((string) => (int | string)[]) = (x) => (y) => [x, y]
+
+// Union of nullable complex types
+val unionNullable1: ((int) => string)? | (int)[]? = null
+val unionNullable2: ((int) => string)? | (int)[]? = [1, 2, 3]
+val unionNullable3: ((int) => string)? | (int)[]? = (x) => x
+
+// Multi-level union nesting
+val multiUnion1: int | string | bool | ((int) => int) | (int[]) = 42
+val multiUnion2: int | string | bool | ((int) => int) | (int[]) = "test"
+val multiUnion3: int | string | bool | ((int) => int) | (int[]) = true
+val multiUnion4: int | string | bool | ((int) => int) | (int[]) = (x) => x
+val multiUnion5: int | string | bool | ((int) => int) | (int[]) = [1, 2]
+
+// Function with multiple params returning complex type
+val fnMultiParams1: (int, string, bool) => (int | string)[] = (a, b, c) => [a, b]
+val fnMultiParams2: (int | string, bool | int) => ((int) => string) = (a, b) => (c) => c
+
+// Array of functions with mixed params
+val arrFnMixed1: (((int, int) => int) | ((string) => string))[] = [
+  (a, b) => a + b,
+  (x) => x
+]
+
+// Deep nullable chain
+val deepNullable1: ((((int | string)?)?)?)? = null
+val deepNullable2: ((((int | string)?)?)?)? = "test"
+
+// Complex type alias simulation
+val aliasSim1: ((int) => string)[] | ((int) => string)? = [(x) => x]
+val aliasSim2: ((int) => string)[] | ((int) => string)? = (x) => x
+val aliasSim3: ((int) => string)[] | ((int) => string)? = null
+
+// ============================================================
+// ERROR CASES - All these SHOULD fail
+// ============================================================
+
+// Function type mismatch
+val errFn1: ((int) => (string) => int) = (x) => x + 1
+
+// Union array element type mismatch
+val errUnionArr1: ((int | string)[] | (int | string)?)[] = [[true]]
+
+// Nullable function array mismatch
+val errNullableFnArr1: (((int) => string) | ((string) => int))? = [1, 2]
+
+// Deep array nesting type error
+val errDeepArr1: (int | string)[][] = [[true]]
+
+// Union of arrays dimension error
+val errUnionArrDiff1: (int[] | int[][])[] = [1, [1, 2]]
+
+// Mixed nullable union type error
+val errMixedNullable1: (int | string | (int) => string)? = [1, 2]
+
+// Function returns wrong array type
+val errFnReturns1: (int) => ((int | string)[]) = (x) => [x + 1]
+
+// Multi-level union error
+val errMultiUnion1: int | string | bool | ((int) => int) | (int[]) = [1, true, "a"]
+
+// Function multi params type error
+val errFnMultiParams1: (int, string, bool) => (int | string)[] = (a, b, c) => [a + 1, b]
+
+// Array of functions param mismatch
+val errArrFnMixed1: (((int, int) => int) | ((string) => string))[] = [(a, b, c) => a]
+
+// Deep nullable type error
+val errDeepNullable1: ((((int | string)?)?)?)? = 1.5
+
+// Alias simulation type error
+val errAliasSim1: ((int) => string)[] | ((int) => string)? = [1, 2, 3]
