@@ -1478,42 +1478,11 @@ export class Parser {
       return baseType;
     }
 
-    // LiteralTypeNode - literal types (3.14, "active", 200, true)
-    if (typeToken.type === TokenType.NUMBER) {
-      this.advance();
-      let typeNode = { kind: "LiteralType", value: typeToken.value as number };
-      if (this.check(TokenType.QUESTION)) {
-        typeNode = this.parseNullableSuffix(typeNode);
-      }
-      if (this.check(TokenType.PIPE)) {
-        return this.parseUnionType(typeNode);
-      }
-      console.log(`DEBUG - [${typeToken.value}]`);
-      return typeNode;
-    }
-    if (typeToken.type === TokenType.STRING) {
-      this.advance();
-      let typeNode = { kind: "LiteralType", value: typeToken.value as string };
-      if (this.check(TokenType.QUESTION)) {
-        typeNode = this.parseNullableSuffix(typeNode);
-      }
-      if (this.check(TokenType.PIPE)) {
-        return this.parseUnionType(typeNode);
-      }
-      console.log(`DEBUG - [${typeToken.value}]`);
-      return typeNode;
-    }
-    if (typeToken.type === TokenType.BOOLEAN) {
-      this.advance();
-      let typeNode = { kind: "LiteralType", value: typeToken.value as boolean };
-      if (this.check(TokenType.QUESTION)) {
-        typeNode = this.parseNullableSuffix(typeNode);
-      }
-      if (this.check(TokenType.PIPE)) {
-        return this.parseUnionType(typeNode);
-      }
-      console.log(`DEBUG - [${typeToken.value}]`);
-      return typeNode;
+    // Redirect literal types to parseAnnotationType() which will block them
+    if (typeToken.type === TokenType.NUMBER || 
+        typeToken.type === TokenType.STRING || 
+        typeToken.type === TokenType.BOOLEAN) {
+      return this.parseAnnotationType();
     }
 
     // ArrayType - int[], string[][], User[], etc.
@@ -1653,16 +1622,38 @@ export class Parser {
       baseType = this.parseNamedTypeNode();
     }
 
-    // Literal types
+    // ========================================
+    // Literal types not supported in nominal type system
+    // ========================================
     else if (typeToken.type === TokenType.NUMBER) {
       this.advance();
-      baseType = { kind: "LiteralType", value: typeToken.value as number };
+      const literalValue = typeToken.value;
+      const suggestedType = Number.isInteger(literalValue as number) ? 'int' : 'float';
+      this.error(
+        `Cannot use literal '${literalValue}' as type argument. ` +
+        `Andromeda is nominal - types must be named. ` +
+        `Use '${suggestedType}' instead.`,
+        typeToken
+      );
+      return undefined;
     } else if (typeToken.type === TokenType.STRING) {
       this.advance();
-      baseType = { kind: "LiteralType", value: typeToken.value as string };
+      this.error(
+        `Cannot use literal '${typeToken.value}' as type argument. ` +
+        `Andromeda is nominal - types must be named. ` +
+        `Use 'string' instead.`,
+        typeToken
+      );
+      return undefined;
     } else if (typeToken.type === TokenType.BOOLEAN) {
       this.advance();
-      baseType = { kind: "LiteralType", value: typeToken.value as boolean };
+      this.error(
+        `Cannot use literal '${typeToken.value}' as type argument. ` +
+        `Andromeda is nominal - types must be named. ` +
+        `Use 'bool' instead.`,
+        typeToken
+      );
+      return undefined;
     }
 
     if (!baseType) {
