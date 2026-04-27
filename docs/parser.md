@@ -59,6 +59,8 @@ FASE 4 — FUNÇÕES
     
 ├── 20. ArgumentList            (a: int, b: string)
 ├── 21. FunctionStatement       func foo() {}
+        Anotação func foo(): int {} [OK]
+ 
 ├── 22. ReturnStatement         return expr
 └── 23. ArrowFunction           x => x  /  (x) => x + 1
 
@@ -69,6 +71,7 @@ FASE 5 — ESTRUTURAS DE DADOS
 ├── 24. ArrayLiteral            [1, 2, 3]
 ├── 25. ObjectLiteral           {a: 1, b: 2}
 └── 26. SpreadExpression        ...expr
+- o spread operator em uma função deve ser feito sempre no ultimo do parametros
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -84,6 +87,10 @@ FASE 6 — CONTROLE AVANÇADO
 
 27. ForStatement            for (val i = 0; ...)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FASE 6.5 - CONTROLS TYPES
+1. ProtocolStatement
+    Func aceita em protocols
 
 FASE 7 — CLASSES
 │

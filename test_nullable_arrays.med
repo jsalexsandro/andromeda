@@ -1,6 +1,0 @@
-val e1: int?[][][]?
-val e2: string???[]
-val e3: []?int[]
-val e4: []int?[]
-val e5: () => () => int?[]
-val e6: ((int) => string)?[]

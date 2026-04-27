@@ -43,20 +43,12 @@ FASE 1 — INFRAESTRUTURA BASE
 
 FASE 2 — SISTEMA DE TIPOS BASE
 │
-├── 5. TypeKind enum
-│       INT, FLOAT, STRING, BOOLEAN,
-│       NULL, VOID, ANY
-│
-├── 6. Type interface
-│       primitive  → TypeKind
-│       array      → Type (element type)
-│       function   → params[], returnType
-│       class      → name, fields, methods
-│       union      → Type[]
-│
-└── 7. TypeChecker base
-        isSameType(a, b): boolean
-        isAssignableTo(from, to): boolean
+  src/semantic/
+  ├── types/
+  │   ├── TypeKind.ts           # Enum de tipos primitivos
+  │   ├── Type.ts               # Interfaces de tipos internos
+  │   ├── TypeRegistry.ts       # Registro de tipos (builtins + user)
+  │   └── TypeChecker.ts        # Verificações de tipo (nominal)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

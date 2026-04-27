@@ -1,5 +1,0 @@
-val a: int?
-val b: string?
-val c: User?
-val d: List<int>?
-val e: Map<string, int>?

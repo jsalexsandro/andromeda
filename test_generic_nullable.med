@@ -1,8 +1,0 @@
-val e1: Map<string, Map<int?, string>>
-val e2: List<Array<int?>>
-val e3: Array<List<int?>?>
-val e4: Map<string?, () => int?>
-val e5: (List<int?>) => Map<string, int?>
-val e6: [int?, string?, bool?]
-val e7: Map<string, int>?
-val e8: Map<string, int?>?

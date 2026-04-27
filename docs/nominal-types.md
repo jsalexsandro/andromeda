@@ -52,20 +52,10 @@ TupleType          →  [string, int, bool, Array<int>]
 Grouping Type ()
 (T) => U     function type 
 
-IntersectionType   →  TypeA & TypeB 
 
 --
 
-
-
-
-
-(T) => U     function type anônimo
 ```
-
-**Objetivo:** Limpar o AST e o parser, remover tudo que é estrutural. Parser fica ~200 linhas.
-
----
 
 ## Fase 2 — Nullable (essencial no nominal)
 
@@ -80,6 +70,8 @@ List<T>?     nullable generic
 Isso é fundamental em Swift/KT/Rust — tipos não são nullable por padrão.
 
 ---
+
+[ATE AQUI tudo feito.]
 
 ## Fase 3 — Type declarations
 

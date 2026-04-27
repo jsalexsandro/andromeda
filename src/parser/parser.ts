@@ -1236,6 +1236,24 @@ export class Parser {
 
     const typeToken = this.peek();
 
+    // ========================================
+    // Object literal type not supported in nominal type system
+    // ========================================
+    if (typeToken.type === TokenType.LBRACE) {
+      this.advance(); // consume '{'
+      
+      // Consume until '}' or end of annotation
+      while (!this.check(TokenType.RBRACE) && !this.isAtEnd() && !this.check(TokenType.SEMICOLON)) {
+        this.advance();
+      }
+      if (this.check(TokenType.RBRACE)) {
+        this.advance(); // consume '}'
+      }
+      
+      this.error("object literal type not supported, use adequate structure", typeToken);
+      return undefined;
+    }
+
     // Check for TupleType: [string, int, bool]
     if (typeToken.type === TokenType.LBRACKET) {
       const savedPos = this.current;
@@ -1554,6 +1572,24 @@ export class Parser {
    */
   private parseAnnotationType(): TypeNode | undefined {
     const typeToken = this.peek();
+
+    // ========================================
+    // Object literal type not supported in nominal type system
+    // ========================================
+    if (typeToken.type === TokenType.LBRACE) {
+      this.advance(); // consume '{'
+      
+      // Consume until '}' or end of annotation
+      while (!this.check(TokenType.RBRACE) && !this.isAtEnd() && !this.check(TokenType.SEMICOLON)) {
+        this.advance();
+      }
+      if (this.check(TokenType.RBRACE)) {
+        this.advance(); // consume '}'
+      }
+      
+      this.error("object literal type not supported, use adequate structure", typeToken);
+      return undefined;
+    }
 
     // Tuple aninhada: [int, string]
     if (typeToken.type === TokenType.LBRACKET) {
@@ -2189,8 +2225,18 @@ export class Parser {
     this.advance(); // consume '='
 
     // Parse the type using annotation type parser
-    const modelType = this.parseAnnotationType();
-    if (!modelType) {
+    // Inline object types {name: string} are not allowed - use struct/traits
+    // if (this.check(TokenType.LBRACE)) { // checa a tentativa de type objects literais, porém this.parseAnnotationType(); ja faz isso. 
+    //   this.advance(); // consume '{'
+    //   this.error(
+    //     "Inline object types are not allowed in typealias. Use 'struct' or 'traits' to define named types.",
+    //     nameToken,
+    //   );
+    //   return { kind: "BlockStmt", statements: [] };
+    // }
+
+    const typealiasType = this.parseAnnotationType();
+    if (!typealiasType) {
       this.error("Expected type definition after '='", this.peek());
       return { kind: "BlockStmt", statements: [] };
     }

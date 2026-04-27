@@ -1,7 +1,4 @@
-var n = 2
+// testar muito a anotação de tipos
 
-func app(){
-
-}
-
-const e = (() => {})()
+model myint = int
+const e: myint = 10

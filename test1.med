@@ -1,7 +1,0 @@
-val a: int?
-val b: string?
-val c: bool?
-val d: float?
-val e: void?
-val f: any?
-val g: unknown?

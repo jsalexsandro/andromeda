@@ -1,4 +1,0 @@
-val f1: (int) => string?
-val f2: ((int) => string)?
-val f3: (int?) => string
-val f4: (int) => string? | null
