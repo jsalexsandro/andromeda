@@ -741,6 +741,11 @@ export class Parser {
       if (keyword === "protocol") {
         return this.parseProtocolStatement();
       }
+      // [model] - Tipos nomeados (nominal type aliases)
+      // Syntax: model Name = type
+      if (keyword === "model") {
+        return this.parseModelStatement();
+      }
     }
 
     const expr = this.parseExpression(Precedence.LOWEST);
@@ -1931,6 +1936,16 @@ export class Parser {
       // Caso: (T, U) => R — '(' já consumido, parseia params diretamente
       const params: TypeNode[] = [];
       while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
+        // Pula padrão optional: identifier COLON em params de função
+        // Ex: (e: int, x: string) => bool
+        if (
+          this.peek().type === TokenType.IDENTIFIER &&
+          this.tokens[this.current + 1]?.type === TokenType.COLON
+        ) {
+          this.advance(); // consome o nome
+          this.advance(); // consome ':'
+        }
+
         const param = this.parseAnnotationType();
         if (param) params.push(param);
         if (this.check(TokenType.COMMA)) this.advance();
@@ -2151,5 +2166,65 @@ export class Parser {
       params,
       returnType,
     };
+  }
+
+  // [model] - Tipos nomeados (nominal type aliases)
+  // Syntax: model Name = type
+  // Ex: model Callable = (int) => int
+  //     model User = { name: string, age: int }
+  private parseModelStatement(): Stmt {
+    this.advance(); // consume 'model'
+
+    const nameToken = this.advance();
+    if (nameToken.type !== TokenType.IDENTIFIER) {
+      this.error("Expected model name after 'model'", nameToken);
+      return { kind: "BlockStmt", statements: [] };
+    }
+
+    // Expect '='
+    if (!this.check(TokenType.ASSIGN)) {
+      this.error("Expected '=' after model name", this.peek());
+      return { kind: "BlockStmt", statements: [] };
+    }
+    this.advance(); // consume '='
+
+    // Parse the type using annotation type parser
+    const modelType = this.parseAnnotationType();
+    if (!modelType) {
+      this.error("Expected type definition after '='", this.peek());
+      return { kind: "BlockStmt", statements: [] };
+    }
+
+    console.log(`DEBUG - [model] ${nameToken.value} = ${this.getTypeNodeName(modelType)}`);
+
+    return {
+      kind: "ModelStmt",
+      name: nameToken,
+      type: modelType,
+    };
+  }
+
+  // Helper para debug - obter nome do tipo
+  private getTypeNodeName(type: TypeNode | undefined): string {
+    if (!type) return "unknown";
+    switch (type.kind) {
+      case "PrimitiveType":
+        return type.name;
+      case "NamedType":
+        return type.name.value as string;
+      case "ArrayType":
+        return `${this.getTypeNodeName(type.elementType)}[]`;
+      case "FunctionType":
+        const params = type.params.map(p => this.getTypeNodeName(p)).join(", ");
+        return `(${params}) => ${this.getTypeNodeName(type.returnType)}`;
+      case "UnionType":
+        return type.types.map(t => this.getTypeNodeName(t)).join(" | ");
+      case "NullableType":
+        return `${this.getTypeNodeName(type.type)}?`;
+      case "GroupingType":
+        return `(${this.getTypeNodeName(type.type)})`;
+      default:
+        return "unknown";
+    }
   }
 }
