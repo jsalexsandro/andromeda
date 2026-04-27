@@ -1,1 +1,1 @@
-const e: [string | int]
+const e: [string | int] = [0, 1]

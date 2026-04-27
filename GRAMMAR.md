@@ -280,17 +280,6 @@ val fnArray: ((int) => int)[] = [x => x * 2]
 func apply(f: ((int) => int), x: int): int = f(x)
 func map(fn: (int) => int, arr: int[]): int[] = arr.map(fn)
 
-// Objects com campos de função
-val obj: {name: string, fn: (int) => int} = {
-  name: "test",
-  fn: x => x + 1
-}
-
-// Array de objects com funções
-val handlers: {name: string, callback: (int) => int}[] = [
-  { name: "double", callback: x => x * 2 }
-]
-```
 
 ---
 

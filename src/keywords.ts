@@ -27,7 +27,7 @@ export const KEYWORDS = [
   'break',
   'continue',
   'protocol',
-  'model',  // Tipos nomeados - nominal type aliases
+  'typealias',  // Tipos nomeados - nominal type aliases
 ]
 
 export const TYPES_NATIVE = [

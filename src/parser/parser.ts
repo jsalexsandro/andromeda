@@ -741,10 +741,10 @@ export class Parser {
       if (keyword === "protocol") {
         return this.parseProtocolStatement();
       }
-      // [model] - Tipos nomeados (nominal type aliases)
-      // Syntax: model Name = type
-      if (keyword === "model") {
-        return this.parseModelStatement();
+      // [typealias] - Tipos nomeados (nominal type aliases)
+      // Syntax: typealias Name = type
+      if (keyword === "typealias") {
+        return this.parseTypeAliasStatement();
       }
     }
 
@@ -2204,22 +2204,22 @@ export class Parser {
     };
   }
 
-  // [model] - Tipos nomeados (nominal type aliases)
-  // Syntax: model Name = type
-  // Ex: model Callable = (int) => int
-  //     model User = { name: string, age: int }
-  private parseModelStatement(): Stmt {
-    this.advance(); // consume 'model'
+  // [typealias] - Tipos nomeados (nominal type aliases)
+  // Syntax: typealias Name = type
+  // Ex: typealias Callable = (int) => int
+  //     typealias User = { name: string, age: int }
+  private parseTypeAliasStatement(): Stmt {
+    this.advance(); // consume 'typealias'
 
     const nameToken = this.advance();
     if (nameToken.type !== TokenType.IDENTIFIER) {
-      this.error("Expected model name after 'model'", nameToken);
+      this.error("Expected typealias name after 'typealias'", nameToken);
       return { kind: "BlockStmt", statements: [] };
     }
 
     // Expect '='
     if (!this.check(TokenType.ASSIGN)) {
-      this.error("Expected '=' after model name", this.peek());
+      this.error("Expected '=' after typealias name", this.peek());
       return { kind: "BlockStmt", statements: [] };
     }
     this.advance(); // consume '='
@@ -2241,15 +2241,15 @@ export class Parser {
       return { kind: "BlockStmt", statements: [] };
     }
 
-    console.log(`DEBUG - [model] ${nameToken.value} = ${this.getTypeNodeName(modelType)}`);
+    console.log(`DEBUG - [typealias] ${nameToken.value} = ${this.getTypeNodeName(typealiasType)}`);
 
     return {
-      kind: "ModelStmt",
+      kind: "TypeAliasStmt",
       name: nameToken,
-      type: modelType,
+      type: typealiasType,
     };
   }
-
+  
   // Helper para debug - obter nome do tipo
   private getTypeNodeName(type: TypeNode | undefined): string {
     if (!type) return "unknown";

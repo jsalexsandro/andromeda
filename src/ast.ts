@@ -127,7 +127,6 @@ export type Stmt =
   | StructStmt      // ← Fase 4
   | EnumStmt        // ← Fase 5
   | ProtocolStmt    // ← Fase 6
-  | ModelStmt       // [model] - Tipos nomeados (nominal)
 
 export interface ExpressionStmt {
   kind: "ExpressionStmt"
@@ -465,11 +464,4 @@ export interface ProtocolMethod {
   returnType?: TypeNode
 }
 
-// [model] - Tipos nomeados (nominal type aliases)
-// Syntax: model Name = type
-// Ex: model Callable = (int) => int
-export interface ModelStmt {
-  kind: "ModelStmt"
-  name: Token
-  type: TypeNode
-}
+// TypeAliasStmt já definido acima (linhas 415-420)

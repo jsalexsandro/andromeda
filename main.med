@@ -1,4 +1,7 @@
 // testar muito a anotação de tipos
 
-model myint = int
-const e: myint = 10
+typealias s = int
+
+func app(): s {
+
+}
