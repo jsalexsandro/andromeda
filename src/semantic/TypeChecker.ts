@@ -261,16 +261,22 @@ export class TypeChecker {
     // Resolve aliases antes de qualquer comparação
     const resolvedExpected = this.resolveAlias(expected);
     const resolvedActual = this.resolveAlias(actual);
-
+    
     // Se ambos mudaram, reentrar com os resolvidos
     if (resolvedExpected !== expected || resolvedActual !== actual) {
       return this.areTypesCompatible(resolvedExpected, resolvedActual);
     }
 
     if (resolvedExpected.kind === "PrimitiveType" && resolvedActual.kind === "PrimitiveType") {
-      if (resolvedExpected.name === "any" || resolvedExpected.name === "unknown" || resolvedActual.name === "unknown") {
+      // any aceita tudo (any no expected ou no actual)
+      if (resolvedExpected.name === "any" || resolvedActual.name === "any") {
         return true;
       }
+      // unknown no expected aceita qualquer actual
+      if (resolvedExpected.name === "unknown") {
+        return true;
+      }
+      // unknown no actual NÃO passa automaticamente
       return resolvedExpected.name === resolvedActual.name;
     }
 
@@ -706,7 +712,7 @@ export class TypeChecker {
 
   private inferLiteralType(value: unknown): TypeNode {
     if (value === null) {
-      return { kind: "PrimitiveType", name: "unknown" };
+      return { kind: "PrimitiveType", name: "null" };
     }
     if (typeof value === "number") {
       return {
