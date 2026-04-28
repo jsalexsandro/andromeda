@@ -382,7 +382,7 @@ export interface TupleTypeNode {
 // (T, U) => V — function type anônimo
 export interface FunctionTypeNode {
   kind: "FunctionType"
-  params: TypeNode[]
+  params: (TypeNode & { isRest?: boolean })[]
   returnType: TypeNode
 }
 

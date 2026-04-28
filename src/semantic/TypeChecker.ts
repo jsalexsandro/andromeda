@@ -414,9 +414,12 @@ export class TypeChecker {
       name: "void",
     };
 
-    const fnType: TypeNode = {
+    const fnType: FunctionTypeNode = {
       kind: "FunctionType",
-      params: paramTypes,
+      params: paramTypes.map((pt, i) => ({
+        ...pt,
+        isRest: stmt.params[i]?.isRest || false
+      })),
       returnType,
     };
 
@@ -890,47 +893,118 @@ export class TypeChecker {
 private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const calleeType = this.checkExpression(expr.callee);
 
+    // callee não é função
     if (calleeType.kind !== "FunctionType") {
-      this.errors.push(Errors.invalidCall({ line: 0, column: 0, type: 0, value: "" } as Token));
+      // se for "any" ou "unknown", deixa passar sem checar args
+      if (calleeType.kind === "PrimitiveType" &&
+         (calleeType.name === "any" || calleeType.name === "unknown")) {
+        expr.args.forEach(arg => this.checkExpression(arg));
+        return { kind: "PrimitiveType", name: "any" };
+      }
+      const token = expr.callee.kind === "Identifier"
+        ? expr.callee.name
+        : { line: 0, column: 0, type: 0, value: "" } as Token;
+      this.errors.push(Errors.invalidCall(token));
       return { kind: "PrimitiveType", name: "any" };
     }
 
-    const paramTypes = calleeType.params;
+    const params = calleeType.params;
     const args = expr.args;
 
-    if (paramTypes.length !== args.length) {
-      this.errors.push(Errors.argumentCountMismatch(paramTypes.length, args.length, { line: 0, column: 0, type: 0, value: "" } as Token));
+    // ── detectar rest param na assinatura ──────────────────────
+    const hasRest = params.length > 0 && params[params.length - 1].isRest === true;
+    const restIndex = hasRest ? params.length - 1 : -1;
+
+    // ── checar aridade ─────────────────────────────────────────
+    if (hasRest) {
+      // com rest: precisa de pelo menos (restIndex) args
+      const minArgs = restIndex;
+      if (args.length < minArgs) {
+        const token = expr.callee.kind === "Identifier"
+          ? expr.callee.name
+          : { line: 0, column: 0, type: 0, value: "" } as Token;
+        this.errors.push(Errors.argumentCountMismatch(minArgs, args.length, token));
+      }
+    } else {
+      // sem rest: aridade exata
+      if (params.length !== args.length) {
+        const token = expr.callee.kind === "Identifier"
+          ? expr.callee.name
+          : { line: 0, column: 0, type: 0, value: "" } as Token;
+        this.errors.push(Errors.argumentCountMismatch(params.length, args.length, token));
+      }
     }
 
+    // ── checar cada argumento ──────────────────────────────────
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
-      const expectedType = i < paramTypes.length ? paramTypes[i] : null;
+
+      // tipo esperado — pós restIndex todos mapeiam pro elementType do rest
+      let expectedType: TypeNode | null = null;
+      if (i < params.length) {
+        expectedType = params[i];
+      } else if (hasRest && restIndex >= 0 && restIndex < params.length) {
+        // rest param: o tipo do param é T[], o arg deve ser T
+        const restParamType = params[restIndex];
+        expectedType = restParamType.kind === "ArrayType"
+          ? restParamType.elementType
+          : restParamType;
+      }
 
       if (!expectedType) continue;
 
+      // ── spread como argumento ─────────────────────────────────
       if (arg.kind === "Spread") {
-        const spreadType = this.checkExpression((arg as Extract<Expr, { kind: "Spread" }>).argument);
+        const spreadType = this.checkExpression(
+          (arg as Extract<Expr, { kind: "Spread" }>).argument
+        );
         
         if (spreadType.kind !== "ArrayType") {
-          this.errors.push(Errors.invalidSpread({ line: 0, column: 0, type: 0, value: "" } as Token));
+          this.errors.push(Errors.invalidSpread(
+            { line: 0, column: 0, type: 0, value: "" } as Token
+          ));
           continue;
         }
-
-        const elementType = spreadType.elementType;
-        if (!this.areTypesCompatible(expectedType, elementType)) {
+        
+        // Para rest param, o expectedType é ArrayType, o spread deve ser compatível com ArrayType
+        // Não usar elementType aqui!
+        if (!this.areTypesCompatible(expectedType, spreadType)) {
           this.errors.push(Errors.typeMismatch(
-            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', got '${this.typeToString(elementType)}'`,
+            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
+            `got '${this.typeToString(spreadType)}'`,
             { line: 0, column: 0, type: 0, value: "" } as Token
           ));
         }
-      } else {
+        continue;
+      }
+
+      // ── contextual typing para arrow functions ─────────────────
+      // se o param esperado for FunctionType e o arg for arrow sem anotação,
+      // passa o tipo esperado como contexto para inferir os params da arrow
+      if (expectedType.kind === "FunctionType" &&
+          arg.kind === "ArrowFunction") {
+        this.contextualType = expectedType;        // ← contexto
         const actualType = this.checkExpression(arg);
+        this.contextualType = null;
+
         if (!this.areTypesCompatible(expectedType, actualType)) {
           this.errors.push(Errors.typeMismatch(
-            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', got '${this.typeToString(actualType)}'`,
+            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
+            `got '${this.typeToString(actualType)}'`,
             { line: 0, column: 0, type: 0, value: "" } as Token
           ));
         }
+        continue;
+      }
+
+      // ── argumento normal ───────────────────────────────────────
+      const actualType = this.checkExpression(arg);
+      if (!this.areTypesCompatible(expectedType, actualType)) {
+        this.errors.push(Errors.typeMismatch(
+          `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
+          `got '${this.typeToString(actualType)}'`,
+          { line: 0, column: 0, type: 0, value: "" } as Token
+        ));
       }
     }
 
@@ -1168,7 +1242,10 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const finalReturn = annotatedReturn ?? inferredReturn;
     return {
       kind: "FunctionType",
-      params: paramTypes,
+      params: paramTypes.map((pt, i) => ({
+        ...pt,
+        isRest: expr.params[i]?.isRest || false
+      })),
       returnType: finalReturn,
     };
   }
