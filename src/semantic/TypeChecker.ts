@@ -487,6 +487,19 @@ export class TypeChecker {
       return;
     }
 
+    // Check compound operators ( +=, -=, *=, /=, %= )
+    const operator = stmt.operator?.value as string;
+    if (operator && ['+=', '-=', '*=', '/=', '%='].includes(operator)) {
+      // For compound assignment, check if target type is numeric
+      if (!this.isNumericType(symbol.type)) {
+        this.errors.push(Errors.typeMismatch(
+          `Cannot use '${operator}' with non-numeric type '${this.typeToString(symbol.type)}'`,
+          stmt.operator!
+        ));
+        return;
+      }
+    }
+
     const valueType = this.inferType(stmt.value);
     if (!this.areTypesCompatible(symbol.type, valueType)) {
       this.errors.push(Errors.typeMismatch(
@@ -596,6 +609,13 @@ export class TypeChecker {
     this.checkExpression(expr);
   }
 
+  private isNumericType(type: TypeNode): boolean {
+    if (type.kind === "PrimitiveType") {
+      return type.name === "int" || type.name === "float";
+    }
+    return false;
+  }
+
   private checkAssignExpr(expr: Extract<Expr, { kind: "Assign" }>): void {
     const targetName = expr.name;
     let name: string;
@@ -612,6 +632,19 @@ export class TypeChecker {
     if (!symbol.mutable) {
       this.errors.push(Errors.cannotAssign(name, targetName.name));
       return;
+    }
+
+    // Check compound operators ( +=, -=, *=, /=, %= )
+    const operator = expr.operator?.value as string;
+    if (operator && ['+=', '-=', '*=', '/=', '%='].includes(operator)) {
+      // For compound assignment, check if target type is numeric
+      if (!this.isNumericType(symbol.type)) {
+        this.errors.push(Errors.typeMismatch(
+          `Cannot use '${operator}' with non-numeric type '${this.typeToString(symbol.type)}'`,
+          expr.operator!
+        ));
+        return;
+      }
     }
 
     const valueType = this.inferType(expr.value);
@@ -786,10 +819,41 @@ export class TypeChecker {
       this.errors.push(Errors.invalidUnary(op, expr.operator));
     }
 
-    if (op === "!" || op === "++" || op === "--") {
+    if (op === "++" || op === "--") {
+      // Check if target is an Identifier
+      if (expr.right.kind === "Identifier") {
+        const name = expr.right.name.value as string;
+        const symbol = this.currentEnv.lookup(name);
+
+        if (!symbol) {
+          this.errors.push(Errors.undefinedVariable(name, expr.right.name));
+          return { kind: "PrimitiveType", name: "unknown" };
+        }
+
+        if (!symbol.mutable) {
+          this.errors.push(Errors.cannotAssign(name, expr.right.name));
+          return symbol.type;
+        }
+
+        // Check numeric type (not bool for ++/--)
+        if (
+          symbol.type.kind === "PrimitiveType" &&
+          (symbol.type.name === "int" || symbol.type.name === "float")
+        ) {
+          return symbol.type;
+        }
+
+        this.errors.push(Errors.invalidUnary(op, expr.operator));
+      } else {
+        this.errors.push(Errors.invalidUnary(op, expr.operator));
+      }
+      return { kind: "PrimitiveType", name: "unknown" };
+    }
+
+    if (op === "!") {
       if (
         operandType.kind === "PrimitiveType" &&
-        (operandType.name === "int" || operandType.name === "float" || operandType.name === "bool")
+        operandType.name === "bool"
       ) {
         return operandType;
       }
