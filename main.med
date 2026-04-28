@@ -1,7 +1,9 @@
 // testar muito a anotação de tipos
 
-typealias s = int
+typealias Id = string
 
-func app(): s {
-
+func createID(name: string?): Id {
+    return "abc-cd" + ""
 }
+
+const e = createID(""+"")

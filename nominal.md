@@ -19,3 +19,14 @@ Tipos aceitos agora:
 - ✅ Grouping: (int | string)
 - ❌ Literal types: "active", 3.14, true (rejeitados)
 - ❌ Inline objects: {name: string} (rejeitados)
+
+
+NamedType pode ser
+  typealias 
+  type
+  enum
+  struct
+  protocol
+  
+-- Cada case desse possui um comportamente diferente.
+-- Na defnição do ast, o parser indetifica cada um deles.
