@@ -58,6 +58,9 @@ export class TypeChecker {
       case "ReturnStmt":
         this.checkReturnStmt(stmt);
         break;
+      case "TypeAliasStmt":
+        this.checkTypeAliasStmt(stmt);
+        break;
       case "ExpressionStmt":
         this.checkExpressionStmt(stmt);
         break;
@@ -123,6 +126,36 @@ export class TypeChecker {
     this.currentEnv.define(name, symbol);
   }
 
+  private checkTypeAliasStmt(stmt: Extract<Stmt, { kind: "TypeAliasStmt" }>): void {
+    const name = stmt.name.value as string;
+
+    // Verificar redeclaração no escopo local
+    const existing = this.currentEnv.lookupLocal(name);
+    if (existing) {
+      this.errors.push(Errors.alreadyDeclared(name, stmt.name));
+      return;
+    }
+
+    // Validar o tipo que está sendo aliasado
+    const err = this.validateTypeNode(stmt.type, stmt.name);
+    if (err) {
+      this.errors.push(err);
+      return;
+    }
+
+    // Registrar no ambiente global como kind: "type"
+    const symbol = {
+      name,
+      type: stmt.type,   // o TypeNode que o alias representa
+      kind: "type" as const,
+      mutable: false,
+      initialized: true,
+      declarationToken: stmt.name,
+    };
+
+    this.globalEnv.define(name, symbol);
+  }
+
   private validateTypeNode(type: TypeNode, token: Token): SemanticError | null {
     if (type.kind === "PrimitiveType") {
       const validPrimitives = ["int", "float", "string", "bool", "void", "null", "any", "unknown"];
@@ -133,6 +166,13 @@ export class TypeChecker {
     }
 
     if (type.kind === "NamedType") {
+      // Resolve alias before validating
+      const resolved = this.resolveAlias(type);
+      if (resolved !== type) {
+        // É um alias, validar o tipo resolvido
+        return this.validateTypeNode(resolved, token);
+      }
+
       const typeName = type.name.value as string;
       const validPrimitives = ["int", "float", "string", "bool", "void", "null", "any", "unknown"];
       if (validPrimitives.includes(typeName)) {
@@ -202,12 +242,36 @@ export class TypeChecker {
     return null;
   }
 
+  private resolveAlias(type: TypeNode): TypeNode {
+    // Só resolve se for NamedType
+    if (type.kind !== "NamedType") return type;
+
+    const name = type.name.value as string;
+    const symbol = this.globalEnv.lookup(name);
+
+    // Só expande se for alias (kind: "type") — structs/enums não expandem
+    if (symbol?.kind === "type") {
+      return this.resolveAlias(symbol.type);  // recursivo para aliases de aliases
+    }
+
+    return type;
+  }
+
   private areTypesCompatible(expected: TypeNode, actual: TypeNode): boolean {
-    if (expected.kind === "PrimitiveType" && actual.kind === "PrimitiveType") {
-      if (expected.name === "any" || expected.name === "unknown" || actual.name === "unknown") {
+    // Resolve aliases antes de qualquer comparação
+    const resolvedExpected = this.resolveAlias(expected);
+    const resolvedActual = this.resolveAlias(actual);
+
+    // Se ambos mudaram, reentrar com os resolvidos
+    if (resolvedExpected !== expected || resolvedActual !== actual) {
+      return this.areTypesCompatible(resolvedExpected, resolvedActual);
+    }
+
+    if (resolvedExpected.kind === "PrimitiveType" && resolvedActual.kind === "PrimitiveType") {
+      if (resolvedExpected.name === "any" || resolvedExpected.name === "unknown" || resolvedActual.name === "unknown") {
         return true;
       }
-      return expected.name === actual.name;
+      return resolvedExpected.name === resolvedActual.name;
     }
 
     if (expected.kind === "ArrayType" && actual.kind === "ArrayType") {
@@ -269,9 +333,19 @@ export class TypeChecker {
   }
 
   private typeToString(type: TypeNode): string {
+    // Resolve aliases before converting to string
+    const resolved = this.resolveAlias(type);
+    if (resolved !== type) {
+      return this.typeToString(resolved);
+    }
+
     switch (type.kind) {
       case "PrimitiveType":
         return type.name;
+      case "NamedType":
+        return type.name.value as string;
+      case "LiteralType":
+        return String(type.value);
       case "ArrayType":
         const elemStr = this.typeToString(type.elementType);
         const needsParens = type.elementType.kind === "UnionType" || type.elementType.kind === "FunctionType";
@@ -284,6 +358,13 @@ export class TypeChecker {
         return type.types.map(t => this.typeToString(t)).join(" | ");
       case "NullableType":
         return `${this.typeToString(type.type)}?`;
+      case "TupleType":
+        const elements = type.elements.map(t => this.typeToString(t)).join(", ");
+        return `[${elements}]`;
+      case "GenericType":
+        const typeName = type.name.value as string;
+        const args = type.args.map(t => this.typeToString(t)).join(", ");
+        return `${typeName}<${args}>`;
       case "GroupingType":
         return `(${this.typeToString(type.type)})`;
       default:
