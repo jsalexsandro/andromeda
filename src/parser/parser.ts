@@ -1305,7 +1305,6 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(typeNode);
       }
-      console.log(`DEBUG - [int]`);
       return typeNode;
     }
     if (typeToken.type === TokenType.FLOAT_TYPE) {
