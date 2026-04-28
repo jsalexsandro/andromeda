@@ -7,7 +7,7 @@ import { Environment } from "./Environment";
 export class TypeChecker {
   private errors: SemanticError[] = [];
   private globalEnv: Environment;
-  private currentEnv: Environment;
+  private currentEnv: Enviroanment;
   private loopDepth: number = 0;
   private functionDepth: number = 0;
   private hasReturn: boolean = false;
@@ -99,8 +99,18 @@ export class TypeChecker {
         const inferredType = this.inferType(stmt.initializer);
         this.contextualType = null;
         if (!this.areTypesCompatible(typeNode, inferredType)) {
+          // Hint para função nullable
+          const isNullableFunctionHint = 
+            typeNode.kind === "FunctionType" &&
+            inferredType.kind === "PrimitiveType" &&
+            inferredType.name === "null";
+          
+          const hint = isNullableFunctionHint
+            ? ` Hint: para uma função nullable, use '((${this.typeToString(typeNode)}) | null' ou '(${this.typeToString(typeNode)})?'`
+            : "";
+          
           this.errors.push(Errors.typeMismatch(
-            `type '${this.typeToString(typeNode)}' is incompatible with initializer '${this.typeToString(inferredType)}'`,
+            `type '${this.typeToString(typeNode)}' is incompatible with initializer '${this.typeToString(inferredType)}'${hint}`,
             stmt.name
           ));
         }
@@ -1207,7 +1217,13 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
 
     let inferredReturn: TypeNode;
     if (expr.body.kind !== "BlockStmt") {
+      // PROPAGAÇÃO DE CONTEXTO: se o retorno esperado é FunctionType, passa como contexto
+      if (expectedReturn && expectedReturn.kind === "FunctionType") {
+        this.contextualType = expectedReturn;
+      }
+
       inferredReturn = this.checkExpression(expr.body as Expr);
+      this.contextualType = null; // limpa após checar
       this.hasReturn = true;
 
       if (expectedReturn && !this.areTypesCompatible(expectedReturn, inferredReturn)) {
