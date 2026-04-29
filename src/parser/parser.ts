@@ -243,12 +243,13 @@ export class Parser {
       let value: Expr | null = null;
 
       if (this.check(TokenType.SPREAD)) {
+        const spreadToken = this.peek();
         this.advance();
         const spreadArg = this.parseExpression(Precedence.LOWEST);
         if (spreadArg) {
           properties.push({
             key: null,
-            value: { kind: "Spread", argument: spreadArg },
+            value: { kind: "Spread", argument: spreadArg, line: spreadToken?.line, column: spreadToken?.column },
           });
         }
       } else if (
@@ -323,24 +324,6 @@ export class Parser {
     }
 
     return { kind: "Object", properties };
-  }
-
-  private parseSpread(): Expr {
-    const spread = this.previous();
-    const arg = this.parseExpression(Precedence.LOWEST);
-    if (!arg) {
-      this.error("Expected expression after '...'", spread);
-      return {
-        kind: "Identifier",
-        name: {
-          type: TokenType.IDENTIFIER,
-          value: "error",
-          line: spread.line,
-          column: spread.column,
-        },
-      };
-    }
-    return { kind: "Spread", argument: arg };
   }
 
   private parseArrowOrGroup(): Expr {
