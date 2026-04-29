@@ -55,6 +55,56 @@ None at the moment. Avoid using generics in `typealias` definitions.
 
 ---
 
+## Bug #003: Spread de int[][] em int[] não dá erro esperado (comentário confuso)
+
+**Status**: 🔵 Not a Bug (comportamento correto, documentação confusa)  
+**Date**: 2026-04-29  
+**Component**: TypeChecker (`src/semantic/TypeChecker.ts`)
+
+---
+
+### Description
+
+No arquivo `all-cases.med`, o caso `val bad_flat: int[] = [...matrix]` onde `matrix: int[][]` deveria dar erro segundo o comentário, mas **não dá erro** porque o comportamento está correto.
+
+### Explicação
+
+```andromeda
+val row1: int[] = [1, 2, 3]
+val row2: int[] = [4, 5, 6]
+val matrix: int[][] = [row1, row2]  // int[][]
+
+val bad_flat: int[] = [...matrix]  
+// Comentário original: [ERRO] spread de int[][] em int[] — elementos seriam int[], não int
+```
+
+**Análise**:
+- `matrix: int[][]` é `ArrayType { elementType: int, dimensions: 2 }`
+- Spread de `int[][]` usando `getSpreadElementType()` → reduz dimensões: `int[]` (dimensions: 1)
+- `[...matrix]` produz `int[]` (array de ints)
+- `val bad_flat: int[] = [...matrix]` → `int[] = int[]` → **sem erro** ✅
+
+O comentário `[ERRO]` estava **incorreto**. Spread de `int[][]` em array literal produz `int[]`, que é compatível com `int[]`.
+
+### Root Cause
+
+Comentário confuso no arquivo de teste `all-cases.med` (linha 140). O comportamento do compilador está correto.
+
+### Correção
+
+Atualizar comentário no `all-cases.med`:
+```andromeda
+// [OK] spread de int[][] produz int[] como elemento
+val bad_flat: int[] = [...matrix]   // spread int[][] → int[] (correto)
+```
+
+### Status
+
+Comportamento do compilador: ✅ Correto  
+Comentário no teste: ❌ Incorreto (será corrigido)
+
+---
+
 ## Bug #002: typeToString() returns "unknown" for some types
 
 **Status**: ✅ Fixed  
