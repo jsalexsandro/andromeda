@@ -304,6 +304,8 @@ export interface AwaitExpr {
 export interface SpreadExpr {
   kind: "Spread"
   argument: Expr
+  line?: number
+  column?: number
 }
 
 
