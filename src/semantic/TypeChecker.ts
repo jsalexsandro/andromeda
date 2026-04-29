@@ -567,13 +567,13 @@ export class TypeChecker {
   }
 
   private checkForStmt(stmt: Extract<Stmt, { kind: "ForStmt" }>): void {
-    // Check initializer (criates new scope if variable declared)
+    // Create new scope for the entire for loop (initializer + condition + update + body)
+    this.currentEnv = new Environment(this.currentEnv, false);
+
+    // Check initializer in the new scope
     if (stmt.initializer) {
       this.checkStatement(stmt.initializer);
     }
-
-    // Create new scope for the loop body
-    this.currentEnv = new Environment(this.currentEnv, false);
 
     // Check condition
     if (stmt.condition && stmt.condition.kind !== "Literal") {
