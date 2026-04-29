@@ -1092,14 +1092,30 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       ? this.unwrapGrouping(unwrapped.elementType)
       : null;
 
-    const elementTypes = expr.elements.map((e) => {
+    const elementTypes: TypeNode[] = [];
+    
+    for (const e of expr.elements) {
       this.contextualType = elementCtx;
-      const t = this.checkExpression(e);
+      
+      // Se for spread, extrair o elementType do array
+      if (e.kind === "Spread") {
+        const spreadType = this.checkExpression(e);
+        if (spreadType.kind === "ArrayType") {
+          // Extrair o tipo do elemento do array
+          elementTypes.push(this.unwrapGrouping(spreadType.elementType));
+        } else {
+          elementTypes.push(spreadType);
+        }
+      } else {
+        const t = this.checkExpression(e);
+        elementTypes.push(this.unwrapGrouping(t));
+      }
+      
       this.contextualType = null;
-      return t;
-    });
+    }
+    
     const unique = this.deduplicateTypes(elementTypes);
-
+    
     let elementType: TypeNode;
     let dimensions = 1;
 

@@ -1,80 +1,123 @@
-# Bug Tracker - Andromeda Compiler
+# Bug Report: Type Inference Issues
 
-## Bug #001: Generics in typealias not working
-
-**Status**: 🔴 Open  
-**Date**: 2026-04-28  
-**Component**: Parser (`src/parser/parser.ts`)
+**Date:** April 29, 2026  
+**Version:** 1.0.2  
+**Status:** Open  
 
 ---
 
-### Description
+## Bug #1: Array Type vs Generic Type Mismatch
 
-When defining a `typealias` with generic types, the parser fails to process the type arguments correctly.
+### Description
+The semantic analyzer does not unify `Array<T>` with `T[]`. They are treated as different types.
 
 ### Reproduction
-
-```andromeda
-typealias StringList = Array<string>
-typealias UserMap = Map<string, int>
+```typescript
+val a: Array<int> = [1, 2, 3]  // ERROR: type 'Array<int>' is incompatible with initializer 'int[]'
+val b: int[] = [1, 2, 3]        // OK
 ```
 
-**Error**:
-```
-[Parse Error]: Unexpected token 'string', expected expression.
-At line 1, column 29:
+### Expected Behavior
+`Array<int>` should be equivalent to `int[]`.
 
-1 | typealias StringList = Array<string>
-  |                              ^^^^^
-```
+### Actual Behavior
+Semantic error: `type 'Array<int>' is incompatible with initializer 'int[]'`
 
 ---
 
-### Root Cause (Suspected)
-
-In `parseAnnotationType()`, when processing generic type arguments (e.g., `<string>`), the method is called from `parseNamedTypeWithGenerics()`. The token `string` is recognized as `TokenType.STRING_TYPE` (keyword), but `parseAnnotationType()` may not be handling it correctly in the recursive call.
-
-**Location**: `src/parser/parser.ts`
-- `parseAnnotationType()` (~line 1588)
-- `parseNamedTypeWithGenerics()` (~line 1722)
-
----
-
-### Workaround
-
-None at the moment. Avoid using generics in `typealias` definitions.
-
----
-
-### Next Steps
-
-1. Debug `parseAnnotationType()` to see why `TokenType.STRING_TYPE` is not being processed
-2. Check if the control flow in `parseNamedTypeWithGenerics()` is correct
-3. Add proper error messages for this case
-4. Create test cases for generics in typealias
-
----
-
-## Bug #002: typeToString() returns "unknown" for some types
-
-**Status**: ✅ Fixed  
-**Date**: 2026-04-28  
-**Component**: TypeChecker (`src/semantic/TypeChecker.ts`)
-
----
+## Bug #2: Spread Creates Incorrect Union Types
 
 ### Description
+When using spread operator inside array literals with mixed types (spread arrays + primitive elements), the compiler creates incorrect union types.
 
-The `typeToString()` method in TypeChecker was returning `"unknown"` for `NamedType`, `LiteralType`, `TupleType`, and `GenericType`.
+### Reproduction
+```typescript
+val arr1: int[] = [1, 2, 3]
+val arr2: int[] = [4, 5, 6]
+val combined: int[] = [...arr1, ...arr2, 7, 8]  // ERROR: type 'int[]' is incompatible with initializer '(int[] | int)[]'
+```
 
-### Fix
+### Root Cause
+The parser is creating `SpreadExpr` nodes, but when the semantic analyzer processes them, it's treating the spread result as `int[]` type, and then combining with `int` literals creates `(int[] | int)[]` instead of correctly flattening to `int[]`.
 
-Added proper handling for all type nodes in `typeToString()`:
-- `NamedType` → returns type name
-- `LiteralType` → returns string representation of value
-- `TupleType` → returns `[elem1, elem2, ...]`
-- `GenericType` → returns `Name<arg1, arg2, ...>`
-
-**Commit**: `21e0c66`
+### Expected Behavior
+`[...int[], ...int[], int, int]` should infer as `int[]`, not `(int[] | int)[]`.
 
 ---
+
+## Bug #3: Empty Array Inference
+
+### Description
+Empty arrays without explicit type annotation are inferred as `unknown[]` instead of a more useful type.
+
+### Reproduction
+```typescript
+val empty = []              // Inferred as unknown[]
+val withSpread: int[] = [...empty, 1, 2]  // ERROR: type 'int[]' is incompatible with initializer 'unknown[]'
+```
+
+### Expected Behavior
+Empty arrays should either:
+- Be inferred from context (preferred)
+- Default to `never[]` or similar bottom type
+
+---
+
+## Bug #4: Multi-Dimensional Array Type Mismatch
+
+### Description
+Complex array types with unions are not properly validated.
+
+### Reproduction
+```typescript
+val matrix: int[][] = [[1, 2], [3, 4]]  // OK
+val unionArr: (int | string)[] = [1, "a"]  // May have issues
+```
+
+---
+
+## Test Cases to Investigate
+
+### Case 1: Basic spread
+```typescript
+val a: int[] = [1, 2]
+val b: int[] = [...a, 3]  // Should be int[]
+```
+
+### Case 2: Multiple spreads
+```typescript
+val a: int[] = [1]
+val b: int[] = [2]
+val c: int[] = [...a, ...b]  // Should be int[]
+```
+
+### Case 3: Spread with elements
+```typescript
+val a: int[] = [1, 2]
+val b: int[] = [...a, 3, 4]  // Should be int[]
+```
+
+### Case 4: Nested spread
+```typescript
+val a: int[] = [1]
+val b: int[] = [...a, 2]
+val c: int[] = [...b, 3]  // Should be int[]
+```
+
+---
+
+## Priority
+- **High:** Bug #2 (spread creates incorrect union) - affects common use case
+- **Medium:** Bug #1 (Array<T> vs T[]) - affects generic usage
+- **Low:** Bug #3 (empty array inference) - can be worked around with type annotation
+
+---
+
+## Related Files
+- `src/semantic/TypeChecker.ts` - Type checking logic
+- `src/parser/parser.ts` - Spread expression parsing
+- `src/ast.ts` - SpreadExpr definition
+
+---
+
+**Last Updated:** April 29, 2026
