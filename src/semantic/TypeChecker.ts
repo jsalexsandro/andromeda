@@ -553,25 +553,51 @@ export class TypeChecker {
   }
 
   private checkWhileStmt(stmt: Extract<Stmt, { kind: "WhileStmt" }>): void {
-    const condType = this.checkExpression(stmt.condition);
-    if (!this.isBoolType(condType)) {
-      this.errors.push(Errors.invalidCondition(stmt.condition.kind === "Identifier" ? stmt.condition.name : { line: 0, column: 0, type: 0, value: "while" } as Token));
+    const conditionType = this.checkExpression(stmt.condition);
+    
+    if (conditionType.kind !== "PrimitiveType" || conditionType.name !== "bool") {
+      if (stmt.condition.kind !== "Literal" || (stmt.condition as any).value !== true) {
+        this.errors.push(Errors.invalidCondition(stmt.condition));
+      }
     }
+
     this.loopDepth++;
     this.checkStatement(stmt.body);
     this.loopDepth--;
   }
 
   private checkForStmt(stmt: Extract<Stmt, { kind: "ForStmt" }>): void {
+    // Check initializer (criates new scope if variable declared)
     if (stmt.initializer) {
       this.checkStatement(stmt.initializer);
     }
-    this.checkExpression(stmt.condition);
-    this.checkExpression(stmt.update);
 
+    // Create new scope for the loop body
+    this.currentEnv = new Environment(this.currentEnv, false);
+
+    // Check condition
+    if (stmt.condition && stmt.condition.kind !== "Literal") {
+      const conditionType = this.checkExpression(stmt.condition);
+      
+      if (conditionType.kind !== "PrimitiveType" || conditionType.name !== "bool") {
+        if (stmt.condition.kind !== "Literal" || (stmt.condition as any).value !== true) {
+          this.errors.push(Errors.invalidCondition(stmt.condition));
+        }
+      }
+    }
+
+    // Check update expression
+    if (stmt.update && stmt.update.kind !== "Literal") {
+      this.checkExpression(stmt.update);
+    }
+
+    // Check body
     this.loopDepth++;
     this.checkStatement(stmt.body);
     this.loopDepth--;
+
+    // Restore environment
+    this.currentEnv = this.currentEnv.parent!;
   }
 
   private checkBreakStmt(_stmt: Extract<Stmt, { kind: "BreakStmt" }>): void {
