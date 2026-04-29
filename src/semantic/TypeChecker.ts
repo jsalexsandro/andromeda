@@ -1317,7 +1317,13 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const argType = this.checkExpression(expr.argument);
 
     if (argType.kind !== "ArrayType" && argType.kind !== "Object") {
-      this.errors.push(Errors.invalidSpread({ line: 0, column: 0, type: 0, value: "" } as Token));
+      const token: Token = {
+        line: expr.line ?? 0,
+        column: expr.column ?? 0,
+        type: 0,
+        value: ""
+      };
+      this.errors.push(Errors.invalidSpread(token));
     }
 
     return argType;

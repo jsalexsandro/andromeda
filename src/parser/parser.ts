@@ -48,8 +48,6 @@ export class Parser {
       this.parseArrayLiteral.bind(this),
     );
 
-    this.prefixParselets.set(TokenType.SPREAD, this.parseSpread.bind(this));
-
     this.infixParselets.set(TokenType.ASSIGN, this.parseAssignment.bind(this));
     this.infixParselets.set(
       TokenType.PLUS_EQUAL,
@@ -184,9 +182,18 @@ export class Parser {
     }
 
     while (!this.isAtEnd()) {
-      const elem = this.parseExpression(Precedence.LOWEST);
-      if (elem) {
-        elements.push(elem);
+      if (this.check(TokenType.SPREAD)) {
+        const spreadToken = this.peek();
+        this.advance();
+        const arg = this.parseExpression(Precedence.LOWEST);
+        if (arg) {
+          elements.push({ kind: "Spread", argument: arg, line: spreadToken?.line, column: spreadToken?.column });
+        }
+      } else {
+        const elem = this.parseExpression(Precedence.LOWEST);
+        if (elem) {
+          elements.push(elem);
+        }
       }
 
       if (this.check(TokenType.RBRACKET)) {
@@ -236,12 +243,13 @@ export class Parser {
       let value: Expr | null = null;
 
       if (this.check(TokenType.SPREAD)) {
+        const spreadToken = this.peek();
         this.advance();
         const spreadArg = this.parseExpression(Precedence.LOWEST);
         if (spreadArg) {
           properties.push({
             key: null,
-            value: { kind: "Spread", argument: spreadArg },
+            value: { kind: "Spread", argument: spreadArg, line: spreadToken?.line, column: spreadToken?.column },
           });
         }
       } else if (
@@ -316,24 +324,6 @@ export class Parser {
     }
 
     return { kind: "Object", properties };
-  }
-
-  private parseSpread(): Expr {
-    const spread = this.previous();
-    const arg = this.parseExpression(Precedence.LOWEST);
-    if (!arg) {
-      this.error("Expected expression after '...'", spread);
-      return {
-        kind: "Identifier",
-        name: {
-          type: TokenType.IDENTIFIER,
-          value: "error",
-          line: spread.line,
-          column: spread.column,
-        },
-      };
-    }
-    return { kind: "Spread", argument: arg };
   }
 
   private parseArrowOrGroup(): Expr {
@@ -555,9 +545,18 @@ export class Parser {
     }
 
     while (!this.isAtEnd()) {
-      const arg = this.parseExpression(Precedence.LOWEST);
-      if (arg) {
-        args.push(arg);
+      if (this.check(TokenType.SPREAD)) {
+        const spreadToken = this.peek();
+        this.advance();
+        const arg = this.parseExpression(Precedence.LOWEST);
+        if (arg) {
+          args.push({ kind: "Spread", argument: arg, line: spreadToken?.line, column: spreadToken?.column });
+        }
+      } else {
+        const arg = this.parseExpression(Precedence.LOWEST);
+        if (arg) {
+          args.push(arg);
+        }
       }
 
       if (this.check(TokenType.RPAREN)) {
