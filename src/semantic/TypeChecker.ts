@@ -588,14 +588,20 @@ export class TypeChecker {
 
     // Check update expression
     if (stmt.update && stmt.update.kind !== "Literal") {
-      this.checkExpression(stmt.update);
+      // If update is an assignment (Assign Stmt), check it properly
+      if (stmt.update.kind === "Assign") {
+        this.checkAssignStmt(stmt.update as any);
+      } else {
+        // Otherwise treat as expression
+        this.checkExpression(stmt.update);
+      }
     }
 
     // Check body
     this.loopDepth++;
     this.checkStatement(stmt.body);
     this.loopDepth--;
-
+    
     // Restore environment
     this.currentEnv = this.currentEnv.parent!;
   }
