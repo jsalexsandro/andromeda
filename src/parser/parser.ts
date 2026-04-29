@@ -723,6 +723,9 @@ export class Parser {
       if (keyword === "while") {
         return this.parseWhileStatement();
       }
+      if (keyword === "for") {
+        return this.parseForStatement();
+      }
       if (keyword === "break") {
         this.advance();
         return { kind: "BreakStmt" };
@@ -959,9 +962,96 @@ export class Parser {
       body = this.parseStatement() || { kind: "BlockStmt", statements: [] };
     }
 
+      return {
+        kind: "WhileStmt",
+        condition,
+        body,
+      };
+  }
+
+  private checkKeyword(keyword: string): boolean {
+    return this.check(TokenType.KEYWORD) && this.peek().value === keyword;
+  }
+
+  private parseForStatement(): Stmt {
+    this.advance(); // consume 'for'
+
+    // Expect '('
+    if (!this.check(TokenType.LPAREN)) {
+      this.error("Expected '(' after 'for'", this.peek());
+      this.synchronize();
+      return { kind: "BlockStmt", statements: [] };
+    }
+    this.advance(); // consume '('
+
+    // 1. Initializer (optional)
+    let initializer: Stmt | null = null;
+
+    if (this.check(TokenType.SEMICOLON)) {
+      this.advance(); // consume ';'
+    } else if (this.checkKeyword("var") || this.checkKeyword("val") || this.checkKeyword("const")) {
+      initializer = this.parseVariableDeclaration();
+      if (this.check(TokenType.SEMICOLON)) {
+        this.advance(); // consume ';'
+      } else {
+        this.error("Expected ';' after for initializer", this.peek());
+      }
+    } else {
+      // Expression (e.g., function call or assignment)
+      const expr = this.parseExpression(Precedence.LOWEST);
+      if (expr) {
+        initializer = { kind: "ExpressionStmt", expression: expr };
+      }
+      if (this.check(TokenType.SEMICOLON)) {
+        this.advance();
+      } else {
+        this.error("Expected ';' after for initializer", this.peek());
+      }
+    }
+
+    // 2. Condition (optional)
+    let condition: Expr;
+    if (this.check(TokenType.SEMICOLON)) {
+      // No condition = infinite loop
+      condition = { kind: "Literal", value: true };
+      this.advance(); // consume ';'
+    } else {
+      condition = this.parseExpression(Precedence.LOWEST) || { kind: "Literal", value: true };
+      if (this.check(TokenType.SEMICOLON)) {
+        this.advance();
+      } else {
+        this.error("Expected ';' after for condition", this.peek());
+      }
+    }
+
+    // 3. Update (optional)
+    let update: Expr;
+    if (this.check(TokenType.RPAREN)) {
+      // No update
+      update = { kind: "Literal", value: null };
+      this.advance(); // consume ')'
+    } else {
+      update = this.parseExpression(Precedence.LOWEST) || { kind: "Literal", value: null };
+      if (this.check(TokenType.RPAREN)) {
+        this.advance(); // consume ')'
+      } else {
+        this.error("Expected ')' after for update", this.peek());
+      }
+    }
+
+    // 4. Body
+    let body: Stmt;
+    if (this.peek().type === TokenType.LBRACE) {
+      body = this.parseBlockStatement();
+    } else {
+      body = this.parseStatement() || { kind: "BlockStmt", statements: [] };
+    }
+
     return {
-      kind: "WhileStmt",
+      kind: "ForStmt",
+      initializer,
       condition,
+      update,
       body,
     };
   }
