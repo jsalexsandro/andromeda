@@ -291,6 +291,19 @@ export class TypeChecker {
     }
 
     if (expected.kind === "ArrayType" && actual.kind === "ArrayType") {
+      if (expected.dimensions !== actual.dimensions) return false
+      
+      // Handle: expected is ArrayType(NullableType(T)) and actual is ArrayType(UnionType(T, null))
+      const expectedElem = expected.elementType;
+      const actualElem = actual.elementType;
+      if (expectedElem.kind === "NullableType" && actualElem.kind === "UnionType") {
+        const hasNull = actualElem.types.some(t => t.kind === "PrimitiveType" && t.name === "null");
+        const nonNullTypes = actualElem.types.filter(t => !(t.kind === "PrimitiveType" && t.name === "null"));
+        if (hasNull && nonNullTypes.length === 1) {
+          return this.areTypesCompatible(expectedElem, nonNullTypes[0]);
+        }
+      }
+      
       return this.areTypesCompatible(expected.elementType, actual.elementType);
     }
 
@@ -326,6 +339,11 @@ export class TypeChecker {
       return expected.types.some((member) =>
         this.areTypesCompatible(member, actual)
       );
+    }
+
+    // NullableType vs NullableType — ambos nullable, compara o tipo interno
+    if (expected.kind === "NullableType" && actual.kind === "NullableType") {
+      return this.areTypesCompatible(expected.type, actual.type);
     }
 
     if (expected.kind === "NullableType") {
@@ -976,10 +994,11 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         }
 
         // Verifica elementType do spread contra expectedType
-        if (expectedType && !this.areTypesCompatible(expectedType, spreadType.elementType)) {
+        const spreadElementType = this.getSpreadElementType(spreadType)
+        if (expectedType && !this.areTypesCompatible(expectedType, spreadElementType)) {
           this.errors.push(Errors.typeMismatch(
             `argument ${i + 1} (spread): expected '${this.typeToString(expectedType)}', ` +
-            `got elements of '${this.typeToString(spreadType.elementType)}'`,
+            `got elements of '${this.typeToString(spreadElementType)}'`,
             { line: 0, column: 0, type: 0, value: "" } as Token
           ));
         }
@@ -1078,7 +1097,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
 
         if (spreadType.kind === "ArrayType") {
           // ...nums onde nums: int[] → contribui int para o array
-          elementTypes.push(spreadType.elementType)
+          elementTypes.push(this.getSpreadElementType(spreadType))
         } else {
           this.errors.push(Errors.invalidSpread(
             { line: 0, column: 0, type: 0, value: "" } as Token
@@ -1108,6 +1127,18 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     }
 
     return { kind: "ArrayType", elementType, dimensions }
+  }
+
+  private getSpreadElementType(arrayType: Extract<TypeNode, { kind: "ArrayType" }>): TypeNode {
+    if (arrayType.dimensions <= 1) {
+      return arrayType.elementType
+    }
+    // int[][] (dimensions=2, elementType=int) → spread dá int[] (dimensions=1, elementType=int)
+    return {
+      kind: "ArrayType",
+      elementType: arrayType.elementType,
+      dimensions: arrayType.dimensions - 1,
+    }
   }
 
   private deduplicateTypes(types: TypeNode[]): TypeNode[] {
