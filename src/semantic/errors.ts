@@ -7,6 +7,7 @@ export type ErrorCode =
   | "ALREADY_DECLARED"
   | "TYPE_MISMATCH"
   | "VAL_REQUIRES_TYPE"
+  | "UNINITIALIZED_VAR"
   | "INVALID_OPERATION"
   | "INVALID_BREAK"
   | "CANNOT_ASSIGN"
@@ -116,4 +117,7 @@ export const Errors = {
 
   invalidCondition: (token: Token) =>
     createError("INVALID_CONDITION", "condition must be boolean", token, "typecheck"),
+
+  varRequiresInitializer: (name: string, token: Token) =>
+    createError("UNINITIALIZED_VAR", `'${name}' must be initialized. Use 'var ${name} = <value>' or declare it outside the loop.`, token, "typecheck"),
 };
