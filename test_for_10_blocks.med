@@ -1,0 +1,299 @@
+// ============================================================
+// FOR STATEMENT — TESTES COMPLETOS
+// ============================================================
+
+// ============================================================
+// BLOCO 1 — FOR BÁSICO (estrutura mínima)
+// ============================================================
+
+// [OK] for clássico com val
+for (var i = 0; i < 10; i++) {
+}
+
+// [OK] for com var
+for (var j = 0; j < 5; j++) {
+  var x = j + 1
+}
+
+// [OK] for com float
+for (var f: float = 0.0; f < 1.0; f += 0.1) {
+}
+
+// [OK] for sem body (body vazio)
+for (var k = 0; k < 3; k++) {}
+
+// [OK] for com decrement
+for (var n = 10; n > 0; n--) {
+}
+
+// [OK] for com compound assignment
+for (var m = 0; m < 100; m += 5) {
+}
+
+
+// ============================================================
+// BLOCO 2 — CONDIÇÃO DO FOR
+// ============================================================
+
+// [OK] condição com comparação simples
+for (var i = 0; i < 10; i++) {}
+
+// [OK] condição com >=
+for (var i = 10; i >= 0; i--) {}
+
+// [OK] condição com ==
+for (var i = 0; i == 0; i++) {}
+
+// [OK] condição com !=
+for (var i = 0; i != 10; i++) {}
+
+// [ERRO] condição não é bool — int como condição
+var count = 0
+for (var i = 0; count; i++) {}
+
+// [ERRO] condição não é bool — string como condição
+for (var i = 0; "texto"; i++) {}
+
+// [ERRO] condição não é bool — float como condição
+for (var i = 0; 3.14; i++) {}
+
+
+// ============================================================
+// BLOCO 3 — ESCOPO DO FOR
+// ============================================================
+
+// [OK] variável declarada no for existe dentro do body
+for (var i = 0; i < 5; i++) {
+  val dobro = i * 2
+}
+
+// [ERRO] variável do for não existe fora do loop
+for (var scoped = 0; scoped < 3; scoped++) {
+}
+val tentativa = scoped + 1  // ERRO: scoped não existe aqui
+
+// [OK] variável externa pode ser lida dentro do for
+val limite = 10
+for (var i = 0; i < limite; i++) {
+}
+
+// [OK] variável externa mutável pode ser modificada dentro do for
+var soma = 0
+for (var i = 0; i < 5; i++) {
+  soma = soma + i
+}
+
+// [ERRO] variável val externa não pode ser modificada no body
+val imutavel = 0
+for (var i = 0; i < 5; i++) {
+  imutavel = imutavel + 1  // ERRO: val não é mutável
+}
+
+// [OK] shadowing — variável interna faz shadow da externa
+val shadow = 100
+for (var shadow = 0; shadow < 3; shadow++) {  // shadow local é diferente
+}
+
+
+// ============================================================
+// BLOCO 4 — INICIALIZADOR DO FOR
+// ============================================================
+
+// [OK] inicializador com var
+for (var i = 0; i < 10; i++) {}
+
+// [OK] inicializador com var
+for (var i = 0; i < 10; i++) {}
+
+// [OK] inicializador com const (sem incremento)
+for (const i = 0; i < 1; ) {}
+
+// [OK] inicializador com expressão (var pré-declarada)
+var pre = 0
+for (pre = 0; pre < 10; pre++) {}
+
+// [ERRO] tentar reassign val no update
+for (val fixed = 0; fixed < 10; fixed++) {}  // fixed++ em val → ERRO
+
+
+// ============================================================
+// BLOCO 5 — UPDATE DO FOR
+// ============================================================
+
+// [OK] update com ++
+for (var i = 0; i < 10; i++) {}
+
+// [OK] update com --
+for (var i = 10; i > 0; i--) {}
+
+// [OK] update com +=
+for (var i = 0; i < 100; i += 10) {}
+
+// [OK] update com -=
+for (var i = 100; i > 0; i -= 10) {}
+
+// [OK] update com *=
+for (var i = 1; i < 1000; i *= 2) {}
+
+// [ERRO] update em variável não mutável
+for (val frozen = 0; frozen < 5; frozen++) {}  // ERRO: val
+
+
+// ============================================================
+// BLOCO 6 — BREAK E CONTINUE DENTRO DO FOR
+// ============================================================
+
+// [OK] break dentro do for
+for (var i = 0; i < 10; i++) {
+  if (i == 5) {
+    break
+  }
+}
+
+// [OK] continue dentro do for
+for (var i = 0; i < 10; i++) {
+  if (i == 3) {
+    continue
+  }
+  val x = i
+}
+
+// [OK] break + continue juntos
+for (var i = 0; i < 20; i++) {
+  if (i == 10) {
+    break
+  }
+  if (i == 2) {
+    continue
+  }
+  val v = i
+}
+
+// [ERRO] break fora de loop
+break
+
+// [ERRO] continue fora de loop
+continue
+
+
+// ============================================================
+// BLOCO 7 — FOR ANINHADO
+// ============================================================
+
+// [OK] for aninhado simples
+for (var i = 0; i < 3; i++) {
+  for (var j = 0; j < 3; j++) {
+    val produto = i * j
+  }
+}
+
+// [OK] break no for interno não afeta o externo
+for (var i = 0; i < 5; i++) {
+  for (var j = 0; j < 5; j++) {
+    if (j == 2) {
+      break  // só quebra o loop interno
+    }
+  }
+}
+
+// [OK] variáveis de loops diferentes não colidem
+for (var i = 0; i < 3; i++) {}
+for (var i = 0; i < 3; i++) {}  // OK — escopos separados
+
+// [ERRO] variável do loop interno não existe no externo
+for (var i = 0; i < 3; i++) {
+  for (var j = 0; j < 3; j++) {}
+  val acesso_j = j + 1  // ERRO: j não existe aqui
+}
+
+
+// ============================================================
+// BLOCO 8 — FOR COM FUNÇÕES E ARRAYS
+// ============================================================
+
+func process(x: int): int {
+  return x * 2
+}
+
+val arr: int[] = [1, 2, 3, 4, 5]
+
+// [OK] chamar função no body
+for (var i = 0; i < 5; i++) {
+  val result = process(i)
+}
+
+// [OK] acumular em array externo (array mutável)
+var results = [1, 2, 3]  // inicializa com elementos para inferir tipo
+for (var i = 0; i < 5; i++) {
+  val r = process(i)
+}
+
+// [OK] usar índice para acessar array
+for (var i = 0; i < 5; i++) {
+  val elem = arr[i]
+}
+
+// [ERRO] acesso com tipo errado no índice
+for (var f = 0.0; f < 5.0; f += 1.0) {
+  val elem = arr[f]  // ERRO: índice deve ser int, não float
+}
+
+
+// ============================================================
+// BLOCO 9 — FOR DENTRO DE FUNÇÃO
+// ============================================================
+
+// [OK] for dentro de função com return depois
+func sum_range(n: int): int {
+  var total = 0
+  for (var i = 0; i < n; i++) {
+    total = total + i
+  }
+  return total
+}
+
+// [OK] for com return dentro (early return)
+func find_first(arr: int[], target: int): int {
+  for (var i = 0; i < 5; i++) {
+    if (arr[i] == target) {
+      return i
+    }
+  }
+  return -1
+}
+
+// [ERRO] return fora de função dentro do for
+for (var i = 0; i < 5; i++) {
+  return i  // ERRO: return fora de função
+}
+
+
+// ============================================================
+// BLOCO 10 — EDGE CASES
+// ============================================================
+
+// [OK] for com condição literal true (loop infinito — semanticamente válido)
+// (não vamos executar, mas deve passar no semantic)
+// for (val i = 0; true; i++) { break }
+
+// [OK] for com update vazio emulado (usar compound no body)
+var idx = 0
+for (; idx < 5; idx++) {
+  val q = idx
+}
+
+// [OK] for com tipos diferentes para i e limite
+val lim: int = 10
+for (var i = 0; i < lim; i++) {
+}
+
+// [ERRO] for com inicializador de tipo incompatível na condição
+for (var s = "inicio"; s == "fim"; s++) {  // s++ em string → ERRO
+}
+
+// [OK] for com múltiplas variáveis (declaradas antes)
+var a = 0
+var b = 10
+for (a = 0; a < b; a++) {
+  b = b - 1
+}

@@ -567,8 +567,9 @@ export class TypeChecker {
   }
 
   private checkForStmt(stmt: Extract<Stmt, { kind: "ForStmt" }>): void {
-    // Create new scope for the entire for loop (initializer + condition + update + body)
-    this.currentEnv = new Environment(this.currentEnv, false);
+    // Save previous environment and create new scope for the entire for loop
+    const previousEnv = this.currentEnv;
+    this.currentEnv = new Environment(previousEnv, false);
 
     // Check initializer in the new scope
     if (stmt.initializer) {
@@ -576,10 +577,11 @@ export class TypeChecker {
     }
 
     // Check condition
-    if (stmt.condition && stmt.condition.kind !== "Literal") {
+    if (stmt.condition) {
       const conditionType = this.checkExpression(stmt.condition);
       
       if (conditionType.kind !== "PrimitiveType" || conditionType.name !== "bool") {
+        // Allow literal 'true' as a valid infinite loop condition
         if (stmt.condition.kind !== "Literal" || (stmt.condition as any).value !== true) {
           this.errors.push(Errors.invalidCondition(stmt.condition));
         }
@@ -603,7 +605,7 @@ export class TypeChecker {
     this.loopDepth--;
     
     // Restore environment
-    this.currentEnv = this.currentEnv.parent!;
+    this.currentEnv = previousEnv;
   }
 
   private checkBreakStmt(_stmt: Extract<Stmt, { kind: "BreakStmt" }>): void {
