@@ -1,0 +1,9 @@
+// Teste Bug #1: Contexto propagado para arrow aninhada
+val compose: ((int) => int, (int) => int) => (int) => int = 
+  (f, g) => x => f(g(x))
+
+// Teste Bug #2: Função nullable (sugestão de sintaxe)
+val maybe_fn: ((int) => int) | null = null  // OK - sintaxe correta
+
+// Teste (deve gerar erro com hint)
+// val bad_fn: (int) => int | null = null  // ERRO - função que retorna int|null, não função ou null

@@ -1,0 +1,194 @@
+// ============================================================
+// Function Validation Tests - Extended
+// ============================================================
+
+// ============================================================
+// VALID CASES
+// ============================================================
+
+func factorial(n: int): int {
+    if (n <= 1) {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+func fibonacci(n: int): int {
+    if (n <= 1) {
+        return n
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+func sumArray(arr: int[], n: int): int {
+    if (n == 0) {
+        return 0
+    }
+    return arr[n - 1] + sumArray(arr, n - 1)
+}
+
+func isEven(n: int): bool {
+    if (n % 2 == 0) {
+        return true
+    }
+    return false
+}
+
+func max(a: int, b: int): int {
+    if (a > b) {
+        return a
+    }
+    return b
+}
+
+func min(a: int, b: int): int {
+    if (a < b) {
+        return a
+    }
+    return b
+}
+
+func abs(n: int): int {
+    if (n < 0) {
+        return -n
+    }
+    return n
+}
+
+func filterPositive(arr: int[], n: int): int[] {
+    var result: int[] = []
+    var i = 0
+    var count = 0
+    while (i < n) {
+        if (arr[i] > 0) {
+            result[count] = arr[i]
+            count = count + 1
+        }
+        i = i + 1
+    }
+    return result
+}
+
+func mapDouble(arr: int[], n: int): int[] {
+    var result: int[] = []
+    var i = 0
+    while (i < n) {
+        result[i] = arr[i] * 2
+        i = i + 1
+    }
+    return result
+}
+
+func reduceSum(arr: int[], n: int): int {
+    var total = 0
+    var i = 0
+    while (i < n) {
+        total = total + arr[i]
+        i = i + 1
+    }
+    return total
+}
+
+func findMax(arr: int[], n: int): int {
+    if (n == 1) {
+        return arr[0]
+    }
+    var rest = findMax(arr, n - 1)
+    if (arr[n - 1] > rest) {
+        return arr[n - 1]
+    }
+    return rest
+}
+
+func binarySearch(arr: int[], target: int, left: int, right: int): int {
+    if (left > right) {
+        return -1
+    }
+    var mid = (left + right) / 2
+    if (arr[mid] == target) {
+        return mid
+    }
+    if (arr[mid] > target) {
+        return binarySearch(arr, target, left, mid - 1)
+    }
+    return binarySearch(arr, target, mid + 1, right)
+}
+
+func quicksort(arr: int[], low: int, high: int): void {
+    if (low < high) {
+        var pi = partition(arr, low, high)
+        quicksort(arr, low, pi - 1)
+        quicksort(arr, pi + 1, high)
+    }
+}
+
+func partition(arr: int[], low: int, high: int): int {
+    var pivot = arr[high]
+    var i = low - 1
+    var j = low
+    while (j < high) {
+        if (arr[j] < pivot) {
+            i = i + 1
+            var temp = arr[i]
+            arr[i] = arr[j]
+            arr[j] = temp
+        }
+        j = j + 1
+    }
+    var temp = arr[i + 1]
+    arr[i + 1] = arr[high]
+    arr[high] = temp
+    return i + 1
+}
+
+// ============================================================
+// ERROR CASES
+// ============================================================
+
+func wrongReturnType(): int {
+    return "error"
+}
+
+func missingReturn1(): int {
+    var x = 10
+}
+
+func missingReturn2(n: int): int {
+    if (n > 0) {
+        return n
+    }
+}
+
+func wrongVoidReturn(): void {
+    return 42
+}
+
+func wrongParamType(a: int, b: string): int {
+    return a + b
+}
+
+func nestedMissingReturn(n: int): int {
+    if (n > 0) {
+        if (n > 10) {
+            return n
+        }
+    }
+    return "oops"
+}
+
+func wrongRecursiveReturn(n: int): int {
+    if (n == 0) {
+        return "string"
+    }
+    return wrongRecursiveReturn(n - 1)
+}
+
+func complexWrongReturn(a: int, b: int): int {
+    if (a > b) {
+        return a * b
+    } else {
+        if (a == b) {
+            return "same"
+        }
+    }
+}

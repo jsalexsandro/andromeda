@@ -1,0 +1,9 @@
+// [model] - Tipos nomeados (nominal type aliases)
+model Callable = (int) => int
+model Double = (int) => (int) => int
+model StringOrInt = int | string
+
+// Usar os tipos
+val fn: Callable = (x: int): int => x + 1
+val dbl: Double = (x: int): int => x * 2
+val maybe: StringOrInt = 42

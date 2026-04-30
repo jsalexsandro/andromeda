@@ -1,0 +1,21 @@
+// TESTE 1: Tipos com nomes diferentes mas mesma estrutura
+// São considerados compatíveis? (estrutural)
+val p1: { x: int, y: int } = { x: 1, y: 2 }
+
+type Point = { x: int, y: int }
+type Coordinate = { x: int, y: int }
+
+val pt: Point = { x: 10, y: 20 }
+val coord: Coordinate = pt  // Se estrutural, OK. Se nominal, ERRO.
+
+{
+  // TESTE 2: Campos extras são permitidos?
+  val full: { x: int, y: int, z: int } = { x: 1, y: 2, z: 3 }
+  // Isso deveria ser incompatível com { x: int, y: int } se for nominal
+}
+
+{
+  // TESTE 3: Campos faltando são permitidos?
+  val partial: { x: int } = { x: 1 }
+  // Compatível com { x: int, y: int }?
+}

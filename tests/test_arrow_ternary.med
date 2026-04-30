@@ -1,0 +1,10 @@
+// OK - ternário com arrows compatíveis
+val chooser: bool = true
+val chosen = chooser ? (x: int): int => x + 1 : (x: int): int => x - 1
+
+// OK - nullish com arrow
+var maybe_fn: (int) => int = (x: int): int => x
+val safe_fn = maybe_fn ?? (x: int): int => 0
+
+// ERRO - ternário com arrows incompatíveis
+val bad_choice = chooser ? (x: int): int => x + 1 : (x: int): string => "value"

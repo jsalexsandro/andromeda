@@ -1,0 +1,15 @@
+// Teste 2: Menos argumentos
+func sum(x: int, y: int): int { return x + y }
+val r2: int = sum(10)  // ERRO: expected 2, got 1
+
+// Teste 3: Excesso sem rest
+val r3: int = sum(10, 20, 30)  // ERRO: expected 2, got 3
+
+// Teste 6: Callee não é função
+val x: int = 10
+val r6: int = x(10)  // ERRO: not a function
+
+// Teste: Spread tipo errado
+func add(x: int, y: int): int { return x + y }
+val strs: string[] = ["a", "b"]
+val r7: int = add(...strs)  // ERRO: string não compatível com int

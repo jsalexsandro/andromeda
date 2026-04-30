@@ -1,0 +1,6 @@
+func compose(f: (int) => int, g: (int) => int): (int) => int {
+  return (x) => f(g(x))
+}
+
+// ERRO - argumento com tipo errado
+val bad_compose = compose((x) => "string", (x) => x + 1)

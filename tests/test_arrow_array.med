@@ -1,0 +1,32 @@
+// OK - array homogeneo de (int) => int
+val ops: ((int) => int)[] = [
+  (x) => x + 1,
+  (x) => x - 1,
+  (x) => x * 2,
+]
+
+// OK - array de predicados
+val predicates: ((int) => bool)[] = [
+  (x) => x > 0,
+  (x) => x < 100,
+  (x) => x == 42,
+]
+
+// OK - array de transformadores de string
+val transforms: ((string) => string)[] = [
+  (s) => s + "!",
+  (s) => s + s,
+]
+
+// ERRO - um elemento do array retorna tipo errado
+val badOps: ((int) => int)[] = [
+  (x) => x + 1,
+  (x) => "errado",
+  (x) => x * 2,
+]
+
+// ERRO - array com operacao incompativel com o tipo inferido do contexto
+val badPreds: ((bool) => bool)[] = [
+  (x) => !x,
+  (x) => x + 1,
+]

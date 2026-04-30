@@ -1,0 +1,8 @@
+// Teste Bug #1: Contexto não propagado para arrow aninhada
+// compose: ((int) => int, (int) => int) => (int) => int
+val compose: ((int) => int, (int) => int) => (int) => int = 
+  (f, g) => x => f(g(x))
+
+// Teste simples: arrow aninhada com contexto
+val double: (int) => int = x => x * 2
+val quadruple: (int) => int = x => double(x) * 2

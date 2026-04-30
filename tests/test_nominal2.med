@@ -1,0 +1,5 @@
+// Test: Nominal Types Puros - simple  
+model UserId = string
+
+// Should FAIL: string literal to UserId
+val test1: UserId = "direct"

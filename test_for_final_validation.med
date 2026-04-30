@@ -1,0 +1,59 @@
+// VALIDAÇÃO FINAL: FOR LOOP
+// ==========================
+
+// ===== 1. FOR BÁSICO (deve funcionar) =====
+for (var i: int = 0; i < 5; i = i + 1) {
+  val x: int = i
+}
+
+// ===== 2. FOR COM VAL (inicializador imutável) =====
+for (val j: int = 0; j < 3; j = j + 1) {
+  val y: int = j
+}
+
+// ===== 3. FOR ANINHADO (escopo isolado) =====
+for (var i: int = 0; i < 3; i = i + 1) {
+  for (var k: int = 0; k < 3; k = k + 1) {
+    val z: int = i + k
+  }
+}
+
+// ===== 4. FOR SEM INICIALIZADOR =====
+var ext: int = 0
+for (; ext < 3; ext = ext + 1) {
+  val t: int = ext
+}
+
+// ===== 5. FOR SEM CONDITION (loop infinito com break) =====
+for (var inf: int = 0;; inf = inf + 1) {
+  if (inf > 5) break
+}
+
+// ===== 6. FOR SEM UPDATE =====
+for (var p: int = 0; p < 3;) {
+  val q: int = p
+  p = p + 1
+}
+
+// ===== 7. FOR COM BREAK/CONTINUE =====
+for (var m: int = 0; m < 10; m = m + 1) {
+  if (m == 5) break
+  if (m == 2) continue
+  val v: int = m
+}
+
+// ===== 8. ERROS ESPERADOS (devem falhar) =====
+// break  // ERRO: invalid break outside loop
+// continue  // ERRO: invalid continue outside loop
+
+// ===== 9. ERRO: REATRIBUIÇÃO DE VAL =====
+// for (val fixed: int = 0; fixed < 3; fixed = fixed + 1) {}
+// ERRO: cannot assign to 'fixed'
+
+// ===== 10. FOR ANINHADO COM MESMO NOME =====
+for (var n: int = 0; n < 2; n = n + 1) {
+  for (var n: int = 10; n < 12; n = n + 1) {  // OK: escopo diferente
+    val inner_n: int = n  // 10, 11
+  }
+  val outer_n: int = n  // 0, 1 (n externo)
+}

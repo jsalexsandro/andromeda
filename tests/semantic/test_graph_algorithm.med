@@ -1,0 +1,112 @@
+// ============================================================
+// Graph Algorithm Tests - Dijkstra
+// ============================================================
+
+const INF = 999999
+
+val eFrom:   int[] = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
+val eTo:     int[] = [1, 2, 2, 3, 3, 4, 0, 4, 0, 3]
+val eWeight: int[] = [2, 4, 1, 7, 3, 5, 0, 1, 8, 2]
+
+val n = 5
+val m = 10
+
+var dist:    int[]  = [INF, INF, INF, INF, INF]
+var visited: bool[] = [false, false, false, false, false]
+var parent:  int[]  = [-1, -1, -1, -1, -1]
+
+func dijkstra(source: int): void {
+    dist[source] = 0
+    var count = 0
+    while (count < n) {
+        var u = -1
+        var minDist = INF
+        var i = 0
+        while (i < n) {
+            if (!visited[i] && dist[i] < minDist) {
+                minDist = dist[i]
+                u = i
+            }
+            i = i + 1
+        }
+        if (u == -1) {
+            break
+        }
+        visited[u] = true
+        i = 0
+        while (i < m) {
+            if (eFrom[i] == u) {
+                var v = eTo[i]
+                var w = eWeight[i]
+                if (dist[u] + w < dist[v]) {
+                    dist[v] = dist[u] + w
+                    parent[v] = u
+                }
+            }
+            i = i + 1
+        }
+        count = count + 1
+    }
+}
+
+func printPath(target: int): void {
+    if (parent[target] == -1) {
+        print(target)
+        return
+    }
+    printPath(parent[target])
+    print(" -> ")
+    print(target)
+}
+
+dijkstra(0)
+
+// ============================================================
+// More Complex Graph Tests
+// ============================================================
+
+val edges: int[] = [1, 2, 3, 4, 5]
+val vertices: string[] = ["A", "B", "C", "D", "E"]
+val matrix: int[][] = [[0, 1, 0, 0, 1], [1, 0, 1, 1, 0], [0, 1, 0, 1, 0], [0, 1, 1, 0, 1], [1, 0, 0, 1, 0]]
+
+var visited2: bool[] = [false, false, false, false, false]
+var level: int[] = [0, 0, 0, 0, 0]
+
+func bfs(start: int): void {
+    var queue: int[] = [start]
+    var front = 0
+    while (front < queue.length) {
+        var u = queue[front]
+        front = front + 1
+        if (visited2[u]) {
+            continue
+        }
+        visited2[u] = true
+        var i = 0
+        while (i < n) {
+            if (matrix[u][i] == 1 && !visited2[i]) {
+                queue[queue.length] = i
+                level[i] = level[u] + 1
+            }
+            i = i + 1
+        }
+    }
+}
+
+bfs(0)
+
+// ============================================================
+// Union Type Tests with Graph
+// ============================================================
+
+val graphType: (int[] | string[]) = [1, 2, 3]
+val edgeData: ((int) => int)[] = [(x) => x * 2, (x) => x + 1]
+
+func getMinDistance(v: int): int | null {
+    if (dist[v] == INF) {
+        return null
+    }
+    return dist[v]
+}
+
+val result: (int | null)? = getMinDistance(0)

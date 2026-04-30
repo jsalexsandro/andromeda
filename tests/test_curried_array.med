@@ -1,0 +1,5 @@
+val curried_ops: ((int) => (int) => int)[] = [
+  (a) => (b) => a + b,
+  (a) => (b) => a * b,
+  (a) => (b) => a - b,
+]

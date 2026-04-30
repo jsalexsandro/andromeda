@@ -1,0 +1,1 @@
+val fn: (int) => string = (x) => x

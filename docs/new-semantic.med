@@ -1,0 +1,363 @@
+# Semantic Analyzer — Todo List
+
+> Estratégia: cada fase valida o AST da fase correspondente do parser.
+> O semantic **não transforma** o AST — ele **anota** (types) e **reporta erros**.
+
+---
+
+## Arquitetura base (fazer primeiro)
+
+- [ ] Criar `SemanticError` com `message`, `token`, e `phase`
+- [ ] Criar `Environment` (escopo encadeado)
+  - [ ] `define(name, symbol)` — registra no escopo atual
+  - [ ] `lookup(name)` → `Symbol | null` — sobe a cadeia de escopos
+  - [ ] `enterScope()` / `exitScope()`
+  - [ ] Flag `isGlobal` no escopo raiz
+- [ ] Criar `Symbol` (o que fica no environment)
+  - [ ] `name: string`
+  - [ ] `type: TypeNode`
+  - [ ] `kind: "variable" | "function" | "type" | "struct" | "enum" | "protocol"`
+  - [ ] `mutable: boolean` (var vs val vs const)
+  - [ ] `initialized: boolean`
+- [ ] Criar `TypeChecker` principal com `check(program: Stmt[]): SemanticError[]`
+- [ ] Pré-popular o escopo global com os tipos primitivos:
+  - `int`, `float`, `string`, `bool`, `void`, `null`, `any`, `unknown`
+  [ ] Error api, recovery error
+
+---
+
+## Fase 1 — Expressões base
+
+### Literais
+- [ ] `LiteralExpr` → inferir tipo (`int`, `float`, `string`, `bool`, `null`)
+- [ ] Checar consistência de tipos em operações literais
+
+### Identificadores
+- [ ] `IdentifierExpr` → verificar se está declarado no escopo
+- [ ] Reportar `"variável não declarada: X"` se não encontrar
+
+### Expressões unárias
+- [ ] `-x` → x deve ser `int | float`
+- [ ] `+x` → x deve ser `int | float`
+- [ ] `!x` → x deve ser `bool`
+
+### Expressões binárias
+- [ ] Aritmética (`+`, `-`, `*`, `/`, `%`)
+  - [ ] Ambos os lados devem ser `int | float`
+  - [ ] `+` com `string` → concatenação (permitir `string + string`)
+- [ ] Comparação (`==`, `!=`, `<`, `>`, `<=`, `>=`)
+  - [ ] `<`, `>`, `<=`, `>=` → apenas tipos ordenáveis (`int`, `float`, `string`)
+  - [ ] `==`, `!=` → tipos compatíveis
+- [ ] Lógica (`&&`, `||`)
+  - [ ] Ambos os lados devem ser `bool`
+
+### GroupedExpression
+- [ ] Repassar o tipo interno
+
+--- FEITO ATE AQUI
+
+## Fase 2 — Statements simples
+
+### VariableDeclaration
+- [ ] Se tem anotação de tipo: verificar que o inicializador é compatível
+   -  Se tem anotação ":" chamar a função createAnnotation que sera utilizada para anotações (TypeAnnotation)
+- [ ] Se não tem anotação: inferir tipo do inicializador (type inference)
+- [ ] `val` / `const` → `mutable: false`; bloquear reatribuição depois
+- [ ] `var` → `mutable: true`
+- [ ] Detectar declaração duplicada no mesmo escopo
+- [ ] Checar se inicializador usa variáveis ainda não declaradas
+
+### TypeAnnotation
+- [ ] Validar `PrimitiveTypeNode` → é um dos primitivos conhecidos?
+- [ ] Validar `NamedTypeNode` → está registrado no escopo de tipos? 
+- [ ] Validar `GenericTypeNode` → o tipo base aceita esse número de parâmetros?
+- [ ] Validar `ArrayTypeNode` → elemento type é válido?
+- [ ] Validar `UnionTypeNode` → cada membro é um tipo válido?
+- [ ] Validar `NullableTypeNode` → tipo interno é válido?
+- [ ] Validar `TupleTypeNode` → cada elemento é válido?
+- [ ] Validar `FunctionTypeNode` → params e returnType são válidos?
+
+### BlockStatement
+- [ ] Abrir novo escopo ao entrar, fechar ao sair
+- [ ] Checar cada statement interno
+
+### IfStatement
+- [ ] Condição deve ser `bool`
+- [ ] Checar `thenBranch` e `elseBranch` em escopos filhos
+
+### WhileStatement
+- [ ] Condição deve ser `bool`
+- [ ] Checar body em novo escopo
+- [ ] Registrar flag `insideLoop` no contexto (para `break`/`continue`)
+
+### ExpressionStatement
+- [ ] Checar a expressão interna
+- [ ] Avisar se expressão sem efeito colateral for ignorada (opcional)
+
+---
+
+## Fase 3 — Expressões compostas
+
+### Assignment
+- [ ] Verificar que o alvo (`name`) está declarado
+- [ ] Verificar que o alvo é mutável (`var`) — reportar erro em `val`/`const`
+- [ ] Verificar compatibilidade de tipo entre alvo e valor
+- [ ] Operadores compostos (`+=`, `-=`, `*=`, `/=`, `%=`)
+  - [ ] Aplicar mesmas regras do BinaryExpr correspondente
+- [ ] `++` / `--`
+  - [ ] Alvo deve ser `int | float` e mutáve
+
+- Ate aqui feito, o semantic ja reconhece o typealias
+- typealias c = int | string
+- val name: c = "James"
+
+### CallExpression
+- [ ] Verificar que o callee é uma função conhecida
+- [ ] Verificar número de argumentos (respeitando rest params e opcionais)
+- [ ] Verificar tipo de cada argumento contra o tipo do parâmetro
+- [ ] Inferir tipo de retorno da call
+
+### MemberExpression (`obj.prop`)
+- [ ] Verificar que `obj` é do tipo `struct` ou `class`
+- [ ] Verificar que `prop` existe no tipo de `obj`
+- [ ] Inferir o tipo do campo
+
+### IndexExpression (`arr[i]`)
+- [ ] Verificar que `arr` é do tipo array ou tuple
+- [ ] Verificar que `i` é `int`
+- [ ] Inferir o tipo do elemento
+
+### TernaryExpression
+- [ ] Condição deve ser `bool`
+- [ ] `consequent` e `alternate` devem ter tipos compatíveis
+- [ ] Tipo resultante = união dos dois (ou o mais específico)
+
+### NullishCoalescing (`a ?? b`)
+- [ ] `a` deve ser nullable (`T?` ou `T | null`)
+- [ ] `b` deve ser compatível com o tipo não-null de `a`
+- [ ] Tipo resultante = tipo não-null de `a`
+
+---
+
+## Fase 4 — Funções
+
+### FunctionStatement
+- [ ] Registrar a função no escopo com sua assinatura
+  - [ ] Guardar tipos dos parâmetros e returnType (TypeAnnotation)
+- [ ] Abrir novo escopo para o body
+- [ ] Registrar cada parâmetro no escopo da função
+- [ ] Validar tipos dos parâmetros (TypeAnnotation)
+- [ ] Validar `returnType` se anotado
+- [ ] Verificar que todos os caminhos retornam valor compatível com `returnType`
+- [ ] Detectar parâmetro `rest` (`...args`) fora do último lugar → erro
+- [ ] Checar recursão (a função pode se referenciar no body)
+
+### ReturnStatement
+- [ ] Verificar que está dentro de uma função
+- [ ] Verificar que o tipo do valor retornado é compatível com `returnType` da função
+- [ ] `return` sem valor → `returnType` deve ser `void`
+
+### ArrowFunction
+- [ ] Mesmas regras de `FunctionStatement` para parâmetros e retorno
+- [ ] Body pode ser `Expr` (return implícito) ou `BlockStmt`
+- [ ] Se body é `Expr`, tipo de retorno = tipo da expressão
+
+### ArgumentList
+- [ ] Verificar tipos posicionalmente
+- [ ] Suporte a `SpreadExpr` como argumento → checar que spread é array compatível
+
+---
+
+## Fase 5 — Estruturas de dados
+
+### ArrayLiteral
+- [ ] Inferir tipo dos elementos
+- [ ] Verificar que todos os elementos têm tipo compatível entre si
+- [ ] Tipo resultante = `ElementType[]`
+- [ ] Array vazio `[]` → anotar como `any[]` ou usar anotação explícita
+
+### ObjectLiteral
+- [ ] Se usado em contexto de tipo conhecido (`struct`), checar campos
+- [ ] Se sem contexto, inferir tipo estrutural
+- [ ] Verificar tipos de cada valor
+
+### SpreadExpression
+- [ ] Em array literal → operando deve ser array
+- [ ] Em call args → operando deve ser array compatível com rest param
+- [ ] Em object literal → operando deve ser object/struct (fase posterior)
+
+---
+
+## Fase 6 — Controle avançado
+
+### ForStatement
+- [ ] Inicializador: checar `VariableStmt` ou `ExpressionStmt`
+- [ ] Condição: deve ser `bool`
+- [ ] Update: checar expressão (normalmente assignment ou `++`/`--`)
+- [ ] Body em novo escopo
+- [ ] Registrar flag `insideLoop`
+
+### BreakStatement
+- [ ] Verificar que está dentro de `while` ou `for` → senão erro
+
+### ContinueStatement
+- [ ] Verificar que está dentro de `while` ou `for` → senão erro
+
+---
+
+## Fase 6.5 — Tipos nominais (declarações)
+
+### TypeAliasStmt
+- [ ] Registrar `name` no escopo de tipos
+- [ ] Validar o tipo do lado direito
+- [ ] Suporte a `TypeParameterNode` (generics no alias)
+- [ ] Detectar alias circular (ex: `typealias A = A`) → erro
+
+### StructStmt
+- [ ] Registrar `name` no escopo de tipos
+- [ ] Validar o tipo de cada campo
+- [ ] Suporte a `TypeParameterNode`
+- [ ] Checar que `protocols` declarados existem no escopo
+- [ ] Verificar que todos os métodos dos protocols estão implementados
+- [ ] Detectar campos duplicados
+
+### EnumStmt
+- [ ] Registrar `name` no escopo de tipos
+- [ ] Registrar cada variante como sub-símbolo
+- [ ] Validar payload types de cada variante
+- [ ] Suporte a `TypeParameterNode`
+
+### ProtocolStmt
+- [ ] Registrar `name` no escopo de tipos
+- [ ] Validar assinaturas dos métodos
+- [ ] Suporte a `TypeParameterNode`
+
+---
+
+## Fase 7 — Classes
+
+### ClassExpr / ClassStatement
+- [ ] Registrar classe no escopo de tipos
+- [ ] Checar `extends` → classe pai deve existir
+- [ ] Validar tipos das propriedades
+- [ ] Checar visibilidade (`public`, `private`, `protected`)
+- [ ] Checar métodos: mesmas regras de `FunctionStatement`
+- [ ] Propriedades `static` só acessíveis via classe, não via `this`
+
+### ThisExpression
+- [ ] Verificar que está dentro de um método de classe
+- [ ] Tipo de `this` = tipo da classe atual
+
+### SuperExpression
+- [ ] Verificar que está em classe com `extends`
+- [ ] `super()` em constructor → chamar construtor da classe pai
+- [ ] `super.method()` → método deve existir na classe pai
+
+### NewExpression
+- [ ] Verificar que o callee é uma classe conhecida
+- [ ] Verificar argumentos do constructor
+- [ ] Tipo resultante = instância da classe
+
+---
+
+## Fase 8 — Módulos
+
+### ImportStmt
+- [ ] Verificar que o módulo `source` existe/é resolvível
+- [ ] Registrar os `specifiers` importados no escopo global
+- [ ] Alias (`import X as Y`) → registrar com o nome do alias
+
+### ExportStmt
+- [ ] Verificar que os `specifiers` exportados existem no escopo
+- [ ] Marcar símbolo como exportado
+
+---
+
+## Fase 9 — Async
+
+### AsyncFunction / AsyncArrow
+- [ ] `returnType` deve ser `Promise<T>` ou inferir automaticamente
+- [ ] Registrar função como `async` no símbolo
+
+### AwaitExpression
+- [ ] Verificar que está dentro de função `async`
+- [ ] Operando deve ser `Promise<T>`
+- [ ] Tipo resultante = `T` (unwrap do Promise)
+
+---
+
+## Fase 10 — Erros
+
+### TryCatchFinally *(quando implementado no parser)*
+- [ ] `try` body em novo escopo
+- [ ] `catch` body em novo escopo, com variável do erro disponível
+- [ ] `finally` body em novo escopo
+- [ ] Tipo do erro no catch = `any` ou tipo declarado
+
+### ThrowStatement *(quando implementado no parser)*
+- [ ] Verificar que está em contexto lançável
+- [ ] Verificando que o valor é um tipo de erro razoável
+
+---
+
+## Fase 11 — Template literals
+
+### TemplateLiteralExpr
+- [ ] Checar cada expressão embutida
+- [ ] Tipo resultante = `string`
+- [ ] Avisar se expressão embutida for `void` ou `undefined`
+
+---
+
+## Utilitários do type checker
+
+- [ ] `isAssignable(from: TypeNode, to: TypeNode): boolean`
+  - [ ] Primitivo → primitivo (igualdade)
+  - [ ] `T | null` → `T?` (equivalência)
+  - [ ] `any` → aceita qualquer coisa
+  - [ ] Subtipo nominal (struct implements protocol)
+  - [ ] Generics (covariância/invariância simples)
+- [ ] `unify(a: TypeNode, b: TypeNode): TypeNode`
+  - Tenta encontrar tipo comum entre dois tipos (para ternary, arrays mistos)
+- [ ] `resolveType(node: TypeNode, env: Environment): TypeNode`
+  - Expande aliases, resolve named types
+- [ ] `prettyType(node: TypeNode): string`
+  - Para mensagens de erro legíveis: `"esperado int, encontrado string"`
+
+---
+
+## Mensagens de erro padrão
+
+- [ ] `"'X' não foi declarado"` — IdentifierExpr não encontrado
+- [ ] `"'X' não é mutável (val/const)"` — atribuição inválida
+- [ ] `"tipo incompatível: esperado T, encontrado U"` — mismatch geral
+- [ ] `"'X' não é uma função"` — CallExpr em não-função
+- [ ] `"número de argumentos incorreto: esperado N, encontrado M"` — CallExpr
+- [ ] `"'prop' não existe em tipo 'T'"` — MemberExpr inválido
+- [ ] `"break fora de loop"` — BreakStmt
+- [ ] `"continue fora de loop"` — ContinueStmt
+- [ ] `"return fora de função"` — ReturnStmt
+- [ ] `"await fora de função async"` — AwaitExpr
+- [ ] `"tipo 'X' não declarado"` — NamedTypeNode inválido
+- [ ] `"tipo 'X' não implementa protocol 'Y'"` — conformidade faltando
+
+---
+
+## Ordem de implementação sugerida
+
+```
+1. Arquitetura base (Environment + Symbol + SemanticError)
+2. Fase 1 (literals, identifiers, binary, unary)
+3. Fase 2 (var/val, block, if, while)
+4. Fase 4 (functions + return)
+5. Fase 3 (call, assign, member, index)
+6. Fase 5 (array, object)
+7. Fase 6 (for, break, continue)
+8. Fase 6.5 (type alias, struct, enum, protocol)
+9. Fase 7 (classes)
+10. Fase 8 (import/export)
+11. Fase 9 (async/await)
+12. Fase 10 (try/catch/throw)
+13. Fase 11 (template literals)
+14. Utilitários (isAssignable, unify, resolveType)
+```

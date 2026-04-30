@@ -291,19 +291,6 @@ export class TypeChecker {
     }
 
     if (expected.kind === "ArrayType" && actual.kind === "ArrayType") {
-      if (expected.dimensions !== actual.dimensions) return false
-      
-      // Handle: expected is ArrayType(NullableType(T)) and actual is ArrayType(UnionType(T, null))
-      const expectedElem = expected.elementType;
-      const actualElem = actual.elementType;
-      if (expectedElem.kind === "NullableType" && actualElem.kind === "UnionType") {
-        const hasNull = actualElem.types.some(t => t.kind === "PrimitiveType" && t.name === "null");
-        const nonNullTypes = actualElem.types.filter(t => !(t.kind === "PrimitiveType" && t.name === "null"));
-        if (hasNull && nonNullTypes.length === 1) {
-          return this.areTypesCompatible(expectedElem, nonNullTypes[0]);
-        }
-      }
-      
       return this.areTypesCompatible(expected.elementType, actual.elementType);
     }
 
@@ -339,11 +326,6 @@ export class TypeChecker {
       return expected.types.some((member) =>
         this.areTypesCompatible(member, actual)
       );
-    }
-
-    // NullableType vs NullableType — ambos nullable, compara o tipo interno
-    if (expected.kind === "NullableType" && actual.kind === "NullableType") {
-      return this.areTypesCompatible(expected.type, actual.type);
     }
 
     if (expected.kind === "NullableType") {
@@ -585,8 +567,9 @@ export class TypeChecker {
   }
 
   private checkForStmt(stmt: Extract<Stmt, { kind: "ForStmt" }>): void {
-    // Create new scope for the entire for loop (initializer + condition + update + body)
-    this.currentEnv = new Environment(this.currentEnv, false);
+    // Save previous environment and create new scope for the entire for loop
+    const previousEnv = this.currentEnv;
+    this.currentEnv = new Environment(previousEnv, false);
 
     // Check initializer in the new scope
     if (stmt.initializer) {
@@ -594,10 +577,11 @@ export class TypeChecker {
     }
 
     // Check condition
-    if (stmt.condition && stmt.condition.kind !== "Literal") {
+    if (stmt.condition) {
       const conditionType = this.checkExpression(stmt.condition);
       
       if (conditionType.kind !== "PrimitiveType" || conditionType.name !== "bool") {
+        // Allow literal 'true' as a valid infinite loop condition
         if (stmt.condition.kind !== "Literal" || (stmt.condition as any).value !== true) {
           this.errors.push(Errors.invalidCondition(stmt.condition));
         }
@@ -606,16 +590,22 @@ export class TypeChecker {
 
     // Check update expression
     if (stmt.update && stmt.update.kind !== "Literal") {
-      this.checkExpression(stmt.update);
+      // If update is an assignment (Assign Stmt), check it properly
+      if (stmt.update.kind === "Assign") {
+        this.checkAssignStmt(stmt.update as any);
+      } else {
+        // Otherwise treat as expression
+        this.checkExpression(stmt.update);
+      }
     }
 
     // Check body
     this.loopDepth++;
     this.checkStatement(stmt.body);
     this.loopDepth--;
-
+    
     // Restore environment
-    this.currentEnv = this.currentEnv.parent!;
+    this.currentEnv = previousEnv;
   }
 
   private checkBreakStmt(_stmt: Extract<Stmt, { kind: "BreakStmt" }>): void {
@@ -964,12 +954,15 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
 
     const params = calleeType.params;
     const args = expr.args;
+
+    // ── detectar rest param na assinatura ──────────────────────
     const hasRest = params.length > 0 && params[params.length - 1].isRest === true;
+    const restIndex = hasRest ? params.length - 1 : -1;
 
     // ── checar aridade ─────────────────────────────────────────
     if (hasRest) {
-      // com rest: precisa de pelo menos (params.length - 1) args
-      const minArgs = params.length - 1;
+      // com rest: precisa de pelo menos (restIndex) args
+      const minArgs = restIndex;
       if (args.length < minArgs) {
         const token = expr.callee.kind === "Identifier"
           ? expr.callee.name
@@ -977,9 +970,8 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         this.errors.push(Errors.argumentCountMismatch(minArgs, args.length, token));
       }
     } else {
-      // sem rest: aridade exata (spread em chamada sem rest é aceito)
-      const hasSpread = args.some(arg => arg.kind === "Spread");
-      if (!hasSpread && params.length !== args.length) {
+      // sem rest: aridade exata
+      if (params.length !== args.length) {
         const token = expr.callee.kind === "Identifier"
           ? expr.callee.name
           : { line: 0, column: 0, type: 0, value: "" } as Token;
@@ -987,77 +979,77 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       }
     }
 
-    // ── checar cada argumento com posição virtual ──────────────
-    let paramIdx = 0;  // posição no params, avança independente do arg
-    const restIndex = hasRest ? params.length - 1 : -1;
-
+    // ── checar cada argumento ──────────────────────────────────
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
 
-      // ── calcular tipo esperado ────────────────────────────────
+      // tipo esperado — pós restIndex todos mapeiam pro elementType do rest
       let expectedType: TypeNode | null = null;
-      if (hasRest && paramIdx >= restIndex) {
-        // Usa elementType do rest param
-        const restParam = params[restIndex];
-        expectedType = restParam.kind === "ArrayType"
-          ? restParam.elementType
-          : restParam;
-      } else if (paramIdx < params.length) {
-        expectedType = params[paramIdx];
+      if (i < params.length) {
+        expectedType = params[i];
+      } else if (hasRest && restIndex >= 0 && restIndex < params.length) {
+        // rest param: o tipo do param é T[], o arg deve ser T
+        const restParamType = params[restIndex];
+        expectedType = restParamType.kind === "ArrayType"
+          ? restParamType.elementType
+          : restParamType;
       }
 
-      // ── spread como argumento ──────────────────────────────────
-      if (arg.kind === "Spread") {
-        const spreadArg = (arg as Extract<Expr, { kind: "Spread" }>).argument;
-        const spreadType = this.checkExpression(spreadArg);
+      if (!expectedType) continue;
 
+      // ── spread como argumento ─────────────────────────────────
+      if (arg.kind === "Spread") {
+        const spreadType = this.checkExpression(
+          (arg as Extract<Expr, { kind: "Spread" }>).argument
+        );
+        
         if (spreadType.kind !== "ArrayType") {
           this.errors.push(Errors.invalidSpread(
             { line: 0, column: 0, type: 0, value: "" } as Token
           ));
-          paramIdx++;
           continue;
         }
-
-        // Verifica elementType do spread contra expectedType
-        const spreadElementType = this.getSpreadElementType(spreadType)
-        if (expectedType && !this.areTypesCompatible(expectedType, spreadElementType)) {
+        
+        // Para rest param, o expectedType é ArrayType, o spread deve ser compatível com ArrayType
+        // Não usar elementType aqui!
+        if (!this.areTypesCompatible(expectedType, spreadType)) {
           this.errors.push(Errors.typeMismatch(
-            `argument ${i + 1} (spread): expected '${this.typeToString(expectedType)}', ` +
-            `got elements of '${this.typeToString(spreadElementType)}'`,
+            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
+            `got '${this.typeToString(spreadType)}'`,
             { line: 0, column: 0, type: 0, value: "" } as Token
           ));
         }
-        paramIdx++;
+        continue;
+      }
+
+      // ── contextual typing para arrow functions ─────────────────
+      // se o param esperado for FunctionType e o arg for arrow sem anotação,
+      // passa o tipo esperado como contexto para inferir os params da arrow
+      if (expectedType.kind === "FunctionType" &&
+          arg.kind === "ArrowFunction") {
+        this.contextualType = expectedType;        // ← contexto
+        const actualType = this.checkExpression(arg);
+        this.contextualType = null;
+
+        if (!this.areTypesCompatible(expectedType, actualType)) {
+          this.errors.push(Errors.typeMismatch(
+            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
+            `got '${this.typeToString(actualType)}'`,
+            { line: 0, column: 0, type: 0, value: "" } as Token
+          ));
+        }
         continue;
       }
 
       // ── argumento normal ───────────────────────────────────────
-      if (!expectedType) { paramIdx++; continue; }
-
-      if (expectedType.kind === "FunctionType" && arg.kind === "ArrowFunction") {
-        this.contextualType = expectedType;
-        const actualType = this.checkExpression(arg);
-        this.contextualType = null;
-        if (!this.areTypesCompatible(expectedType, actualType)) {
-          this.errors.push(Errors.typeMismatch(
-            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
-            `got '${this.typeToString(actualType)}'`,
-            { line: 0, column: 0, type: 0, value: "" } as Token
-          ));
-        }
-      } else {
-        const actualType = this.checkExpression(arg);
-        if (!this.areTypesCompatible(expectedType, actualType)) {
-          this.errors.push(Errors.typeMismatch(
-            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
-            `got '${this.typeToString(actualType)}'`,
-            { line: 0, column: 0, type: 0, value: "" } as Token
-          ));
-        }
+      const actualType = this.checkExpression(arg);
+      if (!this.areTypesCompatible(expectedType, actualType)) {
+        this.errors.push(Errors.typeMismatch(
+          `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
+          `got '${this.typeToString(actualType)}'`,
+          { line: 0, column: 0, type: 0, value: "" } as Token
+        ));
       }
-
-      paramIdx++;
     }
 
     return calleeType.returnType;
@@ -1096,75 +1088,60 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
 
   private checkArrayExpr(expr: Extract<Expr, { kind: "Array" }>): TypeNode {
     if (expr.elements.length === 0) {
-      // array vazio: tenta usar contextual type se disponível
-      const unwrapped = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
-      if (unwrapped?.kind === "ArrayType") {
-        return { kind: "ArrayType", elementType: unwrapped.elementType, dimensions: 1 }
-      }
-      return { kind: "ArrayType", elementType: { kind: "PrimitiveType", name: "unknown" }, dimensions: 1 }
+      return {
+        kind: "ArrayType",
+        elementType: { kind: "PrimitiveType", name: "unknown" },
+        dimensions: 1,
+      };
     }
 
-    let unwrapped = this.contextualType ? this.unwrapGrouping(this.contextualType) : null
+    let unwrapped = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
     let elementCtx: TypeNode | null = unwrapped?.kind === "ArrayType"
       ? this.unwrapGrouping(unwrapped.elementType)
-      : null
+      : null;
 
-    const elementTypes: TypeNode[] = []
-
+    const elementTypes: TypeNode[] = [];
+    
     for (const e of expr.elements) {
-      this.contextualType = elementCtx
-
+      this.contextualType = elementCtx;
+      
+      // Se for spread, extrair o elementType do array
       if (e.kind === "Spread") {
-        // spread dentro de array — usa o elementType do array espalhado
-        const spreadType = this.checkExpression(
-          (e as Extract<Expr, { kind: "Spread" }>).argument
-        )
-        this.contextualType = null
-
+        const spreadType = this.checkExpression(e);
         if (spreadType.kind === "ArrayType") {
-          // ...nums onde nums: int[] → contribui int para o array
-          elementTypes.push(this.getSpreadElementType(spreadType))
+          // Extrair o tipo do elemento do array
+          elementTypes.push(this.unwrapGrouping(spreadType.elementType));
         } else {
-          this.errors.push(Errors.invalidSpread(
-            { line: 0, column: 0, type: 0, value: "" } as Token
-          ))
-          elementTypes.push({ kind: "PrimitiveType", name: "unknown" })
+          elementTypes.push(spreadType);
         }
       } else {
-        const t = this.checkExpression(e)
-        this.contextualType = null
-        elementTypes.push(t)
+        const t = this.checkExpression(e);
+        elementTypes.push(this.unwrapGrouping(t));
       }
+      
+      this.contextualType = null;
     }
-
-    const unique = this.deduplicateTypes(elementTypes)
-
-    let elementType: TypeNode
-    let dimensions = 1
+    
+    const unique = this.deduplicateTypes(elementTypes);
+    
+    let elementType: TypeNode;
+    let dimensions = 1;
 
     if (unique.length === 1 && unique[0].kind === "ArrayType") {
-      const innerArray = unique[0]
-      elementType = innerArray.elementType
-      dimensions = innerArray.dimensions + 1
+      const innerArray = unique[0];
+      elementType = innerArray.elementType;
+      dimensions = innerArray.dimensions + 1;
     } else {
       elementType = unique.length === 1
         ? unique[0]
-        : { kind: "UnionType", types: unique }
+        : { kind: "UnionType", types: unique };
     }
 
-    return { kind: "ArrayType", elementType, dimensions }
-  }
-
-  private getSpreadElementType(arrayType: Extract<TypeNode, { kind: "ArrayType" }>): TypeNode {
-    if (arrayType.dimensions <= 1) {
-      return arrayType.elementType
-    }
-    // int[][] (dimensions=2, elementType=int) → spread dá int[] (dimensions=1, elementType=int)
     return {
       kind: "ArrayType",
-      elementType: arrayType.elementType,
-      dimensions: arrayType.dimensions - 1,
-    }
+      elementType,
+      dimensions,
+    };
   }
 
   private deduplicateTypes(types: TypeNode[]): TypeNode[] {

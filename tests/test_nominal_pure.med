@@ -1,0 +1,10 @@
+// Test: Nominal Types Puros
+model UserId = string
+model ProductId = string
+
+// Should work: same model type
+val x1: UserId = "user-123"
+val x2: UserId = x1
+
+// Should FAIL: string literal to UserId
+val test1: UserId = "direct"

@@ -1,0 +1,27 @@
+// Test compound assignment operators
+var x = 10
+x += 5        // OK - int += int
+x -= 3        // OK - int -= int
+x *= 2        // OK - int *= int
+x /= 4        // OK - int /= int
+x %= 3        // OK - int %= int
+
+val y = 20
+// y += 5      // Should ERROR - val is not mutable
+
+var s = "hello"
+// s += " world"  // Should ERROR - string not numeric
+
+// Test ++ and --
+var counter = 0
+counter++       // OK
+counter--       // OK
+
+val fixed = 10
+// fixed++        // Should ERROR - val is not mutable
+
+var name = "test"
+// name++         // Should ERROR - string not numeric
+
+// Test undeclared target
+// unknown++      // Should ERROR - not declared

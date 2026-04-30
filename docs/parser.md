@@ -82,11 +82,18 @@ FASE 6 — CONTROLE AVANÇADO
 ├── 
 ├── 28. BreakStatement          break
 └── 29. ContinueStatement       continue
+├── 27. ForStatement            for (val i = 0; ...)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FASE TYPEALIAS
+ TypeAliasStatement
+ typealias <keyword> = <annotation-type>
+            ^^^^^^^     ^
+            |           |> reutilizar o parser annotation
+            |
+            |> espera uma keyword
 
 [ate aqui feito]
-
-27. ForStatement            for (val i = 0; ...)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 FASE 6.5 - CONTROLS TYPES
 1. ProtocolStatement

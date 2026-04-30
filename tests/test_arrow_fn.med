@@ -1,0 +1,20 @@
+// OK - param inferred as int
+val double: (int) => int = (x) => x * 2
+
+// OK - two params inferred
+val add: (int, int) => int = (a, b) => a + b
+
+// OK - param string inferred
+val greet: (string) => string = (name) => "hello" + name
+
+// OK - param bool inferred
+val negate: (bool) => bool = (b) => !b
+
+// ERROR - body incompatible with returnType
+val broken1: (int) => int = (x) => "not int"
+
+// ERROR - body returns bool but expects string
+val broken2: (int) => string = (x) => x > 0
+
+// ERROR - a is inferred as string but tries arithmetic
+val broken3: (string) => int = (a) => a * 2

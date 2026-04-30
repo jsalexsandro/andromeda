@@ -1,0 +1,13 @@
+typealias UserId = string
+typealias ProductId = int
+typealias Number = int | float
+typealias Entity = UserId
+
+val id: UserId = "abc123"
+val pid: ProductId = 456
+val n: Number = 3.14
+val e: Entity = "alice"
+
+// Should fail:
+val bad1: UserId = 123
+val bad2: ProductId = "test"

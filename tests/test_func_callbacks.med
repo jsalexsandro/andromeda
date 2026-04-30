@@ -1,0 +1,15 @@
+func map_int(arr: int[], fn: (int) => int): int[] {
+  return arr
+}
+
+func filter_int(arr: int[], fn: (int) => bool): int[] {
+  return arr
+}
+
+func reduce_int(arr: int[], fn: (int, int) => int, initial: int): int {
+  return initial
+}
+
+func apply(fn: (int) => int, x: int): int {
+  return fn(x)
+}

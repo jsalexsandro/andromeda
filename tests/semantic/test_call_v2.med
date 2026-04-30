@@ -1,0 +1,22 @@
+// Teste 1: Chamada normal
+func sum(x: int, y: int): int { return x + y }
+val r1: int = sum(10, 20)  // OK
+
+// Teste 2: Menos argumentos
+// val r2: int = sum(10)  // ERRO: expected 2, got 1
+
+// Teste 3: Excesso sem rest
+// val r3: int = sum(10, 20, 30)  // ERRO: expected 2, got 3
+
+// Teste 4: Com rest param
+func sumAll(...nums: int[]): int { return 0 }
+val parts: int[] = [1, 2, 3]
+val r4: int = sumAll(...parts)  // OK?
+
+// Teste 5: Contextual typing para arrow
+func map_int(arr: int[], fn: (int) => int): int[] { return arr }
+val r5: int[] = map_int([1, 2, 3], (x) => x * 2)  // OK - x inferido como int
+
+// Teste 6: Callee não é função
+val x: int = 10
+// val r6: int = x(10)  // ERRO: not a function

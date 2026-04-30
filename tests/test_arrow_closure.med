@@ -1,0 +1,14 @@
+// OK - param faz shadow de variável externa
+val outer = 100
+val shadow_test: (int) => int = (outer) => outer + 1
+
+// OK - arrow lê variável do escopo externo (closure)
+val base = 10
+val add_base: (int) => int = (x) => x + base
+
+// OK - closure lendo var mutável
+var counter = 0
+val get_counter: () => int = () => counter
+
+// ERRO - arrow usa variável não declarada
+val use_ghost: (int) => int = (x) => x + nao_existe

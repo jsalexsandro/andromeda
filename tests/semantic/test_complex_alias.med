@@ -1,0 +1,53 @@
+// === Aliases básicos ===
+typealias UserId = string
+typealias ProductId = int
+typealias Handler = (int) => string
+
+// === Alias de alias (cadeia) ===
+typealias EntityId = UserId
+typealias OrderId = ProductId
+
+// === Union types com aliases ===
+typealias Number = int | float
+typealias Result = string | null
+
+// === Generics com aliases ===
+typealias StringList = Array<string>
+typealias UserMap = Map<string, UserId>
+
+// === Nullable com aliases ===
+typealias OptionalId = UserId?
+
+// === Arrays com aliases ===
+typealias IdList = UserId[]
+typealias Matrix = int[][]
+
+// === Function types complexos ===
+typealias Mapper = (int) => string
+typealias Curried = (int) => (string) => bool
+
+// === Testes de uso válidos ===
+val id: UserId = "abc-123"
+val pid: ProductId = 456
+val handler: Handler = x => "result"
+val eid: EntityId = "entity-1"
+val num: Number = 3.14
+val result: Result = "success"
+val slist: StringList = ["a", "b"]
+val umap: UserMap = Map<string, UserId>()
+val optId: OptionalId = null
+val ids: IdList = ["id1", "id2"]
+val matrix: Matrix = [[1,2], [3,4]]
+val mapper: Mapper = x => "value"
+val curried: Curried = x => y => true
+
+// === Testes que devem FALHAR ===
+val bad1: UserId = 123           // int ≠ string
+val bad2: ProductId = "test"     // string ≠ int
+val bad3: Number = "text"         // string não está em int | float
+val bad4: OptionalId = 123       // int ≠ UserId (string) | null
+val bad5: IdList = [123, 456]      // int ≠ UserId (string)
+
+// === Alias de alias funcionando ===
+val chain1: EntityId = "from-alias-chain"  // EntityId -> UserId -> string ✓
+val chain2: OrderId = 999          // OrderId -> ProductId -> int ✓

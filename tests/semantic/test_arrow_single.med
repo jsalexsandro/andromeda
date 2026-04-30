@@ -1,0 +1,2 @@
+// === Teste 10: Arrow functions ===
+val double: (int) => int = x => x * 2

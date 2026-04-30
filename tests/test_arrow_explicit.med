@@ -1,0 +1,14 @@
+// OK - anotação explícita bate com contexto
+val explicit1: (int) => int = (x: int) => x + 1
+
+// OK - anotação explícita sem contexto externo
+val explicit2 = (x: int) => x * 2
+
+// OK - anotação explícita de returnType
+val explicit3 = (x: int): int => x + 1
+
+// ERRO - anotação diz string mas body tenta multiplicar
+val explicit4 = (x: string): int => x * 2
+
+// ERRO - anotação do param contradiz o contexto
+val explicit5: (int) => int = (x: string) => x * 2

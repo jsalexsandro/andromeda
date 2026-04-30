@@ -1,0 +1,6 @@
+// Teste Bug #2: Função nullable (erro com hint)
+val bad_fn: (int) => int | null = null  // ERRO esperado com hint
+
+// Teste Bug #1: Contexto propagado (já testado)
+val compose: ((int) => int, (int) => int) => (int) => int = 
+  (f, g) => x => f(g(x))

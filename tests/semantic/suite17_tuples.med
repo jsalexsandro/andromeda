@@ -1,0 +1,63 @@
+// ============================================================
+// Tuple Tests
+// ============================================================
+
+// ============================================================
+// VALID CASES - All these SHOULD compile
+// ============================================================
+
+// Basic tuple type annotation
+val tuple1: [int, string] = [1, "hello"]
+val tuple2: [int, int, int] = [1, 2, 3]
+
+// Tuple with unions
+val tupleUnion1: [int | string, bool] = [1, true]
+val tupleUnion2: [int, string | int] = [1, "a"]
+val tupleUnion3: [int | string, bool | float] = ["test", 3.14]
+
+// Nested tuples
+val tupleNested1: [[int, string], bool] = [[1, "a"], true]
+val tupleNested2: [int, [string, bool]] = [1, ["a", true]]
+
+// Tuple with functions
+val tupleFn1: [(int) => string, int] = [(x) => x, 1]
+val tupleFn2: [int, (string) => int] = [1, (s) => 42]
+
+// Tuple with arrays
+val tupleArr1: [int[], string[]] = [[1, 2], ["a", "b"]]
+val tupleArr2: [int, string[]] = [1, ["a"]]
+
+// Tuple with nullable
+val tupleNullable1: [int?, string] = [null, "test"]
+val tupleNullable2: [int, string?] = [1, null]
+
+// Deep tuple
+val tupleDeep1: [int, [string, [bool, float]]] = [1, ["a", [true, 3.14]]]
+
+// ============================================================
+// ERROR CASES - All these SHOULD fail
+// ============================================================
+
+// Wrong element type in tuple
+val errTuple1: [int, string] = [1, 2]
+
+// Too few elements
+val errTuple2: [int, string, bool] = [1, "a"]
+
+// Too many elements
+val errTuple3: [int, string] = [1, "a", true]
+
+// Tuple union mismatch
+val errTupleUnion1: [int | string, bool] = [true, "a"]
+
+// Nested tuple mismatch
+val errTupleNested1: [[int, string], bool] = [["a", 1], true]
+
+// Tuple with function type mismatch
+val errTupleFn1: [(int) => string, int] = [(x) => x + 1, 1]
+
+// Tuple with array mismatch
+val errTupleArr1: [int[], string[]] = [[1, 2], [3, 4, 5]]
+
+// Tuple with nullable mismatch
+val errTupleNullable1: [int?, string] = ["string", "test"]

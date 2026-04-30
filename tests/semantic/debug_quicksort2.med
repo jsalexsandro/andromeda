@@ -1,0 +1,20 @@
+func partition(arr: int[], low: int, high: int): int {
+    var pivot = arr[high]
+    var i = low - 1
+    var j = low
+    while (j < high) {
+        if (arr[j] < pivot) {
+            i = i + 1
+        }
+        j = j + 1
+    }
+    return i + 1
+}
+
+func quicksort(arr: int[], low: int, high: int): void {
+    if (low < high) {
+        var pi = partition(arr, low, high)
+        quicksort(arr, low, pi - 1)
+        quicksort(arr, pi + 1, high)
+    }
+}

@@ -1,0 +1,8 @@
+var s = "hello"
+s += " world"
+
+var x = 10
+x += 5
+
+var b = true
+b += false

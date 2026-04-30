@@ -1,0 +1,8 @@
+// OK - rest como único param
+val sum_all = (...nums) => nums
+
+// OK - rest como último param
+val join_after = (sep, ...parts) => sep
+
+// teste mais simples
+val simple_rest = (...args) => args

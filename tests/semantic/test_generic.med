@@ -1,0 +1,5 @@
+typealias StringList = Array<string>
+typealias UserMap = Map<string, int>
+
+val sl: StringList = ["a", "b"]
+val mp: UserMap = Map<string, int>()

@@ -1,0 +1,49 @@
+typealias Name = string
+
+const myname: Name = 'Jonny'
+
+// Exemplos complexos de sintaxe
+
+// 1. Arrow functions com tipos complexos
+val double: (int) => int = x => x * 2
+val compose: ((int) => int, (int) => int) => (int) => int = (f, g) => x => f(g(x))
+
+// 2. HOFs (Higher-Order Functions)
+func apply_twice(fn: (int) => int, value: int): int {
+  return fn(fn(value))
+}
+val result: int = apply_twice(x => x * 3, 2)
+
+// 3. Arrays de funções
+val ops: ((int) => int)[] = [
+  x => x + 1,
+  x => x - 1,
+  x => x * 2
+]
+
+// 4. Rest params
+func sum_all(...nums: int[]): int {
+  var total: int = 0
+  return total
+}
+val total: int = sum_all(1, 2, 3, 4, 5)
+
+// 5. Callback com tipo esperado
+func with_callback(arr: int[], callback: (int) => bool): int[] {
+  return arr
+}
+val filtered: int[] = with_callback([1, 2, 3, 4], x => x > 2)
+
+// 6. Nullable e unions
+val maybe_fn: (int) => int | null = (e) => null
+val definitely_fn: (string) => string = s => s + "!"
+
+// 7. Spread em chamadas
+func add(x: int, y: int): int { return x + y }
+val nums: int[] = [10, 20]
+// val sum_result: int = add(...nums)  // Requer suporte completo a spread em chamadas
+
+
+// testar muito
+var s = 2 + 3 (inferencia)
+var t:string = "" // tipo bate com a atribuição

@@ -1,0 +1,17 @@
+// Test ALL nominal cases
+model UserId = string
+model ProductId = string
+
+// OK: literal to same model type (using same model var)
+val x1: UserId = "user-123"  
+val x2: UserId = x1  // OK - same model
+
+// OK: assign same model type 
+val xx: UserId = x2  
+
+// FAIL: ProductId to UserId (different models)
+// val p1: ProductId = "prod-123"
+// val fail: UserId = p1  // Would fail
+
+// FAIL: string literal to model
+// val bad: UserId = "hello"  // Would fail

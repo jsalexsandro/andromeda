@@ -1,0 +1,3 @@
+typealias Id = string
+
+const id: Id = "abcd-1122-ffgg-3334"

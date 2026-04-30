@@ -1,0 +1,4 @@
+// Test: Should FAIL - literal to model
+model UserId = string
+
+val bad: UserId = "hello"

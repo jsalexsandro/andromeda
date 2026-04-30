@@ -1,0 +1,11 @@
+// Test: Nominal Types - Different models should be incompatible
+model UserId = string
+model ProductId = string
+
+// OK: same model type
+val x1: UserId = "user-123"
+val x2: UserId = x1
+
+// Should FAIL: ProductId → UserId (different nominal types)
+val p1: ProductId = "prod-123"
+val cross: UserId = p1

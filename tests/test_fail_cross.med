@@ -1,0 +1,6 @@
+// Test: Should FAIL - different models
+model UserId = string
+model ProductId = string
+
+val p1: ProductId = "prod-123"
+val fail: UserId = p1

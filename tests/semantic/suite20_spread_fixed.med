@@ -1,0 +1,26 @@
+// ========================================
+// TESTE: Spread Operator (Pós-correção)
+// ========================================
+
+// 1. Spread válido em array literal
+val arr1: int[] = [1, 2, 3]
+val arr2: int[] = [4, 5, 6]
+val combined: int[] = [...arr1, ...arr2, 7, 8]
+
+// 2. Spread com array vazio
+val empty: int[] = []
+val withEmpty: int[] = [...empty, 1, 2]
+
+// 3. Spread apenas (apenas spread)
+val src: int[] = [1, 2, 3]
+val dst: int[] = [...src]
+
+// 4. Spread inválido (deve falhar no parser)
+// val invalid = ...arr1  // PARSE ERROR
+
+// 5. Spread em expressão (deve falhar no parser)
+// val bad = ...arr1 + 1  // PARSE ERROR
+
+// 6. Spread de não-array (deve falhar semanticamente)
+// val notArr: int = 42
+// val badSpread: int[] = [...notArr]  // SEMANTIC ERROR

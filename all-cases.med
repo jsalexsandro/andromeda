@@ -1,0 +1,190 @@
+// ============================================================
+// SPREAD — TESTES COMPLETOS
+// ============================================================
+
+
+// ============================================================
+// BLOCO 1 — SPREAD EM CHAMADAS SEM REST PARAM
+// ============================================================
+
+func add(x: int, y: int): int {
+  return x + y
+}
+
+func greet(name: string, greeting: string): string {
+  return greeting + name
+}
+
+func triple(a: int, b: int, c: int): int {
+  return a + b + c
+}
+
+val nums: int[] = [10, 20]
+val words: string[] = ["alice", "hello"]
+val three: int[] = [1, 2, 3]
+
+// [OK] spread ocupa os params posicionalmente
+val r1: int = add(...nums)
+val r2: string = greet(...words)
+val r3: int = triple(...three)
+
+// [OK] spread misto com args normais
+val r4: int = add(5, ...nums)
+// (ocupa param y com elementType de nums)
+
+// [ERRO] elementType incompatível com param
+val bad_words: string[] = ["a", "b"]
+val bad1: int = add(...bad_words)  // string[] → spread string ≠ int
+
+// [Er] aridade errada — spread de array com tipo certo mas insuficiente
+// (isso é limitação de compile-time, a verificação é de tipo, não de tamanho)
+
+
+// ============================================================
+// BLOCO 2 — SPREAD EM CHAMADAS COM REST PARAM
+// ============================================================
+
+func sum_all(...nums: int[]): int {
+  return 0
+}
+
+func log_all(prefix: string, ...messages: string[]): void {
+  return
+}
+
+val rest_nums: int[] = [1, 2, 3, 4, 5]
+val messages: string[] = ["hello", "world"]
+
+// [OK] spread direto no rest
+val total = sum_all(...rest_nums)
+
+// [OK] spread com arg normal antes do rest
+log_all("prefix", ...messages)
+
+// [OK] mix de args normais e spread no rest
+log_all("hi", "manual", ...messages)
+
+// [ERRO] spread de tipo errado no rest
+val bools: bool[] = [true, false]
+val bad_rest = sum_all(...bools)  // bool[] → bool ≠ int
+
+
+// ============================================================
+// BLOCO 3 — SPREAD EM ARRAY LITERAL (O BIG FIX)
+// ============================================================
+
+val base: int[] = [1, 2, 3]
+val extra: int[] = [4, 5, 6]
+
+// [OK] spread no início
+val arr1: int[] = [...base, 4, 5]
+
+// [OK] spread no meio
+val arr2: int[] = [0, ...base, 4]
+
+// [OK] spread no fim
+val arr3: int[] = [0, 1, ...base]
+
+// [OK] múltiplos spreads
+val arr4: int[] = [...base, ...extra]
+
+// [OK] spread + literal mesmo tipo
+val arr5: int[] = [10, ...base, 20, ...extra, 30]
+
+// [OK] spread de string[]
+val strs: string[] = ["a", "b"]
+val arr6: string[] = ["prefix", ...strs, "suffix"]
+
+// [ERRO] spread de tipo incompatível no array
+val arr7: int[] = [1, ...strs, 3]  // spread string ≠ int
+
+// [ERRO] spread de não-array
+val not_array: int = 42
+val arr8: int[] = [1, ...not_array, 3]  // ERRO: spread de não-array
+
+// 5 erros ate aqui
+// ============================================================
+// BLOCO 4 — SPREAD EM ARRAY COM INFERÊNCIA (sem anotação)
+// ============================================================
+
+// [OK] tipo inferido do spread
+val inferred1 = [...base, 10, 20]   // deve ser int[]
+val inferred2 = [...strs, "c"]      // deve ser string[]
+
+// [OK] spread de array vazio
+val empty: int[] = []
+val with_empty = [...empty, 1, 2]   // int[]
+
+// [OK] spread combinado — mesmos tipos
+val a1: int[] = [1, 2]
+val a2: int[] = [3, 4]
+val combined = [...a1, ...a2]       // int[]
+
+// [ERRO] spread de tipos mistos sem anotação
+val mixed: string[] = ["x"]
+val bad_inferred = [...base, ...mixed]  // int | string — se anotado como int[] → ERRO
+
+
+// ============================================================
+// BLOCO 5 — SPREAD EM ARRAY 2D
+// ============================================================
+
+val row1: int[] = [1, 2, 3]
+val row2: int[] = [4, 5, 6]
+val matrix: int[][] = [row1, row2]
+
+// [OK] spread de int[][] produz int[] como elemento
+val flat_row: int[] = [...row1, ...row2]
+
+// [ERRO] spread de int[][] em int[] — elementos seriam int[], não int
+val s = [...matrix]
+val bad_flat: int[] = [...s]   // spread int[][] → elemento int[] ≠ int
+
+
+// ============================================================
+// BLOCO 6 — SPREAD EM CHAMADAS COM ARROWS
+// ============================================================
+
+func map_spread(arr: int[], fn: (int) => int): int[] {
+  return arr
+}
+
+val to_spread: int[] = [1, 2, 3]
+
+// [OK] spread de array correto com arrow
+val mapped = map_spread(to_spread, (x) => x * 2)
+
+// [OK] spread no primeiro arg
+val mapped2 = map_spread(...[to_spread], (x) => x * 2)
+
+// [ERRO] spread de tipo errado no primeiro param
+val str_arr: string[] = ["a", "b"]
+val bad_mapped = map_spread(...[str_arr], (x) => x * 2)  // string[] ≠ int[]
+// 6 erros
+
+// ============================================================
+// BLOCO 7 — EDGE CASES
+// ============================================================
+
+// [OK] spread de array com 1 elemento
+val single: int[] = [42]
+val r5: int = add(...single, 1)
+
+// [OK] spread + args em ordem correta
+func three_args(a: string, b: int, c: bool): bool {
+  return c
+}
+val s_arr: string[] = ["hello"]
+val result = three_args(...s_arr, 10, true)  // OK: string, int, bool
+
+// [ERRO] spread de bool[] onde string esperado
+val b_arr: bool[] = [true]
+val bad_edge = three_args(...b_arr, 10, true)  // bool ≠ string
+
+// [OK] spread vazio (array vazio)
+val empty2: string[] = []
+val r6: string = greet(...empty2, "world")  // runtime risco mas compiletime OK
+
+// [OK] spread de nullable element array
+val nullable_nums: int[] = [1, 2, 3]
+val with_nullable: int[] = [...nullable_nums, 4]

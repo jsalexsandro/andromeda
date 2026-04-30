@@ -1,0 +1,5 @@
+// Test: Literal to model SHOULD FAIL
+model UserId = string
+
+// Should FAIL: string literal to UserId (literal is NOT allowed)
+val direct: UserId = "hello"

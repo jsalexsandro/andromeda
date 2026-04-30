@@ -1,0 +1,17 @@
+// OK - currying simples
+val add_curried: (int) => (int) => int = (a) => (b) => a + b
+
+// OK - currying de string
+val concat_curried: (string) => (string) => string = (a) => (b) => a + b
+
+// OK - currying com bool
+val both: (bool) => (bool) => bool = (a) => (b) => a && b
+
+// OK - três níveis de currying
+val add3: (int) => (int) => (int) => int = (a) => (b) => (c) => a + b + c
+
+// ERRO - retorno do nível interno incompatível
+val bad_curry: (int) => (int) => int = (a) => (b) => "errado"
+
+// ERRO - retorno do nível externo incompatível
+val bad_curry2: (int) => (int) => int = (a) => 42

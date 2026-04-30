@@ -1,0 +1,33 @@
+// OK - block body com return explícito
+val triple: (int) => int = (x) => {
+  val result = x * 3
+  return result
+}
+
+// OK - block body com lógica condicional e return nos dois ramos
+val abs: (int) => int = (x) => {
+  if (x < 0) {
+    return -x
+  }
+  return x
+}
+
+// OK - block body void - sem return necessário
+val sideEffect: (int) => void = (x) => {
+  val y = x + 1
+}
+
+// ERRO - block body sem return em função não-void
+val missingRet: (int) => int = (x) => {
+  val y = x + 1
+}
+
+// ERRO - block body com return de tipo errado
+val wrongRet: (int) => int = (x) => {
+  return "nao sou int"
+}
+
+// ERRO - block body com return vazio em função não-void
+val emptyRet: (int) => int = (x) => {
+  return
+}

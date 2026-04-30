@@ -1,0 +1,75 @@
+// === Teste 1: Atribuição básica ===
+var x = 10
+x = 20              // OK - atribuição simples
+
+val y = 30
+// y = 40           // ERRO: val não é mutável
+
+// === Teste 2: Operadores compostos ===
+var a = 10
+a += 5            // OK
+a -= 3            // OK
+a *= 2            // OK
+a /= 4            // OK
+a %= 3            // OK
+
+var s = "hello"
+// s += " world"   // ERRO: string não é numérico
+
+var b = true
+// b += false      // ERRO: bool não é numérico
+
+// === Teste 3: ++ e -- ===
+var counter = 0
+counter++           // OK
+counter--           // OK
+
+val fixed = 10
+// fixed++          // ERRO: val não é mutável
+
+var name = "test"
+// name++           // ERRO: string não é numérico
+
+// === Teste 4: Type alias ===
+typealias Id = string
+val id: Id = "abc123"   // OK
+
+typealias Number = int | float
+val n: Number = 3.14    // OK
+
+// === Teste 5: Funções ===
+func add(x: int, y: int): int {
+  return x + y
+}
+
+val result: int = add(10, 20)  // OK
+
+// === Teste 6: Arrays ===
+var arr: int[] = [1, 2, 3]
+arr[0] = 10         // OK - atribuição em array
+
+val items: string[] = ["a", "b"]
+// items[0] = 123  // ERRO: int ≠ string
+
+// === Teste 7: Unions ===
+var value: int | string = 10
+value = "hello"     // OK - string está na union
+// value = true      // ERRO: bool não está na union
+
+// === Teste 8: Generics (Bug #001) ===
+// typealias StringList = Array<string>  // BUG: não funciona
+
+// === Teste 9: Nullable ===
+var maybe: int? = null
+maybe = 10           // OK
+
+val fixed2: string? = "test"
+// fixed2 = null     // ERRO: val não é mutável
+
+// === Teste 10: Nested type alias ===
+typealias UserId = string
+typealias EntityId = UserId
+val eid: EntityId = "entity1"  // OK - cadeia de aliases
+
+// === Teste 11: Arrow functions ===
+val double: (int) => int = x => x * 2

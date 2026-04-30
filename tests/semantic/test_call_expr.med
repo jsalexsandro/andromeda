@@ -1,0 +1,31 @@
+// Teste 1: Chamada normal
+func sum(x: int, y: int): int { return x + y }
+val r1: int = sum(10, 20)  // OK
+
+// Teste 2: Spread de array em chamada (com rest param)
+func sumAll(...nums: int[]): int { return 0 }
+val parts: int[] = [1, 2, 3]
+val r2: int = sumAll(...parts)  // OK
+
+// Teste 3: Spread de array em chamada (sem rest param)
+func add(x: int, y: int): int { return x + y }
+val nums: int[] = [10, 20]
+val r3: int = add(...nums)  // OK - spread de int[] → int, int
+
+// Teste 4: Contagem errada (deve gerar erro)
+// val r4: int = add(10, 20, 30)  // ERRO: expected 2, got 3
+
+// Teste 5: Spread tipo errado
+// val strs: string[] = ["a", "b"]
+// val r5: int = add(...strs)  // ERRO: string não compatível com int
+
+// Teste 6: Menos argumentos
+// val r6: int = add(10)  // ERRO: expected 2, got 1
+
+// Teste 7: Callee não é função
+val x: int = 10
+// val r7: int = x(10)  // ERRO: not a function
+
+// Teste 8: Contextual typing para arrow functions
+func map_int(arr: int[], fn: (int) => int): int[] { return arr }
+val r8: int[] = map_int([1, 2, 3], (x) => x * 2)  // OK - x inferido como int

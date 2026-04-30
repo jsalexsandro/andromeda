@@ -1,0 +1,6 @@
+val eFrom:   int[] = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
+val eTo:     int[] = [1, 2, 2, 3, 3, 4, 0, 4, 0, 3]
+val eWeight: int[] = [2, 4, 1, 7, 3, 5, 0, 1, 8, 2]
+
+var dist:    int[]  = [INF, INF, INF, INF, INF]
+var visited: bool[] = [false, false, false, false, false]

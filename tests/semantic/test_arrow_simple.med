@@ -1,0 +1,1 @@
+val double: (int) => int = x => x * 2

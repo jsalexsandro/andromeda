@@ -1,0 +1,14 @@
+func test(): int {
+    return 1
+}
+
+func test2(): int {
+    return test()
+}
+
+func recursive(n: int): int {
+    if (n == 0) {
+        return 1
+    }
+    return n * recursive(n - 1)
+}

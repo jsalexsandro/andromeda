@@ -1,0 +1,20 @@
+// Test: Nominal Types Puros
+model UserId = string
+model ProductId = string
+
+// Should work: assign another UserId
+val x1: UserId = "user-123"
+val x2: UserId = x1
+
+// Should FAIL: assign string to UserId (NOT allowed in nominal)
+// val x3: UserId = "foo"  // <- descomment to test: should ERROR
+
+// Should FAIL: assign ProductId to UserId (different nominal types)
+// val y: UserId = (x with ProductId type) // <- descomment to test
+
+// Should FAIL: assign string to UserId  
+val test1: UserId = "direct"  // This should ERROR
+
+// Should FAIL: different model types incompatible
+model AnotherString = string  
+val a: ProductId = x1 // This should ERROR

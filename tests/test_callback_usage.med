@@ -1,0 +1,29 @@
+func map_int(arr: int[], fn: (int) => int): int[] {
+  return arr
+}
+
+func filter_int(arr: int[], fn: (int) => bool): int[] {
+  return arr
+}
+
+func reduce_int(arr: int[], fn: (int, int) => int, initial: int): int {
+  return initial
+}
+
+func apply(fn: (int) => int, x: int): int {
+  return fn(x)
+}
+
+val doubled = map_int([1, 2, 3], (x) => x * 2)
+val positives = filter_int([1, -2, 3], (x) => x > 0)
+val sum = reduce_int([1, 2, 3], (acc, x) => acc + x, 0)
+val result = apply((x) => x + 10, 5)
+
+// ERRO - arrow com tipo de retorno errado como argumento
+val broken_map = map_int([1, 2, 3], (x) => "nao int")
+
+// ERRO - arrow com aridade errada passada como argumento
+val broken_reduce = reduce_int([1, 2, 3], (x) => x, 0)
+
+// ERRO - argumento não é função onde função é esperada
+val broken_apply = apply(42, 5)

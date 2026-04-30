@@ -1,0 +1,14 @@
+// Testes para validar a correção do null
+
+// Devem gerar ERRO
+const a: int = null           // ERRO: int ≠ null
+const b: int | float = null   // ERRO: union não inclui null
+const c: string = null        // ERRO: string ≠ null
+
+// Devem ser OK
+const d: int? = null          // OK: nullable aceita null
+const e: string? = null       // OK: nullable aceita null
+const f: any = null           // OK: any aceita tudo
+const g: unknown = null       // OK: unknown no expected aceita tudo
+const h: null = null          // OK: null == null
+const i: int | null = null    // OK: union inclui null

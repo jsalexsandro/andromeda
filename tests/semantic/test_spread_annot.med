@@ -1,0 +1,18 @@
+// Testes de spread com anotação de tipo
+
+// Spread em array com anotação
+val a: int = 10
+val arr1: int[] = [1, 2, ...a]  // ERRO esperado: 'a' é int, não int[]
+
+// Spread correto: array -> array
+val nums: int[] = [1, 2, 3]
+val arr2: int[] = [0, ...nums, 4]  // OK esperado
+
+// Spread em chamada de função
+func sum(x: int, y: int): int { return x + y }
+val parts: int[] = [10, 20]
+val result: int = sum(...parts)  // OK esperado
+
+// Spread em objeto (deve gerar erro - Andromeda é nominal)
+// val obj = {x: 1, y: 2}
+// val copy = {...obj}  // Provavelmente erro
