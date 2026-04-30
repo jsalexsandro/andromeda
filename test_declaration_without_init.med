@@ -1,0 +1,24 @@
+// Teste: var/val/const sem inicializador
+
+// [ERRO] var sem inicializador
+var a
+val x = a + 1
+
+// [ERRO] val sem inicializador e sem tipo
+val b
+val y = b + 2
+
+// [ERRO] const sem inicializador
+const c
+val z = c + 3
+
+// [OK] Formas corretas
+var d = 10
+val e = 20
+const f = 30
+
+// [OK] var sem inicializador mas com tipo explícito ainda é erro
+var g: int
+
+// [OK] Usar variáveis declaradas corretamente
+val result = d + e + f
