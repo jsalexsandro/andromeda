@@ -350,13 +350,80 @@ while (j < 10) {
 }
 ```
 
-### For Loop (Planned)
-
+### For Loop (Implemented ✓)
 ```typescript
-// Not yet implemented
-// for (val i: int = 0; i < 10; i = i + 1) {
-//   // body
-// }
+// Basic for loop
+for (var i: int = 0; i < 5; i = i + 1) {
+  val x: int = i
+}
+
+// With val (immutable initializer)
+for (val j: int = 0; j < 3; j = j + 1) {
+  val y: int = j
+}
+
+// Nested for loops (proper scoping)
+for (var i: int = 0; i < 3; i = i + 1) {
+  for (var k: int = 0; k < 3; k = k + 1) {
+    val z: int = i + k
+  }
+}
+
+// With break
+for (var m: int = 0; m < 10; m = m + 1) {
+  if (m == 5) break
+  val w: int = m
+}
+
+// With continue
+for (var n: int = 0; n < 5; n = n + 1) {
+  if (n == 2) continue
+  val v: int = n
+}
+
+// Without initializer (uses external variable)
+var ext: int = 0
+for (; ext < 3; ext = ext + 1) {
+  val t: int = ext
+}
+
+// Without condition (infinite loop with break)
+for (var inf: int = 0;; inf = inf + 1) {
+  if (inf > 5) break
+}
+
+// Without update (update inside body)
+for (var p: int = 0; p < 3;) {
+  val q: int = p
+  p = p + 1
+}
+```
+
+### For Loop Error Detection ✓
+```typescript
+// ❌ Break outside loop (INVALID_BREAK error)
+// break  // ERROR: can only be used inside a loop
+
+// ❌ Continue outside loop (INVALID_CONTINUE error)
+// continue  // ERROR: can only be used inside a loop
+
+// ❌ Reassignment to val in update (CANNOT_ASSIGN error)
+for (val fixed: int = 0; fixed < 3; fixed = fixed + 1) {
+  // ERROR: cannot assign to 'fixed'
+}
+
+// ❌ Invalid condition (INVALID_CONDITION error)
+// for (var i: int = 0; "string"; i = i + 1) {
+//   val x = 1
+// }  // ERROR: condition must be boolean
+
+// ✅ Nested loops with same variable name (separate scopes)
+for (var k: int = 0; k < 2; k = k + 1) {
+  for (var k: int = 10; k < 12; k = k + 1) {  // OK: different scope
+    val inner_k: int = k  // 10, 11
+  }
+  val outer_k: int = k  // 0, 1 (unchanged)
+}
 ```
 
 ---
