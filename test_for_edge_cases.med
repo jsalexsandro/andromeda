@@ -1,0 +1,241 @@
+// ============================================================
+// TESTE: EDGE CASES ADICIONAIS PARA FOR LOOP
+// ============================================================
+
+// ============================================================
+// 1. FOR VAZIO (sem nada)
+// ============================================================
+
+// [OK] for vazio completo
+for (;;) {
+  break
+}
+
+// [OK] for sem inicializador, com condição e update
+var counter = 0
+for (; counter < 5; counter++) {
+}
+
+// [OK] for sem condição (loop infinito, mas semanticamente válido)
+// for (var i = 0; ; i++) { break }  // Parser pode rejeitar
+
+// [OK] for sem update
+for (var i = 0; i < 5;) {
+  i = i + 1
+}
+
+// ============================================================
+// 2. INICIALIZADOR COMPLEXO
+// ============================================================
+
+// [OK] inicializador com chamada de função
+func getInit(): int {
+  return 10
+}
+for (var i = getInit(); i > 0; i--) {
+}
+
+// [OK] inicializador com expressão complexa
+for (var i = 2 * 3 + 1; i < 20; i += 2) {
+}
+
+// [ERRO] inicializador com tipo errado (int vs float)
+func getFloat(): float {
+  return 1.5
+}
+for (var i = getFloat(); i < 10; i++) {
+}
+
+// ============================================================
+// 3. CONDIÇÃO COMPLEXA
+// ============================================================
+
+// [OK] condição com múltiplas comparações
+for (var i = 0; i >= 0 && i < 10; i++) {
+}
+
+// [OK] condição com chamada de função
+func isValid(n: int): bool {
+  return n < 100
+}
+for (var i = 0; isValid(i); i++) {
+}
+
+// [ERRO] condição com tipo não-bool
+for (var i = 0; 42; i++) {
+}
+
+// ============================================================
+// 4. UPDATE COMPLEXO
+// ============================================================
+
+// [OK] update com chamada de função
+func increment(n: int): int {
+  return n + 1
+}
+for (var i = 0; i < 10; i = increment(i)) {
+}
+
+// [OK] update com expressão complexa
+for (var i = 1; i < 1000; i = i * 2) {
+}
+
+// [OK] update que modifica variável externa
+var global = 0
+for (var i = 0; i < 5; i++) {
+  global = global + i
+}
+
+// ============================================================
+// 5. BODY COMPLEXO
+// ============================================================
+
+// [OK] body com múltiplas declarações
+for (var i = 0; i < 5; i++) {
+  var a = i * 2
+  val b = i + 1
+  var c = a + b
+}
+
+// [OK] body com if/else
+for (var i = 0; i < 10; i++) {
+  if (i % 2 == 0) {
+    val even = i
+  } else {
+    val odd = i
+  }
+}
+
+// [OK] body com break/continue aninhados
+for (var i = 0; i < 100; i++) {
+  if (i == 50) {
+    break
+  }
+  if (i % 3 == 0) {
+    continue
+  }
+  val x = i
+}
+
+// ============================================================
+// 6. VARIÁVEIS EXTERNAS
+// ============================================================
+
+// [OK] ler variável externa mutável
+var externa = 10
+for (var i = 0; i < externa; i++) {
+}
+
+// [OK] modificar variável externa mutável
+var modificavel = 0
+for (var i = 0; i < 5; i++) {
+  modificavel = modificavel + i
+}
+
+// [ERRO] modificar variável externa imutável (val)
+val imutavel = 0
+for (var i = 0; i < 5; i++) {
+  imutavel = imutavel + 1  // ERRO: val não é mutável
+}
+
+// ============================================================
+// 7. TIPOS E CASTING
+// ============================================================
+
+// [OK] for com diferentes tipos numéricos
+for (var i: int = 0; i < 10; i++) {
+}
+
+for (var f: float = 0.0; f < 1.0; f += 0.1) {
+}
+
+// [ERRO] comparação entre int e float (type mismatch)
+var intVal = 10
+for (var f = 0.0; f < intVal; f += 1.0) {
+}
+
+// ============================================================
+// 8. FOR DENTRO DE ESTRUTURAS
+// ============================================================
+
+// [OK] for dentro de if
+if (true) {
+  for (var i = 0; i < 3; i++) {
+    val x = i
+  }
+}
+
+// [OK] for dentro de while
+var whileCounter = 0
+while (whileCounter < 3) {
+  for (var j = 0; j < 3; j++) {
+    val product = whileCounter * j
+  }
+  whileCounter = whileCounter + 1
+}
+
+// [OK] for dentro de bloco
+{
+  for (var k = 0; k < 3; k++) {
+    val y = k
+  }
+}
+
+// ============================================================
+// 9. ESCOPO ANINHADO COMPLEXO
+// ============================================================
+
+// [OK] múltiplos níveis de aninhamento
+for (var i = 0; i < 3; i++) {
+  for (var j = 0; j < 3; j++) {
+    for (var k = 0; k < 3; k++) {
+      val triple = i * j * k
+    }
+    val after_k = j
+  }
+  val after_j = i
+}
+
+// [ERRO] vazar de nível mais interno
+for (var i = 0; i < 3; i++) {
+  for (var j = 0; j < 3; j++) {
+    val inner = 10
+  }
+  val access = inner  // ERRO: inner não existe aqui
+}
+
+// ============================================================
+// 10. CASOS EXTREMOS
+// ============================================================
+
+// [OK] for com declaração de função no body (se permitido)
+// for (var i = 0; i < 1; i++) {
+//   func innerFunc(): int { return 1 }  // Pode ser erro (função dentro de loop)
+// }
+
+// [OK] for com return dentro (dentro de função)
+func processArray(): int {
+  var total = 0
+  for (var i = 0; i < 10; i++) {
+    if (i == 5) {
+      return total
+    }
+    total = total + i
+  }
+  return 0
+}
+
+// [ERRO] return fora de função dentro do for
+for (var i = 0; i < 5; i++) {
+  return i  // ERRO: return fora de função
+}
+
+// [OK] for com tipos diferentes mas compatíveis
+val limit: int = 20
+for (var counter: int = 0; counter < limit; counter++) {
+}
+
+// [ERRO] for com condição sempre falsa (mas semanticamente válido)
+for (var i = 0; false; i++) {
+  val never = i  // Nunca executa, mas sintaticamente ok
+}
