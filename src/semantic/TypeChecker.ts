@@ -81,13 +81,9 @@ export class TypeChecker {
       return;
     }
 
-    if (stmt.declarationType === "val" && !stmt.type && !stmt.initializer) {
-      this.errors.push(Errors.valRequiresType(name, stmt.name));
-    }
-
-    // var/const sem inicializador é erro (Definite Initialization)
-    if ((stmt.declarationType === "var" || stmt.declarationType === "const") && !stmt.initializer) {
-      this.errors.push(Errors.varRequiresInitializer(name, stmt.name));
+    // Regra única: TODO declarador exige inicializador
+    if (!stmt.initializer) {
+      this.errors.push(Errors.varRequiresInitializer(name, stmt.declarationType, stmt.name));
       return;
     }
 

@@ -1,0 +1,4 @@
+var a
+val x = a + 1
+val y = a < 5
+val z = a == "test"

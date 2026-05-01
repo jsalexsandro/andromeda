@@ -118,6 +118,6 @@ export const Errors = {
   invalidCondition: (token: Token) =>
     createError("INVALID_CONDITION", "condition must be boolean", token, "typecheck"),
 
-  varRequiresInitializer: (name: string, token: Token) =>
-    createError("UNINITIALIZED_VAR", `'${name}' must be initialized. Use 'var ${name} = <value>' or declare it outside the loop.`, token, "typecheck"),
+  varRequiresInitializer: (name: string, declarationType: string, token: Token) =>
+    createError("UNINITIALIZED_VAR", `'${name}' must be initialized. '${declarationType}' requires a value: '${declarationType} ${name} = <value>'`, token, "typecheck"),
 };
