@@ -84,6 +84,15 @@ export class TypeChecker {
     // Regra única: TODO declarador exige inicializador
     if (!stmt.initializer) {
       this.errors.push(Errors.varRequiresInitializer(name, stmt.declarationType, stmt.name));
+
+      // registra como any para não cascatear erros nos usos seguintes
+      this.currentEnv.define(name, createSymbol(
+        name,
+        { kind: "PrimitiveType", name: "any" },
+        "variable",
+        stmt.declarationType === "var",
+        stmt.name
+      ));
       return;
     }
 

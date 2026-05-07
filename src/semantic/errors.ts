@@ -71,7 +71,7 @@ export const Errors = {
     createError("INVALID_BREAK", "'break' can only be used inside a loop", token, "analysis"),
 
   cannotAssign: (name: string, token: Token) =>
-    createError("CANNOT_ASSIGN", `cannot assign to '${name}'`, token, "typecheck"),
+    createError("CANNOT_ASSIGN", `'${name}' is immutable. Use 'var' for mutable variables.`, token, "typecheck"),
 
   invalidIndex: (message: string, token: Token) =>
     createError("INVALID_INDEX", message, token, "typecheck"),
