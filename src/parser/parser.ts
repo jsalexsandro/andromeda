@@ -1195,7 +1195,16 @@ export class Parser {
         }
       }
 
-      const infix = this.infixParselets.get(this.peek().type);
+      // se o token pode ser prefixo (nova expressão) e está em linha diferente,
+      // não tratar como infix — é o início de outro statement
+      const nextToken = this.peek();
+      const canBePrefix = this.prefixParselets.has(nextToken.type);
+      const isDifferentLine = nextToken.line !== this.previous().line;
+      if (canBePrefix && isDifferentLine) {
+        return left;
+      }
+
+      const infix = this.infixParselets.get(nextToken.type);
       if (!infix) {
         return left;
       }
