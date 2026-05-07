@@ -530,7 +530,9 @@ export class TypeChecker {
       }
     }
 
+    this.contextualType = symbol.type;
     const valueType = this.inferType(stmt.value);
+    this.contextualType = null;
     if (!this.areTypesCompatible(symbol.type, valueType)) {
       this.errors.push(Errors.typeMismatch(
         `Cannot assign '${this.typeToString(valueType)}' to '${name}' (${this.typeToString(symbol.type)})`,
@@ -711,7 +713,9 @@ export class TypeChecker {
       }
     }
 
+    this.contextualType = symbol.type;
     const valueType = this.inferType(expr.value);
+    this.contextualType = null;
     if (!this.areTypesCompatible(symbol.type, valueType)) {
       this.errors.push(Errors.typeMismatch(
         `Cannot assign '${this.typeToString(valueType)}' to '${name}'`,
@@ -732,7 +736,7 @@ export class TypeChecker {
         return symbol.type;
       }
       case "Literal":
-        return this.inferLiteralType(expr.value);
+        return this.inferLiteralType(expr);
       case "Binary":
         return this.checkBinaryExpr(expr);
       case "Unary":
@@ -768,14 +772,18 @@ export class TypeChecker {
     return this.checkExpression(expr);
   }
 
-  private inferLiteralType(value: unknown): TypeNode {
+  private inferLiteralType(expr: Extract<Expr, { kind: "Literal" }>): TypeNode {
+    const value = expr.value;
     if (value === null) {
       return { kind: "PrimitiveType", name: "null" };
     }
     if (typeof value === "number") {
+      if (this.contextualType?.kind === "PrimitiveType" && this.contextualType.name === "float") {
+        return { kind: "PrimitiveType", name: "float" };
+      }
       return {
         kind: "PrimitiveType",
-        name: Number.isInteger(value) ? "int" : "float",
+        name: expr.isFloat ? "float" : (Number.isInteger(value) ? "int" : "float"),
       };
     }
     if (typeof value === "string") {

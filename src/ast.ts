@@ -36,6 +36,7 @@ export interface BinaryExpr {
 export interface LiteralExpr {
   kind: "Literal"
   value: any
+  isFloat?: boolean
 }
 
 export interface GroupExpr {

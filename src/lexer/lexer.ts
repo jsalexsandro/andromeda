@@ -276,7 +276,7 @@ readNumber(): Token {
         }
         
         const numStr = this.input.slice(start, this.position)
-        return { type: TokenType.NUMBER, value: parseFloat(numStr), line: this.line, column: startColumn }
+        return { type: TokenType.NUMBER, value: parseFloat(numStr), line: this.line, column: startColumn, isFloat: true }
       }
     }
 

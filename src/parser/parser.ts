@@ -133,7 +133,8 @@ export class Parser {
   }
 
   private parseNumber(): Expr {
-    return { kind: "Literal", value: this.previous().value };
+    const token = this.previous();
+    return { kind: "Literal", value: token.value, isFloat: token.isFloat };
   }
 
   private parseString(): Expr {

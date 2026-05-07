@@ -82,4 +82,5 @@ export interface Token {
   value: string | number | boolean | null;
   line: number;
   column: number;
+  isFloat?: boolean;
 }
