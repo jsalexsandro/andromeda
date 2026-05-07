@@ -832,11 +832,14 @@ export class TypeChecker {
     if (["<", ">", "<=", ">="].includes(op)) {
       if (
         leftType.kind === "PrimitiveType" &&
-        rightType.kind === "PrimitiveType" &&
-        (leftType.name === "int" || leftType.name === "float" || leftType.name === "string") &&
-        (rightType.name === "int" || rightType.name === "float" || rightType.name === "string")
+        rightType.kind === "PrimitiveType"
       ) {
-        return { kind: "PrimitiveType", name: "bool" };
+        const leftIsNum = leftType.name === "int" || leftType.name === "float";
+        const rightIsNum = rightType.name === "int" || rightType.name === "float";
+        const bothStrings = leftType.name === "string" && rightType.name === "string";
+        if ((leftIsNum && rightIsNum) || bothStrings) {
+          return { kind: "PrimitiveType", name: "bool" };
+        }
       }
       this.errors.push(Errors.typeMismatch(`invalid operands for operator '${op}'`, expr.operator));
       return { kind: "PrimitiveType", name: "bool" };
@@ -861,7 +864,7 @@ export class TypeChecker {
         rightType.kind === "PrimitiveType" &&
         leftType.name !== rightType.name
       ) {
-        this.errors.push(Errors.typeMismatch(`Tipos incompatíveis para '${op}'`, expr.operator));
+        this.errors.push(Errors.typeMismatch(`incompatible types for operator '${op}'`, expr.operator));
       }
       return { kind: "PrimitiveType", name: "bool" };
     }
