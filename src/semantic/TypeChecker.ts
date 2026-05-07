@@ -117,7 +117,7 @@ export class TypeChecker {
             inferredType.name === "null";
           
           const hint = isNullableFunctionHint
-            ? ` Hint: para uma função nullable, use '((${this.typeToString(typeNode)}) | null' ou '(${this.typeToString(typeNode)})?'`
+            ? ` Hint: for nullable function, use '((${this.typeToString(typeNode)}) | null' or '(${this.typeToString(typeNode)})?'`
             : "";
           
           this.errors.push(Errors.typeMismatch(
@@ -222,7 +222,7 @@ export class TypeChecker {
       if (typeName in validGenerics) {
         const expectedArgs = validGenerics[typeName];
         if (type.args.length !== expectedArgs) {
-          return Errors.typeMismatch(`Generic '${typeName}' espera ${expectedArgs} parâmetro(s), obteve ${type.args.length}`, token);
+          return Errors.typeMismatch(`Generic '${typeName}' expects ${expectedArgs} parameter(s), got ${type.args.length}`, token);
         }
       }
       for (const arg of type.args) {
@@ -533,7 +533,7 @@ export class TypeChecker {
     const valueType = this.inferType(stmt.value);
     if (!this.areTypesCompatible(symbol.type, valueType)) {
       this.errors.push(Errors.typeMismatch(
-        `Não é possível atribuir '${this.typeToString(valueType)}' a '${name}'(${this.typeToString(symbol.type)})`,
+        `Cannot assign '${this.typeToString(valueType)}' to '${name}' (${this.typeToString(symbol.type)})`,
         targetName.name
       ));
     }
@@ -714,7 +714,7 @@ export class TypeChecker {
     const valueType = this.inferType(expr.value);
     if (!this.areTypesCompatible(symbol.type, valueType)) {
       this.errors.push(Errors.typeMismatch(
-        `Não é possível atribuir '${this.typeToString(valueType)}' a '${name}'`,
+        `Cannot assign '${this.typeToString(valueType)}' to '${name}'`,
         targetName.name
       ));
     }
@@ -854,7 +854,7 @@ export class TypeChecker {
       ) {
         return { kind: "PrimitiveType", name: "bool" };
       }
-      this.errors.push(Errors.typeMismatch("Operadores lógicos precisam de operandos boolean", expr.operator));
+      this.errors.push(Errors.typeMismatch("logical operators require boolean operands", expr.operator));
       return { kind: "PrimitiveType", name: "bool" };
     }
 
@@ -943,7 +943,7 @@ export class TypeChecker {
       return { kind: "PrimitiveType", name: "bool" };
     }
 
-    this.errors.push(Errors.typeMismatch("Operadores lógicos precisam de operandos boolean", { line: 0, column: 0, type: 0, value: "" } as Token));
+    this.errors.push(Errors.typeMismatch("logical operators require boolean operands", { line: 0, column: 0, type: 0, value: "" } as Token));
 
     return { kind: "PrimitiveType", name: "bool" };
   }
@@ -1094,7 +1094,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       ) {
         return objectType.elementType;
       }
-      this.errors.push(Errors.invalidIndex("Índice de array precisa ser int", { line: 0, column: 0, type: 0, value: "" } as Token));
+      this.errors.push(Errors.invalidIndex("array index must be int", { line: 0, column: 0, type: 0, value: "" } as Token));
     }
 
     return { kind: "PrimitiveType", name: "any" };
