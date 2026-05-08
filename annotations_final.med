@@ -1,0 +1,336 @@
+// ============================================================
+// FINAL — TESTES COMPLETOS DE ANOTAÇÕES DE TIPO
+// Combina todos os casos de annotations.med + all-cases.med
+// ============================================================
+// PARTE 1: Casos que PASSAM (tipo annotation compatível com initializer)
+// PARTE 2: Erros esperados (marcados com EXPECTED ERROR)
+// ============================================================
+
+// ============================================================
+// BLOCO 1 — TIPOS PRIMITIVOS
+// ============================================================
+val a1: int = 42
+val a2: float = 3.14
+val a3: string = "hello"
+val a4: bool = true
+val a5: null = null
+val a7: any = "qualquer coisa"
+val a8: unknown = 42
+
+// ============================================================
+// BLOCO 2 — TIPOS NOMEADOS (CUSTOM)
+// ============================================================
+typealias UserId = int
+typealias ProductId = int
+typealias Handler = (int) => string
+typealias EntityId = UserId
+typealias Number = int | float
+typealias Result = string | null
+
+val b1: UserId = 1
+val b2: Number = 3.14
+val b3: Handler = (x: int): string => "ok"
+
+// EXPECTED ERROR: tipos incompatíveis
+// val b4: Number = "string"  // string ≠ int | float
+
+// ============================================================
+// BLOCO 3 — GENERICS (nominais — sem initializer)
+// ============================================================
+// Nominais — sem initializer viável; comentados pois 'var' exige initializer
+// var c1: List<int> = 0
+// var c2: Set<bool> = true
+// var c3: Promise<int> = 0
+// var c4: Map<string, int> = 0
+
+// ============================================================
+// BLOCO 4 — ARRAYS MULTI-DIM
+// ============================================================
+val d1: int[][] = [[1, 2], [3, 4]]
+val d2: float[][] = [[1.0, 2.0], [3.0, 4.0]]
+val d3: string[][] = [["a", "b"], ["c", "d"]]
+val d4: bool[][] = [[true, false], [false, true]]
+val d5: int[][][] = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+
+// ============================================================
+// BLOCO 5 — TIPOS FUNÇÃO — BÁSICOS
+// ============================================================
+val e1: (int) => string = (x: int): string => "ok"
+val e2: (int, string) => bool = (x: int, y: string): bool => true
+val e3: () => void = (): void => { return }
+val e4: (int[]) => string[] = (arr: int[]): string[] => ["ok"]
+val e5: (UserId) => ProductId = (id: int): int => id
+
+// ============================================================
+// BLOCO 6 — TIPOS FUNÇÃO — COM UNION
+// ============================================================
+val f1: (int | string) => bool = (x: int | string): bool => true
+
+// ============================================================
+// BLOCO 7 — TIPOS FUNÇÃO — ANINHADOS (FUNÇÃO RETORNANDO FUNÇÃO)
+// ============================================================
+// var g1: (int) => (string) => bool  // 'var' exige initializer
+
+// ============================================================
+// BLOCO 8 — ARRAY DE FUNÇÕES
+// ============================================================
+val h1: ((int) => int)[] = [(x: int): int => x, (y: int): int => y * 2]
+val h2: ((string) => bool)[] = [(s: string): bool => true]
+
+// ============================================================
+// BLOCO 9 — TIPOS AGRUPADOS (GROUPING)
+// ============================================================
+val i1: (int) = 42
+val i2: (int | string) = "hello"
+val i3: ((int) => int) = (x: int): int => x
+
+// ============================================================
+// BLOCO 10 — GROUPING COM ARRAY
+// ============================================================
+val j1: (int)[] = [1, 2, 3]
+val j2: (int | string)[] = [1, "a"]
+val j3: ((int) => int)[] = [(x: int): int => x]
+
+// ============================================================
+// BLOCO 11 — GROUPING COM UNION + NULLABLE
+// ============================================================
+val k1: (int | string) | null = "hello"
+val k2: (int | string) | null = null
+
+// ============================================================
+// BLOCO 12 — TIPOS NULLABLE — BÁSICOS
+// ============================================================
+val l1: int? = 42
+val l2: int? = null
+val l3: string? = "hello"
+val l4: string? = null
+val l5: UserId? = 1
+val l6: UserId? = null
+
+// ============================================================
+// BLOCO 13 — ARRAYS DE ELEMENTOS NULLABLE
+// ============================================================
+val m1: int?[] = [1, null, 3]
+val m2: string?[] = ["a", null, "c"]
+val m3: bool?[] = [true, null, false]
+val m4: UserId?[] = [1, null, 3]
+
+// ============================================================
+// BLOCO 14 — ARRAYS NULLABLE (O PRÓPRIO ARRAY PODE SER NULL)
+// ============================================================
+val n1: int[]? = [1, 2, 3]
+val n2: string[]? = ["a", "b"]
+val n3: bool[]? = [true, false]
+var n4: int[][]? = [[1], [2]]
+var n5: int[][]? = null
+
+// ============================================================
+// BLOCO 15 — NULLABLE DENTRO DE ARRAY + ARRAY NULLABLE
+// ============================================================
+val o1: int?[]? = [1, null, 3]
+val o2: string?[]? = ["a", null]
+val o3: UserId?[]? = [1, null]
+
+// ============================================================
+// BLOCO 16 — ARRAYS MULTI-DIM COM NULLABLE
+// ============================================================
+val p1: int[][] = [[1, 2], [3, 4]]
+var p2: int[][]? = [[1, 2], [3, 4]]
+val p3: string[][]? = [["a"], ["b"]]
+val p4: UserId[][]? = [[1], [2]]
+
+// ============================================================
+// BLOCO 17 — TIPOS FUNÇÃO COM ARRAYS NULLABLE
+// ============================================================
+val q1: (int?) => string = (x: int?): string => "ok"
+val q2: (int[]?) => string = (x: int[]?): string => "ok"
+val q3: (int?[]) => string = (x: int?[]): string => "ok"
+
+// ============================================================
+// BLOCO 18 — GENERICS NULLABLE (anotação sem initializer)
+// Nota: nominais não têm como inicializar com array literal
+// ============================================================
+// var r1: List<int?>
+// var r2: Map<string?, int>
+// var r3: Map<string, int?>
+
+// ============================================================
+// BLOCO 19 — ARRAYS BÁSICOS
+// ============================================================
+val s1: int[] = [10, 20, 30]
+val s2: string[] = ["alice", "bob"]
+val s3: float[] = [1.0, 2.5, 3.14]
+val s4: bool[] = [true, false, true]
+val s5: int[][] = [[1, 2, 3], [4, 5, 6]]
+
+// Array vazio com tipo
+val s6: int[] = []
+val s7: string[] = []
+val s8: float[] = []
+
+// Array 2D com reutilização
+var s9: int[] = [1, 2, 3]
+val s10: int[][] = [s9, s9]
+
+// ============================================================
+// BLOCO 20 — VARIÁVEIS COM INFERÊNCIA (SEM ANOTAÇÃO)
+// ============================================================
+val t1 = 42
+val t2 = 3.14
+val t3 = "hello"
+val t4 = true
+val t5 = null
+val t6 = [1, 2, 3]
+val t7 = ["a", "b"]
+val t8 = [[1, 2], [3]]
+
+// ============================================================
+// BLOCO 21 — SPREAD EM ARRAY LITERAL
+// ============================================================
+var u1: int[] = [1, 2, 3]
+var u2: int[] = [4, 5, 6]
+
+val u3: int[] = [...u1, 4, 5]
+val u4: int[] = [0, ...u1, 4]
+val u5: int[] = [0, 1, ...u1]
+val u6: int[] = [...u1, ...u2]
+val u7: int[] = [10, ...u1, 20, ...u2, 30]
+
+var u8: string[] = ["a", "b"]
+val u9: string[] = ["prefix", ...u8, "suffix"]
+
+// ============================================================
+// BLOCO 22 — ATRIBUIÇÃO VIA ÍNDICE
+// ============================================================
+var v1: int[] = [10, 20, 30]
+var v2: float[] = [1.0, 2.0, 3.0]
+var v3: string[] = ["a", "b", "c"]
+var v4: bool[] = [true, false]
+
+v1[0] = 99
+v1[0] += 5
+v1[0] -= 3
+v1[0] *= 2
+v1[0] /= 2
+v1[0] %= 3
+
+v2[1] = 4.5
+v3[0] = "hello"
+v4[1] = true
+
+// ============================================================
+// BLOCO 23 — INDEXAÇÃO
+// ============================================================
+var w1: int[] = [10, 20, 30]
+val w2: int[][] = [[1, 2], [3, 4]]
+var w3: string[] = ["a", "b"]
+
+val w4 = w1[0]
+val w5 = w2[0]
+val w6 = w2[0][1]
+val w7 = w3[0]
+
+// Indexar em nullable array
+var w8: int[]? = [1, 2, 3]
+val w9 = w8[0]
+
+// ============================================================
+// BLOCO 24 — COERÇÃO int → float EM ATRIBUIÇÃO
+// ============================================================
+var x1: int[] = [10, 20, 30]
+val x2: float = x1[0]
+val x3: float = x1[1]
+
+// ============================================================
+// BLOCO 25 — CHAMADAS DE FUNÇÃO COM ARRAYS
+// ============================================================
+func y1(x: int, y: int): int {
+  return x + y
+}
+
+func y2(name: string): string {
+  return name
+}
+
+val y3 = y1(10, 20)
+val y4 = y2("hello")
+
+// Passar array element como argumento
+var y5: int[] = [1, 2]
+val y6 = y1(y5[0], y5[1])
+
+// ============================================================
+// BLOCO 26 — REST PARAM + SPREAD
+// ============================================================
+func z1(...nums: int[]): int {
+  return 0
+}
+
+val z2: int[] = [1, 2, 3, 4, 5]
+val z3 = z1(...z2)
+
+// ============================================================
+// BLOCO 27 — MISTURAS COMPLEXAS
+// ============================================================
+var aa1: int[]? = [1, 2, 3]
+var aa2: int?[] = [1, null, 3]
+var aa3: int?[]? = [1, null, 3]
+
+// Array de arrays nullable
+var aa4: int?[][] = [[1, 2], [3, 4]]
+var aa5: string?[][] = [["a", "b"], ["c", "d"]]
+
+// Array de funções nullable
+var aa6: ((int) => int)? = null
+var aa7: ((int) => int)? = (x: int): int => x
+
+// ============================================================
+// BLOCO 29 — TODAS AS COMBINAÇÕES NULLABLE × ARRAY × GENERIC
+// ============================================================
+val cc1: int?[]        = [1, null, 3]
+var cc2: int[]?        = [1, 2, 3]
+var cc3: int?[]?       = [1, null, 3]
+val cc4: int[][]       = [[1, 2], [3, 4]]
+var cc5: int[][]?      = [[1, 2], [3, 4]]
+var cc6: int[][][]     = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+
+// ============================================================
+// BLOCO 30 — FUNÇÕES COM ANOTAÇÕES DE TIPO COMPLEXAS
+// ============================================================
+func dd1(arr: int[]): int[] {
+  return arr
+}
+
+func dd2(arr: int?[]): int?[] {
+  return arr
+}
+
+func dd3(arr: int[]?): int {
+  if (arr != null) {
+    return arr[0]
+  }
+  return 0
+}
+
+func dd4(arr: int[][]): int[] {
+  return arr[0]
+}
+
+// ============================================================
+// BLOCO 31 — ERROS ESPERADOS (EXPECTED ERRORS)
+// ============================================================
+
+// EXPECTED: HETEROGENEOUS_ARRAY — sem contexto, tipos diferentes
+// val ee1 = [1, "a", true]
+
+// EXPECTED: INVALID_INDEX — índice não-int
+// val ee2: int[] = [1, 2, 3]
+// val ee3 = ee2["0"]
+
+// EXPECTED: TYPE_MISMATCH — string ≠ int
+// var ee4: int[] = [1, 2, 3]
+// ee4[0] = "string"
+
+// EXPECTED: CANNOT_ASSIGN — val é imutável
+// val ee5: int = 42
+// ee5 = 99

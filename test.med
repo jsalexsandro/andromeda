@@ -1,1 +1,32 @@
-const e: string[] = []
+var e: string[] = ['Jonny']
+var inference = ['Jaj', 'JaY']
+
+inference = e
+
+
+val nums: int[] = [10, 20]
+val words: string[] = ["alice", "hello"]
+val three: int[] = [1, 2, 3]
+
+var matrix_2d: int[][] = [[1, 2, 3]]
+
+var names: string[] = ['James']
+
+names[0] = 'Jonny Deep'
+
+
+val d10: int?[][] = [[1, null], [3, 4]]
+// [PASS] rest param básico
+func f1(...nums: int[]): int {
+  return 0
+}
+
+val f_r1 = f1(1, 2, 3)
+val f_r2 = f1()           // zero args válido para rest
+
+// [PASS] spread como argumento em rest param
+var f2: int[] = [10, 20, 30]
+val f_r3 = f1(...f2)
+
+// [PASS] mix de args normais + spread
+val f_r4 = f1(1, ...f2)

@@ -1,5 +1,5 @@
 import { Token, TokenType } from "../lexer/types";
-import { Stmt, Expr, TypeNode } from "../ast";
+import { Stmt, Expr, TypeNode, GenericTypeNode } from "../ast";
 import { Symbol, createSymbol } from "./types";
 import { SemanticError, Errors } from "./errors";
 import { Environment } from "./Environment";
@@ -17,6 +17,28 @@ export class TypeChecker {
   constructor() {
     this.globalEnv = new Environment(null, true);
     this.currentEnv = this.globalEnv;
+  }
+
+  // ── Array<T> helpers ─────────────────────────────────────
+  private makeArrayType(elementType: TypeNode): GenericTypeNode {
+    return {
+      kind: "GenericType",
+      name: { type: TokenType.IDENTIFIER, value: "Array", line: 0, column: 0 },
+      args: [elementType],
+      isBuiltin: true,
+    };
+  }
+
+  private isArray(type: TypeNode): type is GenericTypeNode {
+    return (
+      type.kind === "GenericType" &&
+      (type.name.value as string) === "Array" &&
+      type.args.length === 1
+    );
+  }
+
+  private arrayElement(type: GenericTypeNode): TypeNode {
+    return type.args[0] ?? { kind: "PrimitiveType", name: "unknown" };
   }
 
   public check(program: Stmt[]): SemanticError[] {
@@ -206,10 +228,6 @@ export class TypeChecker {
       return null;
     }
 
-    if (type.kind === "ArrayType") {
-      return this.validateTypeNode(type.elementType, token);
-    }
-
     if (type.kind === "GenericType") {
       const typeName = type.name.value as string;
       const validGenerics: Record<string, number> = {
@@ -298,11 +316,29 @@ export class TypeChecker {
         return true;
       }
       // unknown no actual NÃO passa automaticamente
+      // Numeric widening: int → float
+      if (resolvedExpected.name === "float" && resolvedActual.name === "int") return true;
       return resolvedExpected.name === resolvedActual.name;
     }
 
+    // ── ArrayType legado (transição) ─────────────────────────
     if (expected.kind === "ArrayType" && actual.kind === "ArrayType") {
       return this.areTypesCompatible(expected.elementType, actual.elementType);
+    }
+
+    // ── GenericType canônico (Array<T>, Map<K,V>, etc.) ─────
+    if (expected.kind === "GenericType" && actual.kind === "GenericType") {
+      if ((expected.name.value as string) !== (actual.name.value as string)) return false;
+      if (expected.args.length !== actual.args.length) return false;
+      return expected.args.every((arg, i) => this.areTypesCompatible(arg, actual.args[i]));
+    }
+
+    // ── Compat cross: ArrayType ↔ GenericType<Array> (transição) ──
+    if (expected.kind === "ArrayType" && this.isArray(actual)) {
+      return this.areTypesCompatible(expected.elementType, this.arrayElement(actual));
+    }
+    if (this.isArray(expected) && actual.kind === "ArrayType") {
+      return this.areTypesCompatible(this.arrayElement(expected), actual.elementType);
     }
 
     if (expected.kind === "GroupingType") {
@@ -342,11 +378,17 @@ export class TypeChecker {
     if (expected.kind === "NullableType") {
       if (actual.kind === "PrimitiveType" && actual.name === "null") return true;
       if (actual.kind === "PrimitiveType" && actual.name === "unknown") return true;
+      if (actual.kind === "UnionType") {
+        return actual.types.every((member) => this.areTypesCompatible(expected, member));
+      }
+      if (actual.kind === "NullableType") {
+        return this.areTypesCompatible(expected.type, actual.type);
+      }
       return this.areTypesCompatible(expected.type, actual);
     }
-
-    if (actual.kind === "NullableType" && actual.type.kind === "PrimitiveType" && actual.type.name === "null") {
-      return this.areTypesCompatible(expected, { kind: "PrimitiveType", name: "null" });
+    if (actual.kind === "NullableType") {
+      return this.areTypesCompatible(expected, actual.type) ||
+             this.areTypesCompatible(expected, { kind: "PrimitiveType", name: "null" });
     }
 
     if (expected.kind === "TupleType" && actual.kind === "TupleType") {
@@ -354,8 +396,9 @@ export class TypeChecker {
       return expected.elements.every((e, i) => this.areTypesCompatible(e, actual.elements[i]));
     }
 
-    if (expected.kind === "TupleType" && actual.kind === "ArrayType") return false;
-    if (expected.kind === "ArrayType" && actual.kind === "TupleType") return false;
+    // Tuple vs Array — ambos os lados (ArrayType legado + GenericType canônico)
+    if (expected.kind === "TupleType" && (actual.kind === "ArrayType" || this.isArray(actual))) return false;
+    if ((expected.kind === "ArrayType" || this.isArray(expected)) && actual.kind === "TupleType") return false;
 
     return false;
   }
@@ -386,6 +429,15 @@ export class TypeChecker {
         const needsParens = type.elementType.kind === "UnionType" || type.elementType.kind === "FunctionType";
         const suffix = "[]".repeat(type.dimensions);
         return `${needsParens ? `(${elemStr})` : elemStr}${suffix}`;
+      case "GenericType":
+        const typeName = type.name.value as string;
+        const args = type.args.map(t => this.typeToString(t)).join(", ");
+        // Mostrar Array<T> como T[] (açúcar na exibição)
+        if (type.isBuiltin && typeName === "Array" && type.args.length === 1) {
+          const inner = this.typeToString(this.arrayElement(type as GenericTypeNode));
+          return `${inner}[]`;
+        }
+        return `${typeName}<${args}>`;
       case "FunctionType":
         const params = type.params.map(p => this.typeToString(p)).join(", ");
         return `(${params}) => ${this.typeToString(type.returnType)}`;
@@ -396,10 +448,6 @@ export class TypeChecker {
       case "TupleType":
         const elements = type.elements.map(t => this.typeToString(t)).join(", ");
         return `[${elements}]`;
-      case "GenericType":
-        const typeName = type.name.value as string;
-        const args = type.args.map(t => this.typeToString(t)).join(", ");
-        return `${typeName}<${args}>`;
       case "GroupingType":
         return `(${this.typeToString(type.type)})`;
       default:
@@ -761,11 +809,9 @@ export class TypeChecker {
 
     let elementType: TypeNode | null = null;
 
-    if (baseType.kind === "ArrayType") {
+    if (this.isArray(baseType)) {
       if (indexType.kind === "PrimitiveType" && indexType.name === "int") {
-        elementType = baseType.dimensions > 1
-          ? { kind: "ArrayType", elementType: baseType.elementType, dimensions: baseType.dimensions - 1 }
-          : baseType.elementType;
+        elementType = this.arrayElement(baseType);
       } else {
         this.errors.push(Errors.invalidIndex(
           `array index must be int, got ${this.typeToString(indexType)}`,
@@ -1095,9 +1141,11 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       } else if (hasRest && restIndex >= 0 && restIndex < params.length) {
         // rest param: o tipo do param é T[], o arg deve ser T
         const restParamType = params[restIndex];
-        expectedType = restParamType.kind === "ArrayType"
-          ? restParamType.elementType
-          : restParamType;
+        expectedType = this.isArray(restParamType)
+          ? this.arrayElement(restParamType)
+          : restParamType.kind === "ArrayType"
+            ? restParamType.elementType
+            : restParamType;
       }
 
       if (!expectedType) continue;
@@ -1108,15 +1156,14 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
           (arg as Extract<Expr, { kind: "Spread" }>).argument
         );
         
-        if (spreadType.kind !== "ArrayType") {
+        if (!this.isArray(spreadType) && spreadType.kind !== "ArrayType") {
           this.errors.push(Errors.invalidSpread(
             { line: 0, column: 0, type: 0, value: "" } as Token
           ));
           continue;
         }
         
-        // Para rest param, o expectedType é ArrayType, o spread deve ser compatível com ArrayType
-        // Não usar elementType aqui!
+        // Para rest param, o expectedType deve ser Array, o spread deve ser compatível como Array
         if (!this.areTypesCompatible(expectedType, spreadType)) {
           this.errors.push(Errors.typeMismatch(
             `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
@@ -1188,20 +1235,27 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       baseType = baseType.type;
     }
 
+    if (this.isArray(baseType)) {
+      if (indexType.kind === "PrimitiveType" && indexType.name === "int") {
+        return this.arrayElement(baseType);
+      }
+      this.errors.push(Errors.invalidIndex(
+        `array index must be int, got ${this.typeToString(indexType)}`,
+        token
+      ));
+      return this.arrayElement(baseType);
+    }
+
+    // ArrayType legado (transição)
     if (baseType.kind === "ArrayType") {
       if (indexType.kind === "PrimitiveType" && indexType.name === "int") {
-        if (baseType.dimensions > 1) {
-          return { kind: "ArrayType", elementType: baseType.elementType, dimensions: baseType.dimensions - 1 };
-        }
         return baseType.elementType;
       }
       this.errors.push(Errors.invalidIndex(
         `array index must be int, got ${this.typeToString(indexType)}`,
         token
       ));
-      return baseType.dimensions > 1
-        ? { kind: "ArrayType", elementType: baseType.elementType, dimensions: baseType.dimensions - 1 }
-        : baseType.elementType;
+      return baseType.elementType;
     }
 
     if (baseType.kind === "TupleType") {
@@ -1256,29 +1310,29 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const ctx = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
 
     if (expr.elements.length === 0) {
-      if (ctx?.kind === "ArrayType") {
-        return { kind: "ArrayType", elementType: ctx.elementType, dimensions: 1 };
-      }
+      if (ctx && this.isArray(ctx)) return ctx;
       if (ctx?.kind === "TupleType") {
         const token = { type: TokenType.NUMBER, value: 0, line: 0, column: 0 } as Token;
         this.errors.push(Errors.tupleSizeMismatch(ctx.elements.length, 0, token));
         return ctx;
       }
-      return {
-        kind: "ArrayType",
-        elementType: { kind: "PrimitiveType", name: "unknown" },
-        dimensions: 1,
-      };
+      return this.makeArrayType({ kind: "PrimitiveType", name: "unknown" });
     }
 
     if (ctx?.kind === "TupleType") {
       return this.checkArrayAsTuple(expr, ctx);
     }
 
+    // ArrayType legado como contexto (transição)
+    if (ctx?.kind === "ArrayType") {
+      const inferred = this.checkArrayExpr(expr);
+      return inferred;
+    }
+
     this.contextualType = null;
 
-    const elementCtx: TypeNode | null = ctx?.kind === "ArrayType"
-      ? this.unwrapGrouping(ctx.elementType)
+    const elementCtx: TypeNode | null = ctx && this.isArray(ctx)
+      ? this.unwrapGrouping(this.arrayElement(ctx))
       : null;
 
     const elementTypes: TypeNode[] = [];
@@ -1288,7 +1342,9 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
 
       if (e.kind === "Spread") {
         const spreadType = this.checkExpression(e);
-        if (spreadType.kind === "ArrayType") {
+        if (this.isArray(spreadType)) {
+          elementTypes.push(this.unwrapGrouping(this.arrayElement(spreadType)));
+        } else if (spreadType.kind === "ArrayType") {
           elementTypes.push(this.unwrapGrouping(spreadType.elementType));
         } else {
           elementTypes.push(spreadType);
@@ -1311,27 +1367,23 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
            ?? { type: TokenType.NUMBER, value: 0, line: 0, column: 0 } as Token)
         : { type: TokenType.NUMBER, value: 0, line: 0, column: 0 } as Token;
       this.errors.push(Errors.heterogeneousArray(got, suggestion, token));
-      return { kind: "ArrayType", elementType: unique[0], dimensions: 1 };
+      return this.makeArrayType(unique[0]);
     }
 
-    let elementType: TypeNode;
-    let dimensions = 1;
+    if (unique.length === 1 && this.isArray(unique[0])) {
+      return this.makeArrayType(unique[0]);
+    }
 
+    // ArrayType legado aninhado (transição)
     if (unique.length === 1 && unique[0].kind === "ArrayType") {
-      const innerArray = unique[0];
-      elementType = innerArray.elementType;
-      dimensions = innerArray.dimensions + 1;
-    } else {
-      elementType = unique.length === 1
-        ? unique[0]
-        : { kind: "UnionType", types: unique };
+      return this.makeArrayType(unique[0]);
     }
 
-    return {
-      kind: "ArrayType",
-      elementType,
-      dimensions,
-    };
+    const elementType = unique.length === 1
+      ? unique[0]
+      : { kind: "UnionType", types: unique } as TypeNode;
+
+    return this.makeArrayType(elementType);
   }
 
   private checkArrayAsTuple(
@@ -1415,6 +1467,12 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       return {
         ...type,
         elementType: this.unwrapGrouping(type.elementType),
+      };
+    }
+    if (this.isArray(type)) {
+      return {
+        ...type,
+        args: [this.unwrapGrouping(this.arrayElement(type))],
       };
     }
     if (type.kind === "FunctionType") {
@@ -1547,7 +1605,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
   private checkSpreadExpr(expr: Extract<Expr, { kind: "Spread" }>): TypeNode {
     const argType = this.checkExpression(expr.argument);
 
-    if (argType.kind !== "ArrayType" && argType.kind !== "Object") {
+    if (!this.isArray(argType) && argType.kind !== "ArrayType" && argType.kind !== "Object") {
       const token: Token = {
         line: expr.line ?? 0,
         column: expr.column ?? 0,

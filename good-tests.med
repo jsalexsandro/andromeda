@@ -1,0 +1,808 @@
+// ============================================================
+// STRESS TESTS — SISTEMA DE TIPOS NOMINAL
+// Foco: Array<T> canônico, inferência, compatibilidade,
+//       generics, nullables, funções, spread, rest, aliases
+// ============================================================
+// Convenção:
+//   [PASS]  → deve compilar sem erros
+//   [ERROR] → deve emitir o erro descrito
+//   Seção marcada com [ERROR ZONE] tem todos os casos comentados
+//   para não cascatear — descomente um por vez.
+// ============================================================
+
+
+// ============================================================
+// BLOCO A — ARRAY<T> CANÔNICO: AÇÚCAR × FORMA EXPLÍCITA
+// Verifica que string[] e Array<string> são o mesmo tipo.
+// ============================================================
+
+// [PASS] declaração com sugar
+val a1: string[] = ["a", "b", "c"]
+
+// [PASS] declaração com generic explícito (se o parser aceitar)
+// val a2: Array<string> = ["a", "b", "c"]
+
+// [PASS] inferência: deve inferir Array<string>
+val a3 = ["x", "y"]
+
+// [PASS] atribuição entre variáveis do mesmo tipo inferido
+var a4: string[] = ["p", "q"]
+var a5: string[] = a4
+
+// [PASS] reatribuição — mesmo tipo
+a4 = a5
+
+// [PASS] reatribuição a partir de inferido
+var a6 = ["alpha"]
+a6 = a4
+
+// [PASS] a4 é mutável, a6 também — direções cruzadas
+a4 = a6
+
+// [ERROR ZONE] — descomente um por vez:
+// var ae1: int[] = ["a"]       // [ERROR] string ≠ int
+// var ae2: string[] = [1]      // [ERROR] int ≠ string
+// val ae3: bool[] = [1, true]  // [ERROR] heterogeneous
+
+
+// ============================================================
+// BLOCO B — INFERÊNCIA EM PROFUNDIDADE
+// ============================================================
+
+// [PASS] inferência de array 2D
+val b1 = [[1, 2], [3, 4]]
+
+// [PASS] int[][] declarado e inicializado
+val b2: int[][] = [[10], [20, 30]]
+
+// [PASS] array 3D declarado
+val b3: int[][][] = [[[1, 2], [3]], [[4]]]
+
+// [PASS] inferência homogênea de float
+val b4 = [1.0, 2.5, 3.14]
+
+// [PASS] literal int em contexto float[] → deve promover
+val b5: float[] = [1, 2, 3]
+
+// [PASS] array de bool
+val b6 = [true, false, true]
+
+// [PASS] array vazio com anotação
+val b7: int[] = []
+val b8: string[] = []
+val b9: bool[] = []
+
+// [PASS] array vazio 2D
+val b10: int[][] = []
+
+// [ERROR ZONE]
+// val be1 = [1, "a"]           // [ERROR] heterogeneous: int e string
+// val be2 = [true, 1]          // [ERROR] heterogeneous: bool e int
+// val be3 = [1.0, "b", true]   // [ERROR] heterogeneous: 3 tipos
+
+
+// ============================================================
+// BLOCO C — COMPATIBILIDADE ENTRE VARIÁVEIS TIPADAS
+// Garante que Array<T> compara por estrutura do tipo.
+// ============================================================
+
+var c1: int[] = [1, 2]
+var c2: int[] = [3, 4]
+
+// [PASS] int[] ← int[]
+c1 = c2
+
+// [PASS] inferido ← anotado
+var c3 = [10, 20]
+c3 = c1
+
+// [PASS] anotado ← inferido
+c2 = c3
+
+// [PASS] 2D compatibility
+var c4: int[][] = [[1], [2]]
+var c5: int[][] = [[3, 4]]
+c4 = c5
+
+// [ERROR ZONE]
+// var ce1: string[] = [1]     // [ERROR] int ≠ string
+// c1 = c5                     // [ERROR] int[] ≠ int[][]  (dimensão errada)
+// var ce2: int[] = c4         // [ERROR] int[][] ≠ int[]
+
+
+// ============================================================
+// BLOCO D — NULLABLE + ARRAY: TODAS AS COMBINAÇÕES
+// ============================================================
+
+// [PASS] array de elementos nullable
+val d1: int?[] = [1, null, 3]
+val d2: string?[] = ["a", null]
+val d3: bool?[] = [true, null, false]
+
+// [PASS] o array em si pode ser null
+var d4: int[]? = [1, 2]
+var d5: int[]? = null
+
+// [PASS] ambos nullable
+val d6: int?[]? = [1, null, 3]
+val d7: int?[]? = null
+
+// [PASS] 2D nullable (array pode ser null)
+var d8: int[][]? = [[1, 2], [3]]
+var d9: int[][]? = null
+
+// [PASS] 2D com elementos nullable
+val d10: int?[][] = [[1, null], [3, 4]]
+
+// [PASS] triple nullable combo
+var d11: int?[][]? = [[1, null], [null]]
+var d12: int?[][]? = null
+
+// [PASS] função retorna array nullable
+func d_fn1(): int[]? {
+  return null
+}
+
+func d_fn2(): int[]? {
+  return [1, 2, 3]
+}
+
+// [ERROR ZONE]
+// val de1: int[] = [1, null]   // [ERROR] null não é int
+// val de2: int[] = null        // [ERROR] null não é int[]
+
+
+// ============================================================
+// BLOCO E — SPREAD EM ARRAY LITERAL
+// ============================================================
+
+var e1: int[] = [1, 2, 3]
+var e2: int[] = [4, 5, 6]
+var e3: string[] = ["a", "b"]
+
+// [PASS] spread no início
+val e4: int[] = [...e1, 7]
+
+// [PASS] spread no meio
+val e5: int[] = [0, ...e1, 4]
+
+// [PASS] spread no fim
+val e6: int[] = [0, 1, ...e1]
+
+// [PASS] múltiplos spreads
+val e7: int[] = [...e1, ...e2]
+
+// [PASS] spread intercalado
+val e8: int[] = [10, ...e1, 20, ...e2, 30]
+
+// [PASS] spread em string
+val e9: string[] = ["prefix", ...e3, "suffix"]
+
+// [PASS] spread de array 2D em array 2D
+var e10: int[][] = [[1, 2], [3, 4]]
+val e11: int[][] = [...e10, [5, 6]]
+
+// [ERROR ZONE]
+// val ee1: string[] = [...e1]   // [ERROR] int[] ≠ string[]
+// val ee2: int[] = [...e3]      // [ERROR] string[] ≠ int[]
+
+
+// ============================================================
+// BLOCO F — REST PARAMS + SPREAD EM CHAMADA
+// ============================================================
+
+// [PASS] rest param básico
+func f1(...nums: int[]): int {
+  return 0
+}
+
+val f_r1 = f1(1, 2, 3)
+val f_r2 = f1()           // zero args válido para rest
+
+// [PASS] spread como argumento em rest param
+var f2: int[] = [10, 20, 30]
+val f_r3 = f1(...f2)
+
+// [PASS] mix de args normais + spread
+val f_r4 = f1(1, ...f2)
+
+// [PASS] rest com tipo string
+func f3(...words: string[]): string {
+  return "ok"
+}
+val f_r5 = f3("a", "b", "c")
+
+// [ERROR ZONE]
+// f1("not an int")              // [ERROR] string ≠ int para rest
+// func fe1(...a: int[], b: int): int { return 0 }  // [ERROR] rest não é último
+
+
+// ============================================================
+// BLOCO G — FUNÇÕES COM TIPOS ARRAY COMPLEXOS
+// ============================================================
+
+// [PASS] recebe int[], retorna int[]
+func g1(arr: int[]): int[] {
+  return arr
+}
+
+// [PASS] recebe int[][], retorna int[]
+func g2(arr: int[][]): int[] {
+  return arr[0]
+}
+
+// [PASS] recebe int?[], retorna int?[]
+func g3(arr: int?[]): int?[] {
+  return arr
+}
+
+// [PASS] recebe array nullable, retorna int com fallback
+func g4(arr: int[]?): int {
+  if (arr != null) {
+    return arr[0]
+  }
+  return 0
+}
+
+// [PASS] retorna array 2D
+func g5(a: int[], b: int[]): int[][] {
+  return [a, b]
+}
+
+// [PASS] chamadas corretas
+val g_r1 = g1([1, 2, 3])
+val g_r2 = g2([[1, 2], [3, 4]])
+val g_r3 = g3([1, null, 3])
+val g_r4 = g4(null)
+val g_r5 = g4([10, 20])
+val g_r6 = g5([1, 2], [3, 4])
+
+// [ERROR ZONE]
+// g1([1, "a"])                  // [ERROR] heterogeneous → string ≠ int
+// g2([1, 2, 3])                 // [ERROR] int[] ≠ int[][]
+// g4([1, 2])                    // int[] passado onde int[]? esperado → [PASS] (subtipo)
+// g1()                          // [ERROR] falta argumento
+
+
+// ============================================================
+// BLOCO H — INDEXAÇÃO CORRETA E INCORRETA
+// ============================================================
+
+var h1: int[] = [10, 20, 30]
+var h2: int[][] = [[1, 2], [3, 4]]
+var h3: string[] = ["a", "b"]
+var h4: int?[] = [1, null, 3]
+
+// [PASS] índice int → elemento
+val h_r1 = h1[0]
+val h_r2 = h3[1]
+
+// [PASS] 2D → primeiro nível retorna int[]
+val h_r3 = h2[0]
+
+// [PASS] 2D → segundo nível retorna int
+val h_r4 = h2[0][1]
+
+// [PASS] nullable array → elemento (deve funcionar)
+var h5: int[]? = [1, 2, 3]
+val h_r5 = h5[0]
+
+// [PASS] nullable element array → elemento (int?)
+val h_r6 = h4[0]
+
+// [ERROR ZONE]
+// val he1 = h1["0"]            // [ERROR] string como índice
+// val he2 = h1[0.5]            // [ERROR] float como índice
+// val he3 = h1[true]           // [ERROR] bool como índice
+
+
+// ============================================================
+// BLOCO I — ATRIBUIÇÃO VIA ÍNDICE
+// ============================================================
+
+var i1: int[] = [1, 2, 3]
+var i2: string[] = ["a", "b"]
+var i3: float[] = [1.0, 2.0]
+var i4: bool[] = [true, false]
+
+// [PASS] atribuição simples
+i1[0] = 99
+i2[0] = "hello"
+i3[1] = 4.5
+i4[0] = false
+
+// [PASS] operadores compostos em int
+i1[0] += 10
+i1[0] -= 5
+i1[0] *= 2
+i1[0] /= 2
+i1[0] %= 3
+
+// [PASS] operadores compostos em float
+i3[0] += 1.5
+i3[0] *= 2.0
+
+// [PASS] atribuição em 2D
+var i5: int[][] = [[1, 2], [3, 4]]
+i5[0] = [10, 20]
+
+// [ERROR ZONE]
+// i1[0] = "wrong"              // [ERROR] string ≠ int
+// i2[0] = 42                   // [ERROR] int ≠ string
+// i3[0] += "str"               // [ERROR] composto ≠ numeric
+// val iv: int[] = [1, 2]
+// iv[0] = 10                   // [ERROR] val é imutável
+
+
+// ============================================================
+// BLOCO J — TYPEALIAS COM ARRAYS
+// ============================================================
+
+typealias IntList   = int[]
+typealias StrList   = string[]
+typealias Matrix    = int[][]
+typealias OptMatrix = int[][]?
+
+// [PASS] uso de aliases
+val j1: IntList = [1, 2, 3]
+val j2: StrList = ["a", "b"]
+val j3: Matrix  = [[1, 2], [3, 4]]
+var j4: OptMatrix = [[1]]
+var j5: OptMatrix = null
+
+// [PASS] compatibilidade alias ↔ tipo concreto
+var j6: int[] = j1
+var j7: IntList = [10, 20]
+
+// [PASS] alias em parâmetro de função
+typealias Callback = (int) => int
+
+func j_apply(f: Callback, x: int): int {
+  return f(x)
+}
+
+val j_r1 = j_apply((n: int): int => n * 2, 5)
+
+// [PASS] alias de alias
+typealias NumberRow = IntList
+val j8: NumberRow = [1, 2, 3]
+
+// [PASS] union de arrays via alias
+typealias IntOrStr = int | string
+val j9: IntOrStr = 42
+val j10: IntOrStr = "text"
+
+// [ERROR ZONE]
+// val je1: IntList = ["a"]     // [ERROR] string ≠ int
+// val je2: StrList = j1        // [ERROR] IntList (int[]) ≠ StrList (string[])
+// val je3: Matrix = [1, 2]     // [ERROR] int[] ≠ int[][]
+
+
+// ============================================================
+// BLOCO K — FUNÇÕES DE ORDEM SUPERIOR COM ARRAYS
+// ============================================================
+
+// [PASS] função que recebe função e array
+func k_map(arr: int[], f: (int) => int): int[] {
+  return arr
+}
+
+func k_filter(arr: int[], pred: (int) => bool): int[] {
+  return arr
+}
+
+func k_reduce(arr: int[], f: (int, int) => int, acc: int): int {
+  return acc
+}
+
+// [PASS] chamadas com arrow inline
+val ka: int[] = [1, 2, 3, 4, 5]
+val k_r1 = k_map(ka, (x: int): int => x * 2)
+val k_r2 = k_filter(ka, (x: int): bool => true)
+val k_r3 = k_reduce(ka, (a: int, b: int): int => a + b, 0)
+
+// [PASS] arrow sem anotação de tipo (contextual typing)
+val k_r4 = k_map(ka, (x): int => x + 1)
+
+// [PASS] array de funções
+val k_fns: ((int) => int)[] = [
+  (x: int): int => x,
+  (x: int): int => x * 2,
+  (x: int): int => x + 10
+]
+
+// [PASS] array de predicados
+val k_preds: ((int) => bool)[] = [
+  (x: int): bool => true,
+  (x: int): bool => false
+]
+
+// [ERROR ZONE]
+// k_map(ka, (x: string): string => x)  // [ERROR] (string)=>string ≠ (int)=>int
+// k_map("not an array", (x: int): int => x)  // [ERROR] string ≠ int[]
+
+
+// ============================================================
+// BLOCO L — FUNÇÕES RETORNANDO FUNÇÕES (CURRYING)
+// ============================================================
+
+// [PASS] retorna uma função
+func l_adder(n: int): (int) => int {
+  return (x: int): int => x + n
+}
+
+val l_add5 = l_adder(5)
+val l_r1 = l_add5(10)
+
+// [PASS] currying manual
+func l_multiply(a: int): (int) => int {
+  return (b: int): int => a * b
+}
+
+val l_double = l_multiply(2)
+val l_triple = l_multiply(3)
+val l_r2 = l_double(4)
+val l_r3 = l_triple(4)
+
+// [PASS] typealias de função de ordem superior
+typealias Transformer = (int) => (int) => int
+
+val l_curry: Transformer = (a: int): (int) => int => (b: int): int => a + b
+val l_r4 = l_curry(3)(4)
+
+
+// ============================================================
+// BLOCO M — UNION TYPES + ARRAYS
+// ============================================================
+
+typealias StrOrInt = string | int
+typealias MaybeInt = int | null
+
+// [PASS] variável union
+val m1: StrOrInt = "hello"
+val m2: StrOrInt = 42
+
+// [PASS] nullable via union explícito
+val m3: MaybeInt = 100
+val m4: MaybeInt = null
+
+// [PASS] array de union
+val m5: (string | int)[] = [1, "a", 2, "b"]
+
+// [PASS] nullable array com union
+val m6: (string | null)[] = ["a", null, "b"]
+
+// [PASS] função com parâmetro union
+func m_print(val_: string | int): string {
+  return "ok"
+}
+
+val m_r1 = m_print("hello")
+val m_r2 = m_print(42)
+
+// [ERROR ZONE]
+// val me1: StrOrInt = true       // [ERROR] bool ∉ string | int
+// val me2: StrOrInt = null       // [ERROR] null ∉ string | int
+// val me3: MaybeInt = "hello"    // [ERROR] string ∉ int | null
+
+
+// ============================================================
+// BLOCO N — TUPLAS
+// ============================================================
+
+// [PASS] tupla básica
+val n1: [int, string] = [42, "hello"]
+val n2: [bool, float] = [true, 3.14]
+val n3: [string, int, bool] = ["a", 1, true]
+
+// [PASS] indexação com literal
+val n_r1 = n1[0]
+val n_r2 = n1[1]
+val n_r3 = n3[2]
+
+// [PASS] tupla em parâmetro
+func n_first(t: [int, string]): int {
+  return t[0]
+}
+
+val n_r4 = n_first([10, "ok"])
+
+// [PASS] tupla de arrays
+val n4: [int[], string[]] = [[1, 2], ["a", "b"]]
+
+// [PASS] array de tuplas
+val n5: [int, string][] = [[1, "a"], [2, "b"], [3, "c"]]
+
+// [ERROR ZONE]
+// val ne1: [int, string] = [42]          // [ERROR] tamanho 1 ≠ 2
+// val ne2: [int, string] = ["a", 42]     // [ERROR] tipos trocados
+// val ne3: [int, string] = [1, 2, 3]    // [ERROR] tamanho 3 ≠ 2
+// val n6 = n1[5]                         // [ERROR] índice fora do range
+
+
+// ============================================================
+// BLOCO O — SCOPING E SHADOWING
+// ============================================================
+
+val o_outer: int = 10
+
+{
+  // [PASS] bloco aninhado pode ler outer
+  val o_inner: int = o_outer + 5
+}
+
+// [PASS] variável de loop isolada
+for (var o_i: int = 0; o_i < 3; o_i++) {
+  val o_inside = o_i
+}
+
+// [PASS] var pode ser redeclarada em escopo diferente
+func o_fn(): int {
+  val o_outer: int = 999   // shadow do outer global — válido em escopo diferente
+  return o_outer
+}
+
+// [ERROR ZONE]
+// val o_dup: int = 1
+// val o_dup: int = 2         // [ERROR] já declarada no mesmo escopo
+// o_i = 99                   // [ERROR] o_i não existe fora do for
+
+
+// ============================================================
+// BLOCO P — CONTROLE DE FLUXO + TIPOS
+// ============================================================
+
+// [PASS] if com bool
+func p_abs(n: int): int {
+  if (n < 0) {
+    return 0 - n
+  }
+  return n
+}
+
+// [PASS] while com bool
+func p_countdown(n: int): int {
+  var p_x: int = n
+  while (p_x > 0) {
+    p_x -= 1
+  }
+  return p_x
+}
+
+// [PASS] for padrão
+func p_sum(arr: int[]): int {
+  var total: int = 0
+  for (var p_i: int = 0; p_i < 10; p_i++) {
+    total += 1
+  }
+  return total
+}
+
+// [PASS] ternário
+val p_max: int = 10 > 5 ? 10 : 5
+
+// [PASS] nullish coalescing
+var p_maybe: int? = null
+val p_val: int = p_maybe ?? 0
+
+// [ERROR ZONE]
+// if (1) { }                 // [ERROR] condição não é bool
+// while ("true") { }         // [ERROR] condição não é bool
+// func p_bad(): int { }      // [ERROR] falta return em não-void
+
+
+// ============================================================
+// BLOCO Q — TIPOS FUNÇÃO COMPLEXOS (ANOTAÇÕES)
+// ============================================================
+
+// [PASS] função de void
+val q1: () => void = (): void => { return }
+
+// [PASS] função nulável
+var q2: ((int) => int)? = null
+var q3: ((int) => int)? = (x: int): int => x
+
+//---
+// [PASS] array de funções nullable
+//val q4: ((int) => int)?[] = [null, (x: int): int => x, null]
+
+// [PASS] função que retorna array de funções
+//typealias IntFn = (int) => int
+//func q_gen(): IntFn[] {
+//  return [(x: int): int => x, (x: int): int => x * 2]
+//}
+
+//val q_r1 = q_gen()
+//---
+
+// [PASS] função com múltiplos tipos de retorno via union
+typealias StrOrNull = string | null
+func q_find(arr: string[], target: string): StrOrNull {
+  return null
+}
+
+val q_r2 = q_find(["a", "b"], "a")
+
+// [ERROR ZONE]
+// val qe1: (int) => int = (x: string): string => x  // [ERROR] tipo errado
+// q2 = (x: int): string => "ok"                     // [ERROR] string ≠ int como return
+
+
+// ============================================================
+// BLOCO R — RETORNO DE FUNÇÃO: VERIFICAÇÕES
+// ============================================================
+
+// [PASS] todos os branches retornam
+func r1(n: int): int {
+  if (n > 0) {
+    return n
+  } else {
+    return 0
+  }
+}
+
+// [PASS] void sem return explícito
+func r2(): void {
+  val r_x: int = 1
+}
+
+// [PASS] void com return vazio
+func r3(): void {
+  return
+}
+
+// [PASS] retorno de array
+func r4(): int[] {
+  return [1, 2, 3]
+}
+
+// [PASS] retorno de array 2D
+func r5(): int[][] {
+  return [[1, 2], [3, 4]]
+}
+
+// [PASS] retorno de nullable
+func r6(): int? {
+  return null
+}
+
+func r7(): int? {
+  return 42
+}
+
+// [ERROR ZONE]
+// func re1(): int { val x: int = 1 }    // [ERROR] falta return
+// func re2(): int { return "str" }       // [ERROR] string ≠ int
+// func re3(): int[] { return 1 }         // [ERROR] int ≠ int[]
+// return 1                               // [ERROR] return fora de função
+
+
+// ============================================================
+// BLOCO S — BREAK E CONTINUE
+// ============================================================
+
+// [PASS] break em while
+func s1(): int {
+  var s_x: int = 0
+  while (true) {
+    s_x += 1
+    if (s_x > 5) {
+      break
+    }
+  }
+  return s_x
+}
+
+// [PASS] continue em for
+func s2(): int {
+  var total: int = 0
+  for (var s_i: int = 0; s_i < 10; s_i++) {
+    if (s_i == 5) {
+      continue
+    }
+    total += s_i
+  }
+  return total
+}
+
+// [ERROR ZONE]
+// break                       // [ERROR] break fora de loop
+// continue                    // [ERROR] continue fora de loop
+
+
+// ============================================================
+// BLOCO T — CASOS EXTREMOS DE INFERÊNCIA
+// ============================================================
+
+// [PASS] inferência em cadeia
+val t1 = 1
+val t2 = t1 + 2
+
+// [PASS] inferência de função via uso
+func t_add(a: int, b: int): int {
+  return a + b
+}
+
+val t3 = t_add(1, 2)
+val t4 = t_add(t1, t3)
+
+// [PASS] inferência de 2D a partir de 1D reutilizado
+val t5: int[] = [1, 2, 3]
+val t6: int[][] = [t5, t5, t5]
+
+// [PASS] spread de inferido em anotado
+var t7 = [10, 20]
+val t8: int[] = [...t7, 30]
+
+// [PASS] inferência aninhada: array de arrays inferido
+val t9 = [[1, 2], [3, 4]]
+
+// [PASS] float array inferido
+val t10 = [1.5, 2.5, 3.5]
+
+// [PASS] string array inferido
+val t11 = ["alpha", "beta", "gamma"]
+
+// [ERROR ZONE]
+// val te1 = []                 // [ERROR] array vazio sem contexto → tipo desconhecido (potencial warn)
+// val te2: int = t3 + "str"   // [ERROR] int + string inválido
+
+
+// ============================================================
+// BLOCO U — PROTOCOLOS (smoke test)
+// ============================================================
+
+protocol Printable {
+  func print(): void
+}
+
+protocol Comparable {
+  func compare(other: int): int
+}
+
+
+// ============================================================
+// BLOCO V — COMBINAÇÕES MÁXIMAS
+// (casos que combinam múltiplas features ao mesmo tempo)
+// ============================================================
+
+typealias Score = int
+typealias ScoreList = Score[]
+typealias Scorer = (ScoreList) => Score
+
+// [PASS] pipeline completo: typealias → array → função → índice
+func v_best(scores: ScoreList): Score {
+  return scores[0]
+}
+
+val v_data: ScoreList = [95, 87, 100, 76]
+val v_r1: Score = v_best(v_data)
+
+// [PASS] função de ordem superior com alias
+func v_apply(scorer: Scorer, data: ScoreList): Score {
+  return scorer(data)
+}
+
+val v_r2 = v_apply((s: ScoreList): Score => s[0], v_data)
+
+// [PASS] spread + alias + rest
+func v_merge(...lists: ScoreList[]): ScoreList {
+  return [0]
+}
+
+val v_l1: ScoreList = [1, 2, 3]
+val v_l2: ScoreList = [4, 5, 6]
+val v_r3 = v_merge(v_l1, v_l2)
+val v_r4 = v_merge(...[v_l1, v_l2])
+
+// [PASS] nullable array + alias + índice + fallback
+var v_maybe: ScoreList? = null
+val v_r5: Score = v_maybe ?? [0]
+
+// [PASS] arrays de nullable alias
+val v_scores_opt: Score?[] = [100, null, 87]
+val v_top: Score? = v_scores_opt[0]
+
+// ============================================================
+// FIM DOS TESTES
+// ============================================================
