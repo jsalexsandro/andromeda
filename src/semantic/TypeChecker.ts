@@ -1,4 +1,4 @@
-import { Token } from "../lexer/types";
+import { Token, TokenType } from "../lexer/types";
 import { Stmt, Expr, TypeNode } from "../ast";
 import { Symbol, createSymbol } from "./types";
 import { SemanticError, Errors } from "./errors";
@@ -1094,18 +1094,72 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
   private checkIndexExpr(expr: Extract<Expr, { kind: "Index" }>): TypeNode {
     const objectType = this.checkExpression(expr.object);
     const indexType = this.checkExpression(expr.index);
+    const token = this.getExprToken(expr.index) ?? this.getExprToken(expr.object)
+      ?? { type: TokenType.NUMBER, value: 0, line: 0, column: 0 };
 
-    if (objectType.kind === "ArrayType") {
-      if (
-        indexType.kind === "PrimitiveType" &&
-        indexType.name === "int"
-      ) {
-        return objectType.elementType;
-      }
-      this.errors.push(Errors.invalidIndex("array index must be int", { line: 0, column: 0, type: 0, value: "" } as Token));
+    let baseType = objectType;
+    if (baseType.kind === "NullableType") {
+      baseType = baseType.type;
     }
 
+    if (baseType.kind === "ArrayType") {
+      if (indexType.kind === "PrimitiveType" && indexType.name === "int") {
+        if (baseType.dimensions > 1) {
+          return { kind: "ArrayType", elementType: baseType.elementType, dimensions: baseType.dimensions - 1 };
+        }
+        return baseType.elementType;
+      }
+      this.errors.push(Errors.invalidIndex(
+        `array index must be int, got ${this.typeToString(indexType)}`,
+        token
+      ));
+      return baseType.dimensions > 1
+        ? { kind: "ArrayType", elementType: baseType.elementType, dimensions: baseType.dimensions - 1 }
+        : baseType.elementType;
+    }
+
+    if (baseType.kind === "TupleType") {
+      if (indexType.kind === "PrimitiveType" && indexType.name === "int") {
+        if (expr.index.kind === "Literal" && typeof expr.index.value === "number") {
+          const idx = expr.index.value;
+          if (idx >= 0 && idx < baseType.elements.length) {
+            return baseType.elements[idx];
+          }
+          this.errors.push(Errors.invalidIndex(
+            `tuple index ${idx} out of bounds, tuple has ${baseType.elements.length} elements`,
+            token
+          ));
+          return { kind: "PrimitiveType", name: "any" };
+        }
+        if (baseType.elements.length === 1) {
+          return baseType.elements[0];
+        }
+        return baseType.elements.length === 0
+          ? { kind: "PrimitiveType", name: "unknown" }
+          : { kind: "UnionType", types: [...baseType.elements] };
+      }
+      this.errors.push(Errors.invalidIndex(
+        `tuple index must be int, got ${this.typeToString(indexType)}`,
+        token
+      ));
+      return { kind: "PrimitiveType", name: "any" };
+    }
+
+    this.errors.push(Errors.invalidIndex(
+      `type '${this.typeToString(objectType)}' does not support indexing`,
+      token
+    ));
     return { kind: "PrimitiveType", name: "any" };
+  }
+
+  private getExprToken(expr: Expr): Token | null {
+    switch (expr.kind) {
+      case "Identifier": return expr.name;
+      case "Binary": return expr.operator;
+      case "Unary": return expr.operator;
+      case "Logical": return expr.operator;
+      default: return null;
+    }
   }
 
   private checkArrayExpr(expr: Extract<Expr, { kind: "Array" }>): TypeNode {
