@@ -1865,45 +1865,42 @@ export class Parser {
   }
 
   /**
-   * Parses an array type expression.
+   * Parses an array type expression, normalizing to GenericType<Array<T>>.
    * Examples:
-   *   int[]         → ArrayTypeNode { elementType: PrimitiveType, dimensions: 1 }
-   *   string[][]    → ArrayTypeNode { elementType: ArrayTypeNode, dimensions: 2 }
-   *   User[]       → ArrayTypeNode { elementType: NamedType, dimensions: 1 }
-   *   T[]          → ArrayTypeNode { elementType: NamedType, dimensions: 1 }
+   *   int[]         → GenericTypeNode { name: "Array", args: [PrimitiveType] }
+   *   string[][]    → GenericTypeNode { name: "Array", args: [GenericTypeNode { name: "Array" }] }
+   *   User[]       → GenericTypeNode { name: "Array", args: [NamedType] }
    *
    * @param {TypeNode} baseType - The base type of the array
-   * @returns {TypeNode} The array type with dimensions.
+   * @returns {TypeNode} The generic type node.
    */
   private parseArrayType(baseType: TypeNode): TypeNode {
-    let dimensions = 0;
+    let result = baseType;
 
     while (this.check(TokenType.LBRACKET)) {
+      const bracket = this.peek();
       this.advance(); // consume '['
+
       if (!this.check(TokenType.RBRACKET)) {
         this.error("Expected ']' to close array type", this.peek());
         break;
       }
       this.advance(); // consume ']'
-      dimensions++;
+
+      result = {
+        kind: "GenericType",
+        name: {
+          type: TokenType.IDENTIFIER,
+          value: "Array",
+          line: bracket.line,
+          column: bracket.column,
+        },
+        args: [result],
+        isBuiltin: true,
+      };
     }
 
-    const baseTypeName =
-      baseType.kind === "PrimitiveType"
-        ? baseType.name
-        : baseType.kind === "NamedType"
-          ? baseType.name.value
-          : baseType.kind === "GenericType"
-            ? `${baseType.name.value}<...>`
-            : baseType.kind;
-
-    console.log(`DEBUG - [${baseTypeName}${"[]".repeat(dimensions)}]`);
-    console.log(`[TG] TRANSFORMA ISSO EM GENERIC - [${baseTypeName}${"[]".repeat(dimensions)}]`);
-    return {
-      kind: "ArrayType",
-      elementType: baseType,
-      dimensions,
-    };
+    return result;
   }
 
   /**
