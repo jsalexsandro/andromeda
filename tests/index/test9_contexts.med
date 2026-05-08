@@ -1,0 +1,40 @@
+// TESTE 9: Index result usado em contextos diversos
+var arr: int[] = [10, 20, 30, 40, 50]
+
+// Index em condição if
+if (arr[0] > arr[1]) {
+  val x = arr[0]
+}
+
+// Index em while
+var i: int = 0
+while (i < 5) {
+  val v = arr[i]
+  i = i + 1
+}
+
+// Index em for
+for (var j: int = 0; j < 5; j = j + 1) {
+  val v = arr[j]
+}
+
+// Index em chamada de função
+func first(a: int[]): int {
+  return a[0]
+}
+
+// Chamar função com index como argumento
+var result: int = first(arr)
+
+// Index em expressão ternária
+var cond: bool = true
+val maybe = cond ? arr[0] : arr[1]
+
+// Index em nullish coalescing
+val value = arr[0] ?? arr[1]
+
+// Array de objetos literais com index
+var objs: int[][] = [[1, 2], [3, 4], [5, 6]]
+var idxX: int = 1
+var idxY: int = 0
+val cell = objs[idxX][idxY]

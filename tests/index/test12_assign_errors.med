@@ -1,0 +1,40 @@
+// TESTE: Erros em assignment via index
+var arr: int[] = [10, 20, 30]
+var fa: float[] = [1.0, 2.0, 3.0]
+var sa: string[] = ["a", "b"]
+var ba: bool[] = [true, false]
+
+// Erro: tipo incompatível
+arr[0] = "string"            // string → int
+
+// Erro: float → int (não coercion p/ não literal)
+var fVal: float = 1.5
+arr[1] = fVal                // float → int
+
+// Erro: tipo incompatível em string array
+sa[0] = 42                   // int → string
+
+// Erro: tipo incompatível em bool array
+ba[0] = "true"               // string → bool
+
+// Erro: compound com tipo não-numérico
+sa[0] += "x"                 // string += não numérico
+ba[0] += true                // bool += não numérico
+
+// Erro: índice inválido
+arr["0"] = 99                // string index
+arr[true] = 99               // bool index
+var fi: float = 1.5
+arr[fi] = 99                 // float index
+
+// Erro: index em não-array
+var s: string = "hello"
+// s[0] = "x"                // string não suporta index assign — testar depois
+
+// Erro: compound com tipo incompatível
+arr[0] += "x"                // int += string
+fa[0] += true                // float += bool
+
+// Multi-dim: compound
+var md: int[][] = [[1, 2], [3, 4]]
+md[0][1] += 5

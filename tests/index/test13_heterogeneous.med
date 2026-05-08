@@ -1,0 +1,44 @@
+// TESTE: Inferência heterogênea em arrays
+
+// 1. Array misto int + float → float[]
+var mixedNum = [1, 2.5, 3, 4.0]
+var mixedNum2: float[] = [1, 2.5, 3]
+
+// 2. Array misto int + string → (int | string)[]
+var mixedIntStr = [1, "hello", 2, "world"]
+var mixedIntStr2: (int | string)[] = [1, "hello"]
+
+// 3. Array misto int + bool → (int | bool)[]
+var mixedIntBool = [1, true, 0, false]
+
+// 4. Array misto string + bool → (string | bool)[]
+var mixedStrBool = ["a", true, "b", false]
+
+// 5. Array misto int + float + string → (int | float | string)[]
+var mixedAll = [1, 2.5, "text"]
+
+// 6. Array heterogêneo sem tipo declarado
+var inferred = [1, "x", true, 3.5]
+
+// 7. Array com null misturado
+var withNull = [1, null, "hello"]
+
+// 8. Array de arrays mistos
+var mixedNested = [[1, 2], ["a", "b"]]
+
+// 9. Array resultado de index em array heterogêneo
+var arr: (int | string)[] = [1, "hello"]
+val r1 = arr[0]  // int | string
+
+// 10. Index assignment em array heterogêneo
+var mutableArr: (int | string)[] = [1, "hello"]
+mutableArr[0] = 42       // int → int | string OK
+mutableArr[1] = "world"  // string → int | string OK
+mutableArr[0] = "novo"   // string → int | string OK
+
+// 11. Compound em array numérico (funciona)
+var numArr: int[] = [1, 2, 3]
+numArr[0] += 5
+
+// 12. Compound em array heterogêneo (deve falhar — não-numérico)
+mutableArr[0] += 1

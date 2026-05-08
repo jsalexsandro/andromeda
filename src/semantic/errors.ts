@@ -25,7 +25,11 @@ export type ErrorCode =
   | "INVALID_UNARY"
   | "REST_NOT_LAST"
   | "INVALID_RETURN_TYPE"
-  | "INVALID_CONDITION";
+  | "INVALID_CONDITION"
+  | "HETEROGENEOUS_ARRAY"
+  | "TUPLE_SIZE_MISMATCH"
+  | "TUPLE_IMMUTABLE"
+  | "SPREAD_IN_TUPLE";
 
 export class SemanticError {
   constructor(
@@ -120,4 +124,24 @@ export const Errors = {
 
   varRequiresInitializer: (name: string, declarationType: string, token: Token) =>
     createError("UNINITIALIZED_VAR", `'${name}' must be initialized. '${declarationType}' requires a value: '${declarationType} ${name} = <value>'`, token, "typecheck"),
+
+  heterogeneousArray: (got: string, suggestion: string, token: Token) =>
+    createError("HETEROGENEOUS_ARRAY",
+      `array elements must be of a single type. Found '${got}'. Use explicit union: '${suggestion}'`,
+      token, "typecheck"),
+
+  tupleSizeMismatch: (expected: number, got: number, token: Token) =>
+    createError("TUPLE_SIZE_MISMATCH",
+      `tuple expects ${expected} elements, got ${got}`,
+      token, "typecheck"),
+
+  tupleImmutable: (token: Token) =>
+    createError("TUPLE_IMMUTABLE",
+      "tuple elements cannot be assigned; tuples are fixed-size and immutable",
+      token, "typecheck"),
+
+  spreadInTuple: (token: Token) =>
+    createError("SPREAD_IN_TUPLE",
+      "spread not allowed in fixed-size tuple",
+      token, "typecheck"),
 };

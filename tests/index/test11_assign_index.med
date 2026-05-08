@@ -1,0 +1,45 @@
+// TESTE: Assignment via index arr[i] = value
+
+// Básico: atribuição simples
+var arr: int[] = [10, 20, 30]
+arr[0] = 99
+
+// Atribuição com variável índice
+var i: int = 1
+arr[i] = 42
+
+// Atribuição com expressão índice
+arr[1 + 1] = 77
+
+// Atribuição com expressão como valor
+arr[0] = arr[1] + arr[2]
+
+// Float array
+var fa: float[] = [1.0, 2.0, 3.0]
+fa[0] = 9.5
+
+// Coerção int→float em atribuição via index
+fa[1] = 42
+
+// String array
+var sa: string[] = ["a", "b", "c"]
+sa[0] = "x"
+
+// Bool array
+var ba: bool[] = [true, false]
+ba[0] = false
+
+// Multi-dim array
+var md: int[][] = [[1, 2], [3, 4]]
+md[0][1] = 99
+
+// Compound assignment
+arr[0] += 5
+arr[1] -= 3
+arr[2] *= 2
+fa[0] /= 2.0
+fa[1] %= 3
+
+// Nullable array
+var na: int[]? = [1, 2, 3]
+na[0] = 100

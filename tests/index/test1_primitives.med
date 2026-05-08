@@ -1,0 +1,15 @@
+// TESTE 1: Index em arrays de todos os tipos primitivos
+var arrInt: int[] = [10, 20, 30]
+var arrFloat: float[] = [1.5, 2.5, 3.5]
+var arrStr: string[] = ["a", "b", "c"]
+var arrBool: bool[] = [true, false, true]
+
+val r1 = arrInt[0]
+val r2 = arrFloat[1]
+val r3 = arrStr[2]
+val r4 = arrBool[0]
+
+// Usar resultado em operações
+val sum = arrInt[0] + arrInt[1]
+val concat = arrStr[0] + arrStr[1]
+val and = arrBool[0] && arrBool[1]

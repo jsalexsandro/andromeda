@@ -1,0 +1,20 @@
+// TESTE 7: Type inference com resultados de index
+var arr: int[] = [10, 20, 30]
+
+// Atribuir resultado a var/val com tipo explícito
+var x: int = arr[0]
+var y: float = arr[1]      // int → float coercion via contextual type
+val z: int = arr[2]
+
+// Usar em expressões
+var a: int = arr[0] + arr[1]
+var b: float = arr[0] + 1.5  // int + float = float
+
+// Index result como argumento de função
+func double(n: int): int {
+  return n * 2
+}
+var doubled: int = double(arr[0])
+
+// Index result em condição
+var cond: bool = arr[0] > arr[1]

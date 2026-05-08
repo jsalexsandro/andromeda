@@ -1,0 +1,65 @@
+// === NOVAS REGRAS: Heterogeneous arrays & Tuples ===
+
+// ---- HETEROGENEOUS ARRAY ----
+
+// ERRO: array heterogêneo sem anotação
+var e1 = ['James', 1]
+
+// ERRO: array heterogêneo sem anotação (mais tipos)
+var e2 = [1, "dois", true]
+
+// OK: union explícita
+var ok1: (string | int)[] = ['James', 1]
+var ok2: (int | string | bool)[] = [1, "dois", true]
+
+// OK: tipos homogêneos sem anotação
+var ok3 = [1, 2, 3]
+var ok4 = ["a", "b", "c"]
+
+// OK: com contexto array
+var ok5: int[] = [1, 2, 3]
+var ok6: float[] = [1, 2.5]
+
+// ---- TUPLE LITERAL ----
+
+// OK: tuple literal com tipos corretos
+var tup1: [string, int] = ['James', 22]
+
+// ERRO: tuple tamanho errado (poucos)
+var e3: [string, int] = ['James']
+
+// ERRO: tuple tamanho errado (muitos)
+var e4: [string, int] = ['James', 22, true]
+
+// ERRO: tuple com spread
+var arr: int[] = [1, 2, 3]
+var e5: [int, int] = [...arr]
+
+// ERRO: tuple posição com tipo errado
+var e6: [string, int] = ['James', "errado"]
+
+// ERRO: empty array com contexto tuple
+var e7: [int, string] = []
+
+// ---- TUPLE INDEX ----
+
+// OK: índice literal em tuple
+val r1 = tup1[0]
+val r2 = tup1[1]
+
+// ERRO: índice variável em tuple
+var idx: int = 0
+var e8 = tup1[idx]
+
+// ERRO: índice fora dos limites
+var e9 = tup1[5]
+
+// ---- TUPLE MUTATION ----
+
+// OK: tuple reassignment (variável inteira)
+var tup2: [string, int] = ['João', 30]
+
+// ---- UNION ARRAY ----
+
+// OK: union array explícita
+var uarr: string[] | int[] = [1, 2, 3]

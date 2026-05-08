@@ -349,6 +349,14 @@ export class TypeChecker {
       return this.areTypesCompatible(expected, { kind: "PrimitiveType", name: "null" });
     }
 
+    if (expected.kind === "TupleType" && actual.kind === "TupleType") {
+      if (expected.elements.length !== actual.elements.length) return false;
+      return expected.elements.every((e, i) => this.areTypesCompatible(e, actual.elements[i]));
+    }
+
+    if (expected.kind === "TupleType" && actual.kind === "ArrayType") return false;
+    if (expected.kind === "ArrayType" && actual.kind === "TupleType") return false;
+
     return false;
   }
 
@@ -766,34 +774,8 @@ export class TypeChecker {
         return;
       }
     } else if (baseType.kind === "TupleType") {
-      if (indexType.kind === "PrimitiveType" && indexType.name === "int") {
-        if (target.index.kind === "Literal" && typeof target.index.value === "number") {
-          const idx = target.index.value;
-          if (idx >= 0 && idx < baseType.elements.length) {
-            elementType = baseType.elements[idx];
-          } else {
-            this.errors.push(Errors.invalidIndex(
-              `tuple index ${idx} out of bounds, tuple has ${baseType.elements.length} elements`,
-              token
-            ));
-            return;
-          }
-        } else {
-          if (baseType.elements.length === 0) {
-            this.errors.push(Errors.invalidIndex("cannot assign to empty tuple", token));
-            return;
-          }
-          elementType = baseType.elements.length === 1
-            ? baseType.elements[0]
-            : { kind: "UnionType", types: [...baseType.elements] };
-        }
-      } else {
-        this.errors.push(Errors.invalidIndex(
-          `tuple index must be int, got ${this.typeToString(indexType)}`,
-          token
-        ));
-        return;
-      }
+      this.errors.push(Errors.tupleImmutable(token));
+      return;
     } else {
       this.errors.push(Errors.invalidIndex(
         `type '${this.typeToString(objectType)}' does not support indexing`,
@@ -1223,30 +1205,22 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     }
 
     if (baseType.kind === "TupleType") {
-      if (indexType.kind === "PrimitiveType" && indexType.name === "int") {
-        if (expr.index.kind === "Literal" && typeof expr.index.value === "number") {
-          const idx = expr.index.value;
-          if (idx >= 0 && idx < baseType.elements.length) {
-            return baseType.elements[idx];
-          }
-          this.errors.push(Errors.invalidIndex(
-            `tuple index ${idx} out of bounds, tuple has ${baseType.elements.length} elements`,
-            token
-          ));
-          return { kind: "PrimitiveType", name: "any" };
+      if (expr.index.kind === "Literal" && typeof expr.index.value === "number") {
+        const pos = expr.index.value;
+        if (pos >= 0 && pos < baseType.elements.length) {
+          return baseType.elements[pos];
         }
-        if (baseType.elements.length === 1) {
-          return baseType.elements[0];
-        }
-        return baseType.elements.length === 0
-          ? { kind: "PrimitiveType", name: "unknown" }
-          : { kind: "UnionType", types: [...baseType.elements] };
+        this.errors.push(Errors.invalidIndex(
+          `tuple index ${pos} out of bounds (size ${baseType.elements.length})`,
+          token
+        ));
+        return { kind: "PrimitiveType", name: "unknown" };
       }
       this.errors.push(Errors.invalidIndex(
-        `tuple index must be int, got ${this.typeToString(indexType)}`,
+        "tuple index must be a literal integer",
         token
       ));
-      return { kind: "PrimitiveType", name: "any" };
+      return { kind: "PrimitiveType", name: "unknown" };
     }
 
     this.errors.push(Errors.invalidIndex(
@@ -1267,7 +1241,17 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
   }
 
   private checkArrayExpr(expr: Extract<Expr, { kind: "Array" }>): TypeNode {
+    const ctx = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
+
     if (expr.elements.length === 0) {
+      if (ctx?.kind === "ArrayType") {
+        return { kind: "ArrayType", elementType: ctx.elementType, dimensions: 1 };
+      }
+      if (ctx?.kind === "TupleType") {
+        const token = { type: TokenType.NUMBER, value: 0, line: 0, column: 0 } as Token;
+        this.errors.push(Errors.tupleSizeMismatch(ctx.elements.length, 0, token));
+        return ctx;
+      }
       return {
         kind: "ArrayType",
         elementType: { kind: "PrimitiveType", name: "unknown" },
@@ -1275,21 +1259,24 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       };
     }
 
-    let unwrapped = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
-    let elementCtx: TypeNode | null = unwrapped?.kind === "ArrayType"
-      ? this.unwrapGrouping(unwrapped.elementType)
+    if (ctx?.kind === "TupleType") {
+      return this.checkArrayAsTuple(expr, ctx);
+    }
+
+    this.contextualType = null;
+
+    const elementCtx: TypeNode | null = ctx?.kind === "ArrayType"
+      ? this.unwrapGrouping(ctx.elementType)
       : null;
 
     const elementTypes: TypeNode[] = [];
-    
+
     for (const e of expr.elements) {
       this.contextualType = elementCtx;
-      
-      // Se for spread, extrair o elementType do array
+
       if (e.kind === "Spread") {
         const spreadType = this.checkExpression(e);
         if (spreadType.kind === "ArrayType") {
-          // Extrair o tipo do elemento do array
           elementTypes.push(this.unwrapGrouping(spreadType.elementType));
         } else {
           elementTypes.push(spreadType);
@@ -1298,12 +1285,23 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         const t = this.checkExpression(e);
         elementTypes.push(this.unwrapGrouping(t));
       }
-      
+
       this.contextualType = null;
     }
-    
+
     const unique = this.deduplicateTypes(elementTypes);
-    
+
+    if (!ctx && unique.length > 1) {
+      const got = unique.map(t => this.typeToString(t)).join(", ");
+      const suggestion = `(${unique.map(t => this.typeToString(t)).join(" | ")})[]`;
+      const token = expr.elements.length > 1
+        ? (this.getExprToken(expr.elements[1]) ?? this.getExprToken(expr.elements[0])
+           ?? { type: TokenType.NUMBER, value: 0, line: 0, column: 0 } as Token)
+        : { type: TokenType.NUMBER, value: 0, line: 0, column: 0 } as Token;
+      this.errors.push(Errors.heterogeneousArray(got, suggestion, token));
+      return { kind: "ArrayType", elementType: unique[0], dimensions: 1 };
+    }
+
     let elementType: TypeNode;
     let dimensions = 1;
 
@@ -1322,6 +1320,44 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       elementType,
       dimensions,
     };
+  }
+
+  private checkArrayAsTuple(
+    expr: Extract<Expr, { kind: "Array" }>,
+    tupleType: Extract<TypeNode, { kind: "TupleType" }>
+  ): TypeNode {
+    for (const e of expr.elements) {
+      if (e.kind === "Spread") {
+        const token = this.getExprToken(e) ?? { type: TokenType.NUMBER, value: 0, line: 0, column: 0 } as Token;
+        this.errors.push(Errors.spreadInTuple(token));
+        return tupleType;
+      }
+    }
+
+    if (expr.elements.length !== tupleType.elements.length) {
+      const token = expr.elements.length > 0
+        ? (this.getExprToken(expr.elements[0]) ?? { type: TokenType.NUMBER, value: 0, line: 0, column: 0 } as Token)
+        : { type: TokenType.NUMBER, value: 0, line: 0, column: 0 } as Token;
+      this.errors.push(Errors.tupleSizeMismatch(tupleType.elements.length, expr.elements.length, token));
+      return tupleType;
+    }
+
+    for (let i = 0; i < expr.elements.length; i++) {
+      const expected = tupleType.elements[i];
+      this.contextualType = expected;
+      const actual = this.checkExpression(expr.elements[i]);
+      this.contextualType = null;
+      if (!this.areTypesCompatible(expected, actual)) {
+        const token = this.getExprToken(expr.elements[i])
+          ?? { type: TokenType.NUMBER, value: 0, line: 0, column: 0 } as Token;
+        this.errors.push(Errors.typeMismatch(
+          `tuple position ${i}: expected '${this.typeToString(expected)}', got '${this.typeToString(actual)}'`,
+          token
+        ));
+      }
+    }
+
+    return tupleType;
   }
 
   private deduplicateTypes(types: TypeNode[]): TypeNode[] {

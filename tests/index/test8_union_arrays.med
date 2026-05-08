@@ -1,0 +1,17 @@
+// TESTE 8: Array de union types e tipos complexos
+var arrUnion: (int | string)[] = [1, "hello", 2, "world"]
+
+// Index em array de union
+val r1 = arrUnion[0]         // int | string
+val r2 = arrUnion[1]         // int | string
+
+// Array de arrays (já testado)
+var arrArr: int[][] = [[1], [2]]
+val r3 = arrArr[0]           // int[]
+
+// Array de function types
+var arrFn: ((int) => int)[] = [(x: int): int => x, (x: int): int => x * 2]
+val r4 = arrFn[0]            // (int) => int
+
+// Union com arrays
+var arrOrScalar: int[] | string = [1, 2, 3]

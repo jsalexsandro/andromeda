@@ -1,0 +1,26 @@
+// TESTE 2: Multi-dim arrays e nested indexing
+var md2: int[][] = [[1, 2], [3, 4], [5, 6]]
+var md3: string[][][] = [[["a", "b"], ["c"]], [["d"]]]
+
+// Um nível
+val r1 = md2[0]         // int[]
+
+// Dois níveis
+val r2 = md2[0][1]      // int
+val r3 = md2[1][0]      // int
+val r4 = md2[2][1]      // int
+
+// Três níveis
+val r5 = md3[0]         // string[][]
+val r6 = md3[0][0]      // string[]
+val r7 = md3[0][0][1]   // string
+val r8 = md3[1][0][0]   // string
+
+// Expressões aninhadas
+val r9 = md2[md2[0][0]][md2[0][1]]  // md2[1][2] = 4
+
+// Index com operações
+var i: int = 1
+var j: int = 0
+val r10 = md2[i][j]     // md2[1][0] = 3
+val r11 = md2[i + 1][j] // md2[2][0] = 5

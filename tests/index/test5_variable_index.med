@@ -1,0 +1,29 @@
+// TESTE 5: Index com variáveis e expressões
+var arr: int[] = [10, 20, 30, 40, 50]
+
+// Índice via variável
+var i: int = 2
+val r1 = arr[i]          // arr[2] = 30
+
+// Índice via expressão aritmética
+val r2 = arr[i + 1]      // arr[3] = 40
+val r3 = arr[i - 1]      // arr[1] = 20
+val r4 = arr[i * 2]      // arr[4] = 50
+
+// Índice via expressão com operador relacional (fora dos limites, mas sem erro de tipo)
+val idx = 1 + 2
+val r5 = arr[1 + 2]      // arr[3] = 40
+
+// Índice via grouping
+val r6 = arr[(1 + 1) * 2] // arr[4] = 50
+
+// Índice com incremento (pré-fixado)
+var j: int = 2
+val r7 = arr[j]          // arr[2] = 30
+
+// Reatribuição de variável de índice
+i = 0
+val r8 = arr[i]          // arr[0] = 10
+
+// Usar index result como novo índice
+val r9 = arr[arr[0]]     // arr[10] (10 está fora dos limites, mas tipo ok: int)

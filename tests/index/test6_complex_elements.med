@@ -1,0 +1,29 @@
+// TESTE 6: Arrays de tipos complexos como elementos
+var arrArr: int[][] = [[1, 2], [3, 4]]
+var arrNullable: int?[] = [1, null, 3]
+
+// Array de arrays (já testado, apenas confirma)
+val r1 = arrArr[0]         // int[]
+val r2 = arrArr[0][1]      // int
+
+// Array vazio com tipo
+var emptyInt: int[] = []
+var emptyStr: string[] = []
+var emptyFloat: float[] = []
+
+val r3 = emptyInt[0]       // int
+val r4 = emptyStr[0]       // string
+val r5 = emptyFloat[0]     // float
+
+// Array de strings
+var names: string[] = ["Alice", "Bob", "Charlie"]
+val first = names[0]
+val last = names[2]
+
+// Concatenação com resultado de index
+val greeting = "Hello, " + names[0] + "!"
+val sum2 = arrArr[0][0] + arrArr[0][1]
+
+// Index em array de arrays de strings
+var matrix: string[][] = [["a1", "a2"], ["b1", "b2"]]
+val cell = matrix[0][1]    // "a2"

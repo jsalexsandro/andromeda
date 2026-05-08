@@ -1,0 +1,54 @@
+// TESTE 4: Erros — índices inválidos
+var ai: int[] = [10, 20, 30]
+var af: float[] = [1.0, 2.0]
+var astr: string[] = ["x", "y"]
+var ab: bool[] = [true, false]
+
+// Erro: índice string
+val e1 = ai["0"]
+
+// Erro: índice float
+var fIdx: float = 1.5
+val e2 = ai[fIdx]
+
+// Erro: índice bool
+val e3 = ai[true]
+
+// Erro: índice null
+val e4 = ai[null]
+
+// Erro: índice em string (não array)
+var s: string = "hello"
+val e5 = s[0]
+
+// Erro: índice em int (não array)
+var n: int = 42
+val e6 = n[0]
+
+// Erro: índice em float (não array)
+var fl: float = 3.14
+val e7 = fl[0]
+
+// Erro: índice em bool (não array)
+var bl: bool = true
+val e8 = bl[0]
+
+// Erro: índice em null (não array)
+var nl: null = null
+val e9 = nl[0]
+
+// Erro: índice em union type
+var un: int | string = 1
+val e10 = un[0]
+
+// Erro: índice em function type
+var fn: (int) => int = (x: int): int => x
+val e11 = fn[0]
+
+// Erro: índice em any (não é validado, retorna any)
+var av: any = [1, 2, 3]
+val r_any = av[0]       // any (sem erro)
+
+// Erro: índice float em float[]
+val e12 = af[true]
+val e13 = af["x"]

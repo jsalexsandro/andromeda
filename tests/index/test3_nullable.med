@@ -1,0 +1,17 @@
+// TESTE 3: Nullable arrays
+var na: int[]? = [1, 2, 3]
+var naf: float[]? = [1.0, 2.0]
+var nas: string[]? = ["a", "b"]
+
+// Indexar em nullable array
+val r1 = na[0]          // int
+val r2 = naf[1]         // float
+val r3 = nas[0]         // string
+
+// Nullable array com multi-dim
+var nmd: int[][]? = [[1, 2], [3, 4]]
+val r4 = nmd[0]         // int[]
+val r5 = nmd[0][1]      // int
+
+// Array de nullable elements (diferente de nullable array)
+var ea: int?[] = [1, null, 3]

@@ -1,0 +1,8 @@
+// TESTE: Coerção int→float still works
+var a: float = 0         // literal int coage para float via contextual type
+var b: float = 42        // literal int coage para float
+var c: float = 0.0       // literal float direto
+
+var arr: int[] = [10, 20]
+var d: int = arr[0]      // int expression, target int → OK
+// var e: float = arr[1]  // int expression → float: NÃO coage (esperado)

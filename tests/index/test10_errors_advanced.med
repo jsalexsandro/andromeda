@@ -1,0 +1,36 @@
+// TESTE 10: Erros — casos limite de index
+var arr: int[] = [10, 20, 30]
+
+// Erro: índice float em array de float
+var af: float[] = [1.0, 2.0]
+val e1 = af[true]               // bool index
+val e2 = af["0"]                // string index
+
+// Erro: índice em array com tipo incompatível
+var fi: float = 2.5
+val e3 = arr[fi]                // float index
+
+// Erro: índice null
+val e4 = arr[null]
+
+// Erro: array de union indexado (funciona, mas o índice precisa ser int)
+var au: (int | string)[] = [1, "a"]
+val r1 = au[0]                  // OK: int | string
+val e5 = au[true]               // erro: bool index
+
+// Erro: array nullable com índice inválido
+var na: int[]? = [1, 2, 3]
+val e6 = na[true]               // bool index on nullable array
+val e7 = na["x"]                // string index on nullable array
+
+// Erro: index em união que inclui array
+var ua: int[] | string = [1, 2, 3]
+val e8 = ua[0]                  // union type does not support indexing
+
+// Index em any (sem tipo verificado)
+var a: any = 42
+val r2 = a[0]                   // any — atualmente reporta erro (ver discussão)
+
+// Index em unknown
+var u: unknown = [1, 2, 3]
+val r3 = u[0]                   // unknown — atualmente reporta erro
