@@ -1235,7 +1235,19 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       case "Identifier": return expr.name;
       case "Binary": return expr.operator;
       case "Unary": return expr.operator;
-      case "Logical": return expr.operator;
+        case "Logical": return expr.operator;
+        case "Literal": return expr.token ?? null;
+        case "Spread":
+          if (expr.line !== undefined && expr.column !== undefined) {
+            return { type: TokenType.SPREAD, value: "...", line: expr.line, column: expr.column };
+          }
+          return null;
+        case "Array":
+          for (const el of expr.elements) {
+            const t = this.getExprToken(el);
+            if (t) return t;
+          }
+          return null;
       default: return null;
     }
   }

@@ -341,11 +341,17 @@ export interface NamedTypeNode {
   name: Token
 }
 
-// List<T>, Map<K, V>, Promise<User>
+// ========================================
+// GenericTypeNode — nó canônico para tipos parametrizados
+// Array<T>, Map<K, V>, Promise<User>, Optional<T>
+// ========================================
 export interface GenericTypeNode {
   kind: "GenericType"
   name: Token
   args: TypeNode[]
+  /** true para tipos builtin como Array, Optional — o type checker pode usar
+   *  para tratamento especial (ex: Array tem suporte a indexação) */
+  isBuiltin?: boolean
 }
 
 // 3.14, "active", 200, true — literal types
@@ -354,14 +360,22 @@ export interface LiteralTypeNode {
   value: string | number | boolean
 }
 
+// ========================================
+// ArrayTypeNode — açúcar sintático para GenericTypeNode { name: "Array", args: [elementType] }
 // T[], string[], User[]
+// O type checker deve normalizar para GenericTypeNode na fase de análise
+// ========================================
 export interface ArrayTypeNode {
   kind: "ArrayType"
   elementType: TypeNode
   dimensions: number
 }
 
-// T? — nullable, açúcar pra T | null
+// ========================================
+// NullableTypeNode — açúcar sintático para T | null
+// T?, int?, string?
+// O type checker deve normalizar para UnionTypeNode { types: [T, PrimitiveType(null)] }
+// ========================================
 export interface NullableTypeNode {
   kind: "NullableType"
   type: TypeNode

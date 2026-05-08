@@ -134,19 +134,22 @@ export class Parser {
 
   private parseNumber(): Expr {
     const token = this.previous();
-    return { kind: "Literal", value: token.value, isFloat: token.isFloat };
+    return { kind: "Literal", value: token.value, isFloat: token.isFloat, token };
   }
 
   private parseString(): Expr {
-    return { kind: "Literal", value: this.previous().value };
+    const token = this.previous();
+    return { kind: "Literal", value: token.value, token };
   }
 
   private parseBoolean(): Expr {
-    return { kind: "Literal", value: this.previous().value };
+    const token = this.previous();
+    return { kind: "Literal", value: token.value, token };
   }
 
   private parseNull(): Expr {
-    return { kind: "Literal", value: null };
+    const token = this.previous();
+    return { kind: "Literal", value: null, token };
   }
 
   private parseGroup(): Expr {
