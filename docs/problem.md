@@ -10,6 +10,8 @@ To tendo dificuldade com alguns aspectos da minha linguagem
 // var names: string[] = ['Jonny', 'James']
 //            ^^^^^^^^ -> isso deve ser 'sugar' para isso Array<String>
 // --- 
+// transformar tudo em generics assim como o padrão das novas lingaugem
+// 
 
 3. Api bonitas
 // 'string' é a keyword nativa para strings

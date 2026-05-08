@@ -1,4 +1,14 @@
-var parenArray: (int | string?)[] = [1, "two", 3]
-val parenMulti: (int | string | bool)[] = [1, "two", true]
+val grp1: (int)
+val grp2: (int | string)
+val grp3: ((int) => int)
 
-parenArray = [null, 0.2]
+// Grouping with array
+val grpArr1: (int)[]
+val grpArr2: (int | string)[]
+val grpArr3: ((int) => int)[]
+
+// Grouping with union
+val grpUnion: (int | string) | null
+
+
+val s: string?

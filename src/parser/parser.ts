@@ -225,6 +225,7 @@ export class Parser {
       this.error("Expected ']' to close array literal", bracket);
     }
 
+    
     return { kind: "Array", elements };
   }
 
@@ -1337,7 +1338,7 @@ export class Parser {
     this.advance();
 
     const typeToken = this.peek();
-
+    
     // ========================================
     // Object literal type not supported in nominal type system
     // ========================================
@@ -1643,6 +1644,7 @@ export class Parser {
   private parseAnnotationType(): TypeNode | undefined {
     const typeToken = this.peek();
 
+
     // ========================================
     // Object literal type not supported in nominal type system
     // ========================================
@@ -1896,6 +1898,7 @@ export class Parser {
             : baseType.kind;
 
     console.log(`DEBUG - [${baseTypeName}${"[]".repeat(dimensions)}]`);
+    console.log(`[TG] TRANSFORMA ISSO EM GENERIC - [${baseTypeName}${"[]".repeat(dimensions)}]`);
     return {
       kind: "ArrayType",
       elementType: baseType,
@@ -2025,6 +2028,8 @@ export class Parser {
       .join(", ");
 
     console.log(`DEBUG - [${elementsDebug}]`);
+    // isso gera tuplas 
+    // Tuple
     return {
       kind: "TupleType",
       elements,
