@@ -83,6 +83,8 @@ FASE 6 — CONTROLE AVANÇADO
 ├── 28. BreakStatement          break
 └── 29. ContinueStatement       continue
 ├── 27. ForStatement            for (val i = 0; ...)
+        'For in' 
+        'in' keyword
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 FASE TYPEALIAS

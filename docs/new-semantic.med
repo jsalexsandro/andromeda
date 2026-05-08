@@ -126,6 +126,8 @@
 - [ ] Verificar que `arr` é do tipo array ou tuple
 - [ ] Verificar que `i` é `int`
 - [ ] Inferir o tipo do elemento
+- [] arr[i] =  (ASSIGN)
+- [] arr[i] += 
 
 ### TernaryExpression
 - [ ] Condição deve ser `bool`

@@ -501,6 +501,12 @@ export class TypeChecker {
 
   private checkAssignStmt(stmt: Extract<Stmt, { kind: "Assign" }>): void {
     const targetName = stmt.name;
+
+    if (targetName.kind === "Index") {
+      this.checkAssignToIndex(targetName, stmt.operator, stmt.value);
+      return;
+    }
+
     let name: string;
     if (targetName.kind === "Identifier") {
       name = targetName.name.value as string;
@@ -684,6 +690,12 @@ export class TypeChecker {
 
   private checkAssignExpr(expr: Extract<Expr, { kind: "Assign" }>): void {
     const targetName = expr.name;
+
+    if (targetName.kind === "Index") {
+      this.checkAssignToIndex(targetName, expr.operator, expr.value);
+      return;
+    }
+
     let name: string;
     if (targetName.kind === "Identifier") {
       name = targetName.name.value as string;
@@ -720,6 +732,95 @@ export class TypeChecker {
       this.errors.push(Errors.typeMismatch(
         `Cannot assign '${this.typeToString(valueType)}' to '${name}'`,
         targetName.name
+      ));
+    }
+  }
+
+  private checkAssignToIndex(target: Extract<Expr, { kind: "Index" }>, operator: Token | undefined, value: Expr): void {
+    const objectType = this.checkExpression(target.object);
+    const savedCtx = this.contextualType;
+    this.contextualType = null;
+    const indexType = this.checkExpression(target.index);
+    this.contextualType = savedCtx;
+
+    const token = this.getExprToken(target.index) ?? this.getExprToken(target.object)
+      ?? { type: TokenType.NUMBER, value: 0, line: 0, column: 0 };
+
+    let baseType = objectType;
+    if (baseType.kind === "NullableType") {
+      baseType = baseType.type;
+    }
+
+    let elementType: TypeNode | null = null;
+
+    if (baseType.kind === "ArrayType") {
+      if (indexType.kind === "PrimitiveType" && indexType.name === "int") {
+        elementType = baseType.dimensions > 1
+          ? { kind: "ArrayType", elementType: baseType.elementType, dimensions: baseType.dimensions - 1 }
+          : baseType.elementType;
+      } else {
+        this.errors.push(Errors.invalidIndex(
+          `array index must be int, got ${this.typeToString(indexType)}`,
+          token
+        ));
+        return;
+      }
+    } else if (baseType.kind === "TupleType") {
+      if (indexType.kind === "PrimitiveType" && indexType.name === "int") {
+        if (target.index.kind === "Literal" && typeof target.index.value === "number") {
+          const idx = target.index.value;
+          if (idx >= 0 && idx < baseType.elements.length) {
+            elementType = baseType.elements[idx];
+          } else {
+            this.errors.push(Errors.invalidIndex(
+              `tuple index ${idx} out of bounds, tuple has ${baseType.elements.length} elements`,
+              token
+            ));
+            return;
+          }
+        } else {
+          if (baseType.elements.length === 0) {
+            this.errors.push(Errors.invalidIndex("cannot assign to empty tuple", token));
+            return;
+          }
+          elementType = baseType.elements.length === 1
+            ? baseType.elements[0]
+            : { kind: "UnionType", types: [...baseType.elements] };
+        }
+      } else {
+        this.errors.push(Errors.invalidIndex(
+          `tuple index must be int, got ${this.typeToString(indexType)}`,
+          token
+        ));
+        return;
+      }
+    } else {
+      this.errors.push(Errors.invalidIndex(
+        `type '${this.typeToString(objectType)}' does not support indexing`,
+        token
+      ));
+      return;
+    }
+
+    const op = operator?.value as string;
+    if (op && ['+=', '-=', '*=', '/=', '%='].includes(op)) {
+      if (!this.isNumericType(elementType)) {
+        this.errors.push(Errors.typeMismatch(
+          `Cannot use '${op}' with non-numeric type '${this.typeToString(elementType)}'`,
+          operator!
+        ));
+        return;
+      }
+    }
+
+    this.contextualType = elementType;
+    const valueType = this.inferType(value);
+    this.contextualType = null;
+
+    if (!this.areTypesCompatible(elementType, valueType)) {
+      this.errors.push(Errors.typeMismatch(
+        `Cannot assign '${this.typeToString(valueType)}' to element of type '${this.typeToString(elementType)}'`,
+        token
       ));
     }
   }
@@ -1093,7 +1194,10 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
 
   private checkIndexExpr(expr: Extract<Expr, { kind: "Index" }>): TypeNode {
     const objectType = this.checkExpression(expr.object);
+    const savedCtx = this.contextualType;
+    this.contextualType = null;
     const indexType = this.checkExpression(expr.index);
+    this.contextualType = savedCtx;
     const token = this.getExprToken(expr.index) ?? this.getExprToken(expr.object)
       ?? { type: TokenType.NUMBER, value: 0, line: 0, column: 0 };
 
