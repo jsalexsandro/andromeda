@@ -1,3 +1,9 @@
+typealias Num = int
+func f_add(x: Num, y: Num): Num {
+  return x + y
+}
+
+
 typealias Score = int
 typealias ScoreList = Score[]
 typealias Reducer = (ScoreList) => Score

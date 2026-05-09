@@ -712,7 +712,7 @@ export class TypeChecker {
           this.errors.push(Errors.invalidReturnType(
             this.typeToString(this.currentFunctionReturnType),
             this.typeToString(returnValueType),
-            stmt.value.kind === "Identifier" ? stmt.value.name : { line: 0, column: 0, type: 0, value: "" } as Token
+            this.getExprToken(stmt.value) ?? { line: 0, column: 0, type: 0, value: "" } as Token
           ));
         }
       }
@@ -909,7 +909,8 @@ export class TypeChecker {
       return { kind: "PrimitiveType", name: "null" };
     }
     if (typeof value === "number") {
-      if (this.contextualType?.kind === "PrimitiveType" && this.contextualType.name === "float") {
+      const ctxResolved = this.contextualType ? this.resolveAlias(this.contextualType) : null;
+      if (ctxResolved?.kind === "PrimitiveType" && ctxResolved.name === "float") {
         return { kind: "PrimitiveType", name: "float" };
       }
       return {
@@ -927,8 +928,8 @@ export class TypeChecker {
   }
 
   private checkBinaryExpr(expr: Extract<Expr, { kind: "Binary" }>): TypeNode {
-    const leftType = this.checkExpression(expr.left);
-    const rightType = this.checkExpression(expr.right);
+    const leftType = this.resolveAlias(this.checkExpression(expr.left));
+    const rightType = this.resolveAlias(this.checkExpression(expr.right));
 
     const op = expr.operator.value as string;
 
@@ -1012,7 +1013,7 @@ export class TypeChecker {
   }
 
   private checkUnaryExpr(expr: Extract<Expr, { kind: "Unary" }>): TypeNode {
-    const operandType = this.checkExpression(expr.right);
+    const operandType = this.resolveAlias(this.checkExpression(expr.right));
     const op = expr.operator.value as string;
 
     if (op === "-" || op === "+") {
@@ -1043,8 +1044,8 @@ export class TypeChecker {
 
         // Check numeric type (not bool for ++/--)
         if (
-          symbol.type.kind === "PrimitiveType" &&
-          (symbol.type.name === "int" || symbol.type.name === "float")
+          this.resolveAlias(symbol.type).kind === "PrimitiveType" &&
+          (this.resolveAlias(symbol.type).name === "int" || this.resolveAlias(symbol.type).name === "float")
         ) {
           return symbol.type;
         }
@@ -1156,6 +1157,8 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
 
       if (!expectedType) continue;
 
+      const resolvedExpected = this.resolveAlias(expectedType);
+
       // ── spread como argumento ─────────────────────────────────
       if (arg.kind === "Spread") {
         const spreadType = this.checkExpression(
@@ -1169,10 +1172,9 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
           continue;
         }
         
-        // Para rest param, o expectedType deve ser Array, o spread deve ser compatível como Array
-        if (!this.areTypesCompatible(expectedType, spreadType)) {
+        if (!this.areTypesCompatible(resolvedExpected, spreadType)) {
           this.errors.push(Errors.typeMismatch(
-            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
+            `argument ${i + 1}: expected '${this.typeToString(resolvedExpected)}', ` +
             `got '${this.typeToString(spreadType)}'`,
             { line: 0, column: 0, type: 0, value: "" } as Token
           ));
@@ -1181,17 +1183,15 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       }
 
       // ── contextual typing para arrow functions ─────────────────
-      // se o param esperado for FunctionType e o arg for arrow sem anotação,
-      // passa o tipo esperado como contexto para inferir os params da arrow
-      if (expectedType.kind === "FunctionType" &&
+      if (resolvedExpected.kind === "FunctionType" &&
           arg.kind === "ArrowFunction") {
-        this.contextualType = expectedType;        // ← contexto
+        this.contextualType = resolvedExpected;
         const actualType = this.checkExpression(arg);
         this.contextualType = null;
 
-        if (!this.areTypesCompatible(expectedType, actualType)) {
+        if (!this.areTypesCompatible(resolvedExpected, actualType)) {
           this.errors.push(Errors.typeMismatch(
-            `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
+            `argument ${i + 1}: expected '${this.typeToString(resolvedExpected)}', ` +
             `got '${this.typeToString(actualType)}'`,
             { line: 0, column: 0, type: 0, value: "" } as Token
           ));
@@ -1200,12 +1200,12 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       }
 
       // ── argumento normal ───────────────────────────────────────
-      this.contextualType = expectedType;
+      this.contextualType = resolvedExpected;
       const actualType = this.checkExpression(arg);
       this.contextualType = null;
-      if (!this.areTypesCompatible(expectedType, actualType)) {
+      if (!this.areTypesCompatible(resolvedExpected, actualType)) {
         this.errors.push(Errors.typeMismatch(
-          `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
+          `argument ${i + 1}: expected '${this.typeToString(resolvedExpected)}', ` +
           `got '${this.typeToString(actualType)}'`,
           { line: 0, column: 0, type: 0, value: "" } as Token
         ));
@@ -1310,15 +1310,20 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
             if (t) return t;
           }
           return null;
+        case "Index":
+          return this.getExprToken(expr.object) ?? this.getExprToken(expr.index) ?? null;
+        case "Call":
+          return this.getExprToken(expr.callee) ?? null;
       default: return null;
     }
   }
 
   private checkArrayExpr(expr: Extract<Expr, { kind: "Array" }>): TypeNode {
     let ctx = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
-    // desembrulha nullable externo: int?[][]? → Array<Array<int?>>
+    if (ctx) ctx = this.resolveAlias(ctx);
     if (ctx?.kind === "NullableType") {
       ctx = this.unwrapGrouping(ctx.type);
+      if (ctx) ctx = this.resolveAlias(ctx);
     }
 
     if (expr.elements.length === 0) {
@@ -1344,7 +1349,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     this.contextualType = null;
 
     const elementCtx: TypeNode | null = ctx && this.isArray(ctx)
-      ? this.unwrapGrouping(this.arrayElement(ctx))
+      ? this.unwrapGrouping(this.resolveAlias(this.arrayElement(ctx)))
       : null;
 
     const elementTypes: TypeNode[] = [];
@@ -1508,6 +1513,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     expr: Extract<Expr, { kind: "ArrowFunction" }>
   ): TypeNode {
     let unwrapped = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
+    if (unwrapped) unwrapped = this.resolveAlias(unwrapped);
     let fnContext: FunctionTypeNode | null = unwrapped?.kind === "FunctionType" ? unwrapped : null;
     this.contextualType = null;
 

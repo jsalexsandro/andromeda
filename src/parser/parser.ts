@@ -2363,6 +2363,12 @@ export class Parser {
         return `${this.getTypeNodeName(type.type)}?`;
       case "GroupingType":
         return `(${this.getTypeNodeName(type.type)})`;
+      case "GenericType":
+        return `${type.name.value}<${type.args.map(a => this.getTypeNodeName(a)).join(", ")}>`;
+      case "TupleType":
+        return `[${type.elements.map(e => this.getTypeNodeName(e)).join(", ")}]`;
+      case "LiteralType":
+        return String(type.value);
       default:
         return "unknown";
     }
