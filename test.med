@@ -1,32 +1,274 @@
-var e: string[] = ['Jonny']
-var inference = ['Jaj', 'JaY']
+// ============================================================
+// ARMAGEDDON TESTS — TYPECHECKER KILLER SUITE
+// Objetivo:
+//   Explodir:
+//   - inferência contextual
+//   - canonicalização
+//   - nullable lifting
+//   - tuples
+//   - callbacks
+//   - arrays aninhados
+//   - spread/rest
+//   - alias resolution
+//   - unions
+//   - closures
+//   - flow typing
+// ============================================================
 
-inference = e
 
 
-val nums: int[] = [10, 20]
-val words: string[] = ["alice", "hello"]
-val three: int[] = [1, 2, 3]
+// ============================================================
+// TESTE 1 — CANONICALIZAÇÃO EXTREMA DE ALIAS
+// ============================================================
 
-var matrix_2d: int[][] = [[1, 2, 3]]
+typealias T1 = int
+typealias T2 = T1
+typealias T3 = T2[]
+typealias T4 = T3[]
+typealias T5 = T4
 
-var names: string[] = ['James']
+func a1(x: T5): T5 {
+  return x
+}
 
-names[0] = 'Jonny Deep'
+val a_r1: int[][] = a1([[[1]], [[2]]])[0]
+
+// [EXPECTED]
+// PASS
+//
+// Quebra compiladores que:
+// - não canonicalizam aliases recursivamente
+// - tratam aliases como identidades distintas
 
 
-val d10: int?[][] = [[1, null], [3, 4]]
-// [PASS] rest param básico
-func f1(...nums: int[]): int {
+
+// ============================================================
+// TESTE 2 — INFERÊNCIA BIDIRECIONAL EM CALLBACK
+// ============================================================
+
+func b_map(arr: int[], f: (int) => int): int[] {
+  return arr
+}
+
+val b_r1 = b_map(
+  [1, 2, 3],
+  (x) => x + 1
+)
+
+// [EXPECTED]
+// PASS
+//
+// x deve ser inferido como int.
+// Quebra:
+// - contextual typing
+// - lambda inference
+
+
+
+// ============================================================
+// TESTE 3 — NULLABLE + ARRAY + COALESCING + INDEX
+// ============================================================
+
+func c_get(xs: int[]?): int {
+  return (xs ?? [100])[0]
+}
+
+val c_r1 = c_get(null)
+val c_r2 = c_get([1, 2, 3])
+
+// [EXPECTED]
+// PASS
+//
+// Quebra:
+// - lifting de nullable
+// - canonicalização pós-coalescing
+// - index typing
+
+
+
+// ============================================================
+// TESTE 4 — SPREAD MULTINÍVEL
+// ============================================================
+
+val d1: int[] = [1, 2]
+val d2: int[][] = [[3, 4], [5, 6]]
+
+val d_r1: int[][] = [
+  [...d1],
+  ...d2,
+  [7, 8]
+]
+
+// [EXPECTED]
+// PASS
+//
+// Quebra:
+// - spread typing
+// - nested array inference
+// - dimensional consistency
+
+
+
+// ============================================================
+// TESTE 5 — TUPLA DENTRO DE ARRAY
+// ============================================================
+
+typealias Pair = [string, int]
+
+val e1: Pair[] = [
+  ["a", 1],
+  ["b", 2],
+  ["c", 3]
+]
+
+val e_r1: string = e1[0][0]
+val e_r2: int = e1[1][1]
+
+// [EXPECTED]
+// PASS
+//
+// Quebra:
+// - tuple indexing
+// - nested index typing
+// - tuple preservation em arrays
+
+
+
+// ============================================================
+// TESTE 6 — ARRAY DE FUNÇÕES + CALLBACK
+// ============================================================
+
+typealias Fn = (int) => int
+
+val fns: Fn[] = [
+  (x) => x + 1,
+  (x) => x * 2,
+  (x) => x - 3
+]
+
+val f_r1: int = fns[0](10)
+val f_r2: int = fns[1](10)
+val f_r3: int = fns[2](10)
+
+// [EXPECTED]
+// PASS
+//
+// Quebra:
+// - function typing
+// - callable indexing
+// - arrays de funções
+// - lambda contextual typing
+
+
+
+// ============================================================
+// TESTE 7 — CLOSURE CAPTURE REAL
+// ============================================================
+
+func g_outer(a: int): (int) => int {
+  return (b) => a + b
+}
+
+val g_add10 = g_outer(10)
+
+val g_r1: int = g_add10(5)
+
+// [EXPECTED]
+// PASS
+//
+// Quebra:
+// - closure capture
+// - escopo léxico
+// - binding externo
+
+
+
+// ============================================================
+// TESTE 8 — RETURN FLOW ANALYSIS
+// ============================================================
+
+func h_test(x: int): int {
+  if (x > 0) {
+    return 1
+  }
+
+  if (x < 0) {
+    return -1
+  }
+
   return 0
 }
 
-val f_r1 = f1(1, 2, 3)
-val f_r2 = f1()           // zero args válido para rest
+// [EXPECTED]
+// PASS
+//
+// Quebra:
+// - control flow analysis
+// - branch completeness
 
-// [PASS] spread como argumento em rest param
-var f2: int[] = [10, 20, 30]
-val f_r3 = f1(...f2)
 
-// [PASS] mix de args normais + spread
-val f_r4 = f1(1, ...f2)
+
+// ============================================================
+// TESTE 9 — UNION REJECTION INSIDE ARRAY
+// (caso você vá proibir)
+// ============================================================
+
+// val i1: (int | string)[] = [1, "a"]
+
+// [EXPECTED]
+// ERROR
+//
+// heterogeneous arrays are forbidden
+//
+// Quebra:
+// - validação homogênea
+// - union lifting indevido
+
+
+
+// ============================================================
+// TESTE 10 — O VERDADEIRO ARMAGEDDON
+// Tudo junto.
+// ============================================================
+
+typealias Score = int
+typealias ScoreList = Score[]
+typealias Reducer = (ScoreList) => Score
+
+func z_reduce(xs: ScoreList?, reducer: Reducer): Score {
+  val safe = xs ?? [0]
+
+  val cloned: ScoreList = [...safe]
+
+  return reducer(cloned)
+}
+
+val z_r1 = z_reduce(
+  [10, 20, 30],
+  (arr) => arr[0]
+)
+
+val z_r2 = z_reduce(
+  null,
+  (arr) => arr[0]
+)
+
+// [EXPECTED]
+// PASS
+//
+// Esse aqui destrói compiladores frágeis.
+//
+// Mistura:
+// - aliases
+// - nullable
+// - coalescing
+// - spread
+// - inferência contextual
+// - callback
+// - canonicalização
+// - arrays
+// - indexação
+// - função de ordem superior
+//
+// Se isso passar corretamente,
+// teu núcleo de typing já está MUITO sólido.

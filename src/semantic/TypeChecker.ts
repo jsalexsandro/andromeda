@@ -704,7 +704,9 @@ export class TypeChecker {
     this.hasReturn = true;
 
     if (stmt.value) {
+      this.contextualType = this.currentFunctionReturnType;
       const returnValueType = this.checkExpression(stmt.value);
+      this.contextualType = null;
       if (this.currentFunctionReturnType) {
         if (!this.areTypesCompatible(this.currentFunctionReturnType, returnValueType)) {
           this.errors.push(Errors.invalidReturnType(
@@ -793,7 +795,7 @@ export class TypeChecker {
   }
 
   private checkAssignToIndex(target: Extract<Expr, { kind: "Index" }>, operator: Token | undefined, value: Expr): void {
-    const objectType = this.checkExpression(target.object);
+    const objectType = this.resolveAlias(this.checkExpression(target.object));
     const savedCtx = this.contextualType;
     this.contextualType = null;
     const indexType = this.checkExpression(target.index);
@@ -1086,7 +1088,7 @@ export class TypeChecker {
   }
 
 private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
-    const calleeType = this.checkExpression(expr.callee);
+    const calleeType = this.resolveAlias(this.checkExpression(expr.callee));
 
     // callee não é função
     if (calleeType.kind !== "FunctionType") {
@@ -1134,18 +1136,22 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
 
-      // tipo esperado — pós restIndex todos mapeiam pro elementType do rest
+      // tipo esperado — separa rest param de normal, e dentro do rest
+      // separa spread (Array<T>) de valor individual (T)
       let expectedType: TypeNode | null = null;
-      if (i < params.length) {
-        expectedType = params[i];
-      } else if (hasRest && restIndex >= 0 && restIndex < params.length) {
-        // rest param: o tipo do param é T[], o arg deve ser T
+      if (hasRest && i >= restIndex) {
         const restParamType = params[restIndex];
-        expectedType = this.isArray(restParamType)
-          ? this.arrayElement(restParamType)
-          : restParamType.kind === "ArrayType"
-            ? restParamType.elementType
-            : restParamType;
+        if (arg.kind === "Spread") {
+          expectedType = restParamType;
+        } else {
+          expectedType = this.isArray(restParamType)
+            ? this.arrayElement(restParamType)
+            : restParamType.kind === "ArrayType"
+              ? restParamType.elementType
+              : restParamType;
+        }
+      } else if (i < params.length) {
+        expectedType = params[i];
       }
 
       if (!expectedType) continue;
@@ -1194,7 +1200,9 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       }
 
       // ── argumento normal ───────────────────────────────────────
+      this.contextualType = expectedType;
       const actualType = this.checkExpression(arg);
+      this.contextualType = null;
       if (!this.areTypesCompatible(expectedType, actualType)) {
         this.errors.push(Errors.typeMismatch(
           `argument ${i + 1}: expected '${this.typeToString(expectedType)}', ` +
@@ -1222,7 +1230,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
   }
 
   private checkIndexExpr(expr: Extract<Expr, { kind: "Index" }>): TypeNode {
-    const objectType = this.checkExpression(expr.object);
+    const objectType = this.resolveAlias(this.checkExpression(expr.object));
     const savedCtx = this.contextualType;
     this.contextualType = null;
     const indexType = this.checkExpression(expr.index);
@@ -1307,7 +1315,11 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
   }
 
   private checkArrayExpr(expr: Extract<Expr, { kind: "Array" }>): TypeNode {
-    const ctx = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
+    let ctx = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
+    // desembrulha nullable externo: int?[][]? → Array<Array<int?>>
+    if (ctx?.kind === "NullableType") {
+      ctx = this.unwrapGrouping(ctx.type);
+    }
 
     if (expr.elements.length === 0) {
       if (ctx && this.isArray(ctx)) return ctx;
@@ -1358,6 +1370,13 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     }
 
     const unique = this.deduplicateTypes(elementTypes);
+
+    // ── FIX: se todos os elementos são compatíveis com elementCtx,
+    // normaliza pelo contexto em vez de criar union
+    // Ex: [1, null] com ctx Array<int?> → todos ok → retorna Array<int?>
+    if (elementCtx !== null && unique.every(t => this.areTypesCompatible(elementCtx, t))) {
+      return this.makeArrayType(elementCtx);
+    }
 
     if (!ctx && unique.length > 1) {
       const got = unique.map(t => this.typeToString(t)).join(", ");

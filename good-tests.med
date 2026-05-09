@@ -797,7 +797,7 @@ val v_r4 = v_merge(...[v_l1, v_l2])
 
 // [PASS] nullable array + alias + índice + fallback
 var v_maybe: ScoreList? = null
-val v_r5: Score = v_maybe ?? [0]
+val v_r5: Score = (v_maybe ?? [0])[0]
 
 // [PASS] arrays de nullable alias
 val v_scores_opt: Score?[] = [100, null, 87]
