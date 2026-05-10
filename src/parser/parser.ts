@@ -1425,7 +1425,7 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(typeNode);
       }
-      console.log(`DEBUG - [float]`);
+      console.log(`DEBUG - [${this.getTypeNodeName(typeNode)}]`);
       return typeNode;
     }
     if (typeToken.type === TokenType.STRING_TYPE) {
@@ -1443,7 +1443,7 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(typeNode);
       }
-      console.log(`DEBUG - [string]`);
+      console.log(`DEBUG - [${this.getTypeNodeName(typeNode)}]`);
       return typeNode;
     }
     if (typeToken.type === TokenType.BOOLEAN_TYPE) {
@@ -1461,7 +1461,7 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(typeNode);
       }
-      console.log(`DEBUG - [bool]`);
+      console.log(`DEBUG - [${this.getTypeNodeName(typeNode)}]`);
       return typeNode;
     }
     if (typeToken.type === TokenType.VOID_TYPE) {
@@ -1479,7 +1479,7 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(typeNode);
       }
-      console.log(`DEBUG - [void]`);
+      console.log(`DEBUG - [${this.getTypeNodeName(typeNode)}]`);
       return typeNode;
     }
     if (typeToken.type === TokenType.ANY_TYPE) {
@@ -1497,7 +1497,7 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(typeNode);
       }
-      console.log(`DEBUG - [any]`);
+      console.log(`DEBUG - [${this.getTypeNodeName(typeNode)}]`);
       return typeNode;
     }
     if (typeToken.type === TokenType.UNKNOWN_TYPE) {
@@ -1515,7 +1515,7 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(typeNode);
       }
-      console.log(`DEBUG - [unknown]`);
+      console.log(`DEBUG - [${this.getTypeNodeName(typeNode)}]`);
       return typeNode;
     }
     // ========================================
@@ -1536,7 +1536,7 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(typeNode);
       }
-      console.log(`DEBUG - [undefined]`);
+      console.log(`DEBUG - [${this.getTypeNodeName(typeNode)}]`);
       return typeNode;
     }
     if (typeToken.type === TokenType.NULL) {
@@ -1554,7 +1554,7 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(typeNode);
       }
-      console.log(`DEBUG - [null]`);
+      console.log(`DEBUG - [${this.getTypeNodeName(typeNode)}]`);
       return typeNode;
     }
 
@@ -1848,12 +1848,7 @@ export class Parser {
     this.advance(); // consume '>'
 
     const argsDebug = args
-      .map((arg) => {
-        if (arg.kind === "PrimitiveType") return arg.name;
-        if (arg.kind === "NamedType") return arg.name.value;
-        if (arg.kind === "GenericType") return `${arg.name.value}<...>`;
-        return arg.kind;
-      })
+      .map((arg) => this.getTypeNodeName(arg))
       .join(", ");
 
     console.log(`DEBUG - [${typeName.value}<${argsDebug}>]`);
@@ -1939,22 +1934,7 @@ export class Parser {
     }
 
     const typesDebug = flattened
-      .map((t) => {
-        if (t.kind === "PrimitiveType") return t.name;
-        if (t.kind === "NamedType") return t.name.value;
-        if (t.kind === "GenericType") return `${t.name.value}<...>`;
-        if (t.kind === "LiteralType") return String(t.value);
-        if (t.kind === "ArrayType") {
-          const elemName =
-            t.elementType.kind === "PrimitiveType"
-              ? t.elementType.name
-              : t.elementType.kind === "NamedType"
-                ? t.elementType.name.value
-                : t.elementType.kind;
-          return `${elemName}${"[]".repeat(t.dimensions)}`;
-        }
-        return t.kind;
-      })
+      .map((t) => this.getTypeNodeName(t))
       .join(" | ");
 
     console.log(`DEBUG - [${typesDebug}]`);
@@ -2006,22 +1986,7 @@ export class Parser {
     this.advance(); // consume ']'
 
     const elementsDebug = elements
-      .map((t) => {
-        if (t.kind === "PrimitiveType") return t.name;
-        if (t.kind === "NamedType") return t.name.value;
-        if (t.kind === "GenericType") return `${t.name.value}<...>`;
-        if (t.kind === "LiteralType") return String(t.value);
-        if (t.kind === "ArrayType") {
-          const elemName =
-            t.elementType.kind === "PrimitiveType"
-              ? t.elementType.name
-              : t.elementType.kind === "NamedType"
-                ? t.elementType.name.value
-                : t.elementType.kind;
-          return `${elemName}${"[]".repeat(t.dimensions)}`;
-        }
-        return t.kind;
-      })
+      .map((t) => this.getTypeNodeName(t))
       .join(", ");
 
     console.log(`DEBUG - [${elementsDebug}]`);
@@ -2176,7 +2141,6 @@ export class Parser {
   private parseNullableSuffix(baseType: TypeNode): TypeNode {
     if (this.check(TokenType.QUESTION)) {
       this.advance();
-      console.log(`DEBUG - [${this.getTypeNodeName(baseType)}?]`);
       return {
         kind: "GenericType",
         name: { type: TokenType.IDENTIFIER, value: "Optional", line: 0, column: 0 },
