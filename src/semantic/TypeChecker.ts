@@ -41,6 +41,45 @@ export class TypeChecker {
     return type.args[0] ?? { kind: "PrimitiveType", name: "unknown" };
   }
 
+  // ── Optional<T> helpers ────────────────────────────────────
+  private isOptional(type: TypeNode): type is GenericTypeNode {
+    return (
+      type.kind === "GenericType" &&
+      (type.name.value as string) === "Optional" &&
+      type.args.length === 1
+    );
+  }
+
+  /**
+   * Normaliza Optional<T> → NullableType recursivamente.
+   * Usado nas portas de entrada (areTypesCompatible, checkIndexExpr, etc.)
+   * para que o checker existente trate Optional<T> como NullableType.
+   */
+  private normalizeType(type: TypeNode): TypeNode {
+    if (this.isOptional(type)) {
+      return {
+        kind: "NullableType",
+        type: this.normalizeType(type.args[0]),
+      };
+    }
+    if (type.kind === "GenericType") {
+      const newArgs = type.args.map(a => this.normalizeType(a));
+      if (newArgs.every((arg, i) => arg === type.args[i])) return type;
+      return { ...type, args: newArgs };
+    }
+    if (type.kind === "NullableType") {
+      const inner = this.normalizeType(type.type);
+      if (inner === type.type) return type;
+      return { kind: "NullableType", type: inner };
+    }
+    if (type.kind === "UnionType") {
+      const newTypes = type.types.map(t => this.normalizeType(t));
+      if (newTypes.every((t, i) => t === type.types[i])) return type;
+      return { kind: "UnionType", types: newTypes };
+    }
+    return type;
+  }
+
   public check(program: Stmt[]): SemanticError[] {
     this.errors = [];
 
@@ -236,6 +275,7 @@ export class TypeChecker {
         "Map": 2,
         "Set": 1,
         "Promise": 1,
+        "Optional": 1,
       };
       if (typeName in validGenerics) {
         const expectedArgs = validGenerics[typeName];
@@ -300,7 +340,15 @@ export class TypeChecker {
     // Resolve aliases antes de qualquer comparação
     const resolvedExpected = this.resolveAlias(expected);
     const resolvedActual = this.resolveAlias(actual);
-    
+
+    // ── Normaliza Optional<T> → NullableType ─────────────────
+    const normExpected = this.normalizeType(resolvedExpected);
+    const normActual = this.normalizeType(resolvedActual);
+
+    if (normExpected !== resolvedExpected || normActual !== resolvedActual) {
+      return this.areTypesCompatible(normExpected, normActual);
+    }
+
     // Se ambos mudaram, reentrar com os resolvidos
     if (resolvedExpected !== expected || resolvedActual !== actual) {
       return this.areTypesCompatible(resolvedExpected, resolvedActual);
@@ -432,7 +480,11 @@ export class TypeChecker {
       case "GenericType":
         const typeName = type.name.value as string;
         const args = type.args.map(t => this.typeToString(t)).join(", ");
-        // Mostrar Array<T> como T[] (açúcar na exibição)
+        // Optional<T> → T? (açúcar na exibição)
+        if (typeName === "Optional" && type.args.length === 1) {
+          return `${this.typeToString(type.args[0])}?`;
+        }
+        // Array<T> → T[] (açúcar na exibição)
         if (type.isBuiltin && typeName === "Array" && type.args.length === 1) {
           const inner = this.typeToString(this.arrayElement(type as GenericTypeNode));
           return `${inner}[]`;
@@ -804,7 +856,7 @@ export class TypeChecker {
     const token = this.getExprToken(target.index) ?? this.getExprToken(target.object)
       ?? { type: TokenType.NUMBER, value: 0, line: 0, column: 0 };
 
-    let baseType = objectType;
+    let baseType = this.normalizeType(objectType);
     if (baseType.kind === "NullableType") {
       baseType = baseType.type;
     }
@@ -1238,7 +1290,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const token = this.getExprToken(expr.index) ?? this.getExprToken(expr.object)
       ?? { type: TokenType.NUMBER, value: 0, line: 0, column: 0 };
 
-    let baseType = objectType;
+    let baseType = this.normalizeType(objectType);
     if (baseType.kind === "NullableType") {
       baseType = baseType.type;
     }
@@ -1321,6 +1373,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
   private checkArrayExpr(expr: Extract<Expr, { kind: "Array" }>): TypeNode {
     let ctx = this.contextualType ? this.unwrapGrouping(this.contextualType) : null;
     if (ctx) ctx = this.resolveAlias(ctx);
+    if (ctx) ctx = this.normalizeType(ctx);
     if (ctx?.kind === "NullableType") {
       ctx = this.unwrapGrouping(ctx.type);
       if (ctx) ctx = this.resolveAlias(ctx);

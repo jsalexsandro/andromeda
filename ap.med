@@ -1,27 +1,2 @@
-typealias Num = int
-func f_add(x: Num, y: Num): Num {
-  return x + y
-}
-
-
-typealias Score = int
-typealias ScoreList = Score[]
-typealias Reducer = (ScoreList) => Score
-
-func z_reduce(xs: ScoreList?, reducer: Reducer): Score {
-  val safe = xs ?? [0]
-
-  val cloned: ScoreList = [...safe]
-
-  return reducer(cloned)
-}
-
-val z_r1 = z_reduce(
-  [10, 20, 30],
-  (arr) => arr[0]
-)
-
-val z_r2 = z_reduce(
-  null,
-  (arr) => arr[0]
-)
+var names: string? = null
+var names: string[]? = null
