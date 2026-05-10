@@ -2177,7 +2177,12 @@ export class Parser {
     if (this.check(TokenType.QUESTION)) {
       this.advance();
       console.log(`DEBUG - [${this.getTypeNodeName(baseType)}?]`);
-      return { kind: "NullableType", type: baseType };
+      return {
+        kind: "GenericType",
+        name: { type: TokenType.IDENTIFIER, value: "Optional", line: 0, column: 0 },
+        args: [baseType],
+        isBuiltin: true,
+      };
     }
     return baseType;
   }
