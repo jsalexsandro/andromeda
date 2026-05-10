@@ -58,6 +58,7 @@ export class Lexer {
   private inTypeAnnotation = false
   private genericDepth = 0
   private expectingGenericParams = false
+  private lastKeyword: string = ""
 
   constructor(input: string, templateMode: boolean = true) {
     this.input = input
@@ -1046,6 +1047,10 @@ readNumber(): Token {
       this.expectingGenericParams = true
     }
 
+    if (type === TokenType.KEYWORD) {
+      this.lastKeyword = ident
+    }
+
     if (this.expectingGenericParams && type === TokenType.IDENTIFIER) {
       // Este é o nome da função — mantém flag ativa para próximo '<'
     } else if (type !== TokenType.KEYWORD || (ident !== 'func' && !this.expectingGenericParams)) {
@@ -1101,9 +1106,14 @@ readNumber(): Token {
           this.readChar()
           return { type: TokenType.ARROW, value: '=>', line: this.line, column: startColumn }
         }
-        // Limpa modo tipo quando chega ao inicializador
-        this.inTypeAnnotation = false
+        // typealias RHS é tipo, não expressão — mantém inTypeAnnotation
+        if (this.lastKeyword === 'typealias') {
+          this.inTypeAnnotation = true
+        } else {
+          this.inTypeAnnotation = false
+        }
         this.genericDepth = 0
+        this.lastKeyword = ''
         return { type: TokenType.ASSIGN, value: '=', line: this.line, column: startColumn }
       
       case '+':

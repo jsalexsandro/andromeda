@@ -173,21 +173,34 @@ Replaced the ternary `stmt.value.kind === "Identifier" ? ... : {line:0,col:0}` w
 
 ---
 
-## Bug #10: Parser — Explicit `Array<T>` Source Syntax Not Supported
+## Bug #10: Parser — Explicit `Array<T>` Source Syntax in typealias RHS Not Supported
 
-**File:** `src/parser/parser.ts:1825`
+**File:** `src/lexer/lexer.ts` (ANDROX_TAG mode)
 **Severity:** Low
 
 ### Description
-The parser normalizes `T[]` to `GenericType<Array<T>>` internally, but the explicit syntax `Array<int>` in source code doesn't parse — `Array` is consumed as a `NamedType` identifier, and `<int>` is parsed as the less-than comparison operator.
+`Array<T>` and `Optional<T>` **funcionam** em contexto de anotação de tipo (antes de `=`), mas **falham** em typealias RHS (após `=`) porque o lexer ativa ANDROX_TAG ao encontrar `<` após `=`.
 
-### Reproduction
+### Funciona ✅
 ```typescript
-typealias BoxInt = Array<int>  // Parse Error
+var x: Array<int> = [1, 2, 3]
+var y: Optional<int> = 10
+func f(arr: Array<int>): int { return arr[0] }
+var z: Optional<Array<int>> = null
+typealias X = int[]   // açúcar funciona
 ```
 
-### Expected Behavior
-`Array<int>` should be a valid type annotation equivalent to `int[]`, since `GenericTypeNode` with `name: "Array"` is the canonical form.
+### Falha ❌
+```typescript
+typealias X = Array<int>     // Parse Error: ANDROX_TAG
+typealias Y = Optional<int>  // Parse Error: ANDROX_TAG
+```
+
+### Root Cause
+O lexer (linha ~40, ~648–838) entra em modo ANDROX_TAG quando encontra `<` após `=`. O `<` é consumido como abertura de tag XML, e o identificador seguinte (`int`) é tratado como nome de tag.
+
+### Fix
+Desativar ANDROX_TAG em contextos de tipo ou refatorar o lexer para ser sensível a contexto. Alternativa: mudar a sintaxe de genéricos (ex: `Array[int]` em vez de `Array<int>`).
 
 ---
 
@@ -200,8 +213,8 @@ typealias BoxInt = Array<int>  // Parse Error
 | #8 — inferLiteralType resolveAlias | 🟡 Medium | Float coercion with typealiased float type | ✅ **Fixed** |
 | #9 — checkReturnStmt getExprToken | 🟡 Medium | Error positions for return type mismatches | ✅ **Fixed** |
 | #5 — getTypeNodeName missing cases | 🟡 Medium | Debug output only | ✅ **Fixed** |
-| #10 — Parser Array<T> syntax | 🟢 Low | Edge case syntax | P3 |
-| #1 — Array<T> vs T[] mismatch | 🟡 Medium | Mixed representation during transition | Ongoing |
+| #10 — Array<T>/Optional<T> syntax in typealias RHS | 🟢 Low | typealias edge case with ANDROX_TAG | P3 |
+| #1 — Array<T> vs T[] mismatch | 🟡 Medium | Mixed representation during transition | ✅ **Fixed** (normalizeType) |
 | #2 — Spread union types | 🟡 Medium | Array spread inference | Backlog |
 | #3 — Empty array inference | 🟢 Low | UX improvement | Backlog |
 | #4 — Multi-dimensional array validation | 🟢 Low | Edge case | Backlog |
@@ -232,11 +245,13 @@ typealias BoxInt = Array<int>  // Parse Error
 | File | Purpose |
 |------|---------|
 | `src/semantic/TypeChecker.ts` | Main type checker — bugs #1, #2, #3, #4, #6, #7, #8, #9 |
-| `src/parser/parser.ts` | Parser — bugs #5, #10 |
-| `src/ast.ts` | AST node definitions — GenericTypeNode, ArrayTypeNode |
+| `src/parser/parser.ts` | Parser — bugs #5, #10 (partial: parseNamedTypeWithGenerics) |
+| `src/lexer/lexer.ts` | Lexer ANDROX_TAG mode — bug #10 (root cause) |
+| `src/ast.ts` | AST node definitions — GenericTypeNode, ArrayTypeNode, NullableTypeNode |
 | `src/semantic/errors.ts` | Error codes and factory |
 | `src/semantic/Environment.ts` | Scope management |
+| `tests/test_generic_explicit.med` | Test suite for explicit generic syntax |
 
 ---
 
-**Last Updated:** May 9, 2026 (Bugs #6, #7, #8, #9 fixed)
+**Last Updated:** May 10, 2026 (Bug #10 updated with ANDROX_TAG findings; Bug #1 marked Fixed via normalizeType in TypeChecker)

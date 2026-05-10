@@ -1408,6 +1408,7 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(typeNode);
       }
+      console.log(`DEBUG - [${this.getTypeNodeName(typeNode)}]`);
       return typeNode;
     }
     if (typeToken.type === TokenType.FLOAT_TYPE) {
@@ -1577,6 +1578,7 @@ export class Parser {
       if (this.check(TokenType.PIPE)) {
         return this.parseUnionType(baseType);
       }
+      console.log(`DEBUG - [${this.getTypeNodeName(baseType)}]`);
       return baseType;
     }
 
@@ -2158,11 +2160,12 @@ export class Parser {
     if (this.check(TokenType.LBRACKET)) {
       baseType = this.parseArrayType(baseType);
     }
-    if (this.check(TokenType.PIPE)) {
-      return this.parseUnionType(baseType);
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(baseType);
+      }
+      console.log(`DEBUG - [${this.getTypeNodeName(baseType)}]`);
+      return baseType;
     }
-    return baseType;
-  }
 
   // ========================================
   // Protocol Statement

@@ -1,0 +1,96 @@
+// ============================================================
+// TESTE: Optional<T> (T?) — validação completa
+// ============================================================
+
+// ── Básico: int? aceita int ou null ────────────────────────
+val o1: int? = 42
+val o2: int? = null
+val o3: string? = "hello"
+val o4: string? = null
+val o5: bool? = true
+val o6: bool? = null
+val o7: float? = 3.14
+val o8: float? = null
+
+// ── Typealias com Optional ─────────────────────────────────
+typealias OptInt = int?
+typealias MaybeString = string?
+
+val o9: OptInt = 10
+val o10: OptInt = null
+val o11: MaybeString = "ok"
+val o12: MaybeString = null
+
+// ── Array de Optionals (int?[]) ────────────────────────────
+var o13: int?[] = [1, null, 3]
+var o14: string?[] = ["a", null, "c"]
+var o15: bool?[] = [true, null, false]
+var o16: float?[] = [1.0, null, 3.14]
+
+// Indexar em array de optionals
+val o17 = o13[0]  // int?
+val o18 = o14[1]  // string?
+
+// Atribuir em array de optionals
+o13[0] = 99
+o13[1] = null
+
+// ── Optional Array (int[]?) ────────────────────────────────
+var o19: int[]? = [1, 2, 3]
+var o20: int[]? = null
+var o21: string[]? = ["a", "b"]
+var o22: string[]? = null
+
+// Indexar em nullable array (desembrulha Optional)
+val o23 = o19[0]  // int
+
+// ── Optional Array de Optionals (int?[]?) ─────────────────
+var o24: int?[]? = [1, null, 3]
+var o25: int?[]? = null
+
+// ── Array de Optional Arrays (int[]?)[] ───────────────────
+// var o26: (int[]?)[] — comentado, sem initializer viável
+
+// ── Função com parâmetro Optional ─────────────────────────
+func f1(x: int?): string {
+  if (x != null) {
+    return "not null"
+  }
+  return "null"
+}
+
+// Chamar função com Optional
+val o27 = f1(42)
+val o28 = f1(null)
+val o29 = f1(o1)  // int? → int?
+
+// ── Função retornando Optional ────────────────────────────
+func f2(flag: bool): int? {
+  if (flag) {
+    return 42
+  }
+  return null
+}
+
+val o30 = f2(true)
+val o31 = f2(false)
+
+// ── Arrow function com contexto Optional ──────────────────
+var o32: (int?) => string = (x: int?): string => "ok"
+
+// ── Spread com Optional ──────────────────────────────────
+var o33: int?[] = [1, null, 3]
+val o34: int?[] = [...o33, 5, null]
+
+// ── Nullish coalescing ───────────────────────────────────
+val o35: int = o1 ?? 0
+val o36: string = o4 ?? "default"
+
+// ============================================================
+// EXPECTED ERRORS — devem compilar com 0 erros (estes são
+// testes de aceitação, não de erro)
+// ============================================================
+
+// int? aceita null (deve passar)
+// int? aceita int (deve passar)
+// null só é compatível com Optional ou Union que contenha null

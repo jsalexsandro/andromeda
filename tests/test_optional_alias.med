@@ -1,0 +1,141 @@
+// ============================================================
+// TESTE: Typealias + Optional — combinações profundas
+// ============================================================
+
+// ── Básico: typealias + ? ─────────────────────────────────
+typealias MaybeString = string
+const a1: MaybeString? = null
+const a2: MaybeString? = "hello"
+
+typealias MaybeInt = int
+const a3: MaybeInt? = null
+const a4: MaybeInt? = 42
+
+typealias MaybeFloat = float
+const a5: MaybeFloat? = null
+const a6: MaybeFloat? = 3.14
+
+typealias MaybeBool = bool
+const a7: MaybeBool? = null
+const a8: MaybeBool? = true
+
+// ── typealias de Optional (alias de T?) ───────────────────
+typealias OptInt = int?
+const b1: OptInt = null
+const b2: OptInt = 42
+
+typealias OptStr = string?
+const b3: OptStr = null
+const b4: OptStr = "ok"
+
+typealias OptFloat = float?
+const b5: OptFloat = null
+const b6: OptFloat = 1.5
+
+// ── Alias de alias + ? ──────────────────────────────────
+typealias Id = int
+typealias MaybeId = Id?
+const c1: MaybeId = null
+const c2: MaybeId = 99
+
+typealias Name = string
+typealias MaybeName = Name?
+const c3: MaybeName = null
+const c4: MaybeName = "alice"
+
+typealias DeepAlias = MaybeId
+const c5: DeepAlias = null
+const c6: DeepAlias = 10
+
+// ── Array de aliased optionals (T?[]) ────────────────────
+typealias Str = string
+var d1: Str?[] = ["a", null, "c"]
+var d2: Str?[] = [null]
+
+typealias Num = int
+var d3: Num?[] = [1, null, 3]
+
+// Indexar
+val d4 = d1[0]  // string?
+val d5 = d3[1]  // int?
+
+// Atribuir
+d1[0] = "z"
+d1[1] = null
+
+// ── Optional array de aliased (T[]?) ─────────────────────
+typealias Id2 = int
+var e1: Id2[]? = [1, 2, 3]
+var e2: Id2[]? = null
+
+// Indexar (desembrulha Optional)
+val e3 = e1[0]  // int
+
+// ── T[]? onde T é typealias ──────────────────────────────
+typealias Row = int[]
+var f1: Row? = [1, 2, 3]
+var f2: Row? = null
+
+typealias Matrix = int[][]
+var f3: Matrix? = [[1, 2], [3, 4]]
+var f4: Matrix? = null
+
+// ── Função com parâmetro typealias + ? ─────────────────────
+typealias UserId = int
+
+func g1(id: UserId?): string {
+  if (id != null) {
+    return "has id"
+  }
+  return "no id"
+}
+
+val g2 = g1(null)
+val g3 = g1(42)
+
+// ── Função retornando typealias + ? ────────────────────────
+typealias Score = int
+
+func h1(flag: bool): Score? {
+  if (flag) {
+    return 100
+  }
+  return null
+}
+
+val h2 = h1(true)
+val h3 = h1(false)
+
+// ── Arrow function com contexto de typealias + ? ───────────
+typealias Callback = (int?) => string
+
+var i1: Callback = (x: int?): string => "ok"
+
+// ── Spread com typealias + ? ─────────────────────────────
+typealias OptNum = int?
+var j1: OptNum[] = [1, null, 3]
+val j2: OptNum[] = [...j1, 5, null]
+
+// ── Union com typealias + ? ──────────────────────────────
+typealias StrOrNull = string | null
+const k1: StrOrNull = null
+const k2: StrOrNull = "hi"
+
+// ── Cross: int? vs int | null (devem ser compatíveis) ────
+const l1: int? = null
+const l2: int? = 42
+typealias IntOrNull = int | null
+const l3: IntOrNull = null
+const l4: IntOrNull = 42
+
+// Esperado: int | null deve passar onde int? é esperado
+const l5: int? = null
+const l6: int? = 42
+
+// ── Nullish coalescing com typealias + ? ─────────────────
+typealias DefInt = int?
+const m1: DefInt = null
+val m2: int = m1 ?? 0
+
+// ── ASSERT: nenhum erro esperado abaixo desta linha ──────
+// Todos os casos acima devem compilar com 0 erros

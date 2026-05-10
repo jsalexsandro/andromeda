@@ -1,0 +1,99 @@
+// ============================================================
+// TESTE: Explicit Generic Syntax — Array<T>, Optional<T>
+// Sem açúcar: escrever Array<string> em vez de string[]
+//
+// Array<T> e Optional<T> funcionam em contexto de anotação
+// de tipo (antes de `=`), mas NÃO em typealias RHS (após `=`)
+// porque `<` após `=` ativa ANDROX_TAG no lexer.
+//
+// ✅ var x: Array<int> = [1, 2, 3]
+// ✅ func f(x: Optional<int>): void { }
+// ❌ typealias X = Array<int>
+// ✅ typealias X = int[]  ← use açúcar
+// ============================================================
+
+// ── Array<T> explícito (anotação, antes de =) ────────────
+var a1: Array<int> = [1, 2, 3]
+var a2: Array<string> = ["a", "b", "c"]
+var a3: Array<float> = [1.0, 2.5]
+var a4: Array<bool> = [true, false]
+
+// ── Optional<T> explícito (anotação, antes de =) ──────────
+var b1: Optional<int> = 42
+var b2: Optional<int> = null
+var b3: Optional<string> = "hello"
+var b4: Optional<string> = null
+var b5: Optional<bool> = true
+var b6: Optional<bool> = null
+var b7: Optional<float> = 3.14
+var b8: Optional<float> = null
+
+// ── Array<Optional<T>> (equivalente a T?[]) ──────────────
+var c1: Array<Optional<int>> = [1, null, 3]
+var c2: Array<Optional<string>> = ["a", null, "c"]
+
+// Indexar
+val c3 = c1[0]  // Optional<int>
+
+// ── Optional<Array<T>> (equivalente a T[]?) ──────────────
+var d1: Optional<Array<int>> = [1, 2, 3]
+var d2: Optional<Array<int>> = null
+
+// Indexar (desembrulha Optional)
+val d3 = d1[0]  // int
+
+// ── Nested: Optional<Array<Optional<T>>> ─────────────────
+var e1: Optional<Array<Optional<int>>> = [1, null, 3]
+var e2: Optional<Array<Optional<int>>> = null
+
+// ── Array<Array<T>> (equivalente a T[][]) ──────────────
+var f1: Array<Array<int>> = [[1, 2], [3, 4]]
+val f2 = f1[0]  // Array<int>
+
+// ── Typealias: usar açúcar (Array<T> e Optional<T> não
+//    funcionam após = devido a ANDROX_TAG no lexer) ──────
+typealias IntList = int[]
+typealias MaybeInt = int?
+
+var g1: IntList = [1, 2, 3]
+var g2: MaybeInt = 42
+var g3: MaybeInt = null
+
+// ── Typealias de typealias (simples, sem <>) ──────────
+typealias DeepList = IntList
+var h1: DeepList = [1, 2, 3]
+
+// ── Mix: açúcar + explícito (devem ser compatíveis) ────
+// Ambos produzem GenericType(Array, [int])
+var i1: int[] = [1, 2, 3]
+var i2: Array<int> = i1
+
+var i3: int? = 42
+var i4: Optional<int> = i3
+
+// ── Função com Array<T> param ───────────────────────────
+func j1(arr: Array<int>): int {
+  return arr[0]
+}
+
+val j2 = j1([1, 2, 3])
+
+// ── Função com Optional<T> param ────────────────────────
+func k1(x: Optional<int>): string {
+  if (x != null) {
+    return "ok"
+  }
+  return "null"
+}
+
+val k2 = k1(42)
+val k3 = k1(null)
+
+// ── Arrow function com Array<T> contexto ────────────────
+var l1: (Array<int>) => int = (arr: Array<int>): int => arr[0]
+
+// ── Spread com Array<T> explícito ──────────────────────
+var m1: Array<int> = [1, 2, 3]
+val m2: Array<int> = [...m1, 4, 5]
+
+// ── ASSERT: nenhum erro abaixo desta linha ──────────────
