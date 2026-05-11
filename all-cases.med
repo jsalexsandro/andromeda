@@ -188,3 +188,5 @@ val r6: string = greet(...empty2, "world")  // runtime risco mas compiletime OK
 // [OK] spread de nullable element array
 val nullable_nums: int[] = [1, 2, 3]
 val with_nullable: int[] = [...nullable_nums, 4]
+
+

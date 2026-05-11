@@ -29,7 +29,10 @@ export type ErrorCode =
   | "HETEROGENEOUS_ARRAY"
   | "TUPLE_SIZE_MISMATCH"
   | "TUPLE_IMMUTABLE"
-  | "SPREAD_IN_TUPLE";
+  | "SPREAD_IN_TUPLE"
+  | "GENERIC_ARG_COUNT"
+  | "NOT_GENERIC"
+  | "GENERIC_INFERENCE_FAILED";
 
 export class SemanticError {
   constructor(
@@ -143,5 +146,20 @@ export const Errors = {
   spreadInTuple: (token: Token) =>
     createError("SPREAD_IN_TUPLE",
       "spread not allowed in fixed-size tuple",
+      token, "typecheck"),
+
+  genericArgCount: (name: string, expected: number, got: number, token: Token) =>
+    createError("GENERIC_ARG_COUNT",
+      `Generic function '${name}' expects ${expected} type argument(s), got ${got}`,
+      token, "typecheck"),
+
+  notGeneric: (name: string, token: Token) =>
+    createError("NOT_GENERIC",
+      `Function '${name}' is not generic`,
+      token, "typecheck"),
+
+  genericInferenceFailed: (param: string, token: Token) =>
+    createError("GENERIC_INFERENCE_FAILED",
+      `Could not infer type for '${param}'`,
       token, "typecheck"),
 };

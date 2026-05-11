@@ -1,0 +1,242 @@
+// ============================================================
+// GENERIC FUNCTION STRESS TESTS
+// ============================================================
+
+// ============================================================
+// BLOCO 1 — GENERIC BÁSICO
+// ============================================================
+
+func identity<T>(x: T): T {
+  return x
+}
+
+val a1: int = identity<int>(42)
+val a2: string = identity<string>("hello")
+val a3: bool = identity<bool>(true)
+
+// inference
+val a4: int = identity(99)
+val a5: string = identity("world")
+
+// ============================================================
+// BLOCO 2 — MÚLTIPLOS TYPE PARAMS
+// ============================================================
+
+func second<A, B>(a: A, b: B): B {
+  return b
+}
+
+val b1: string = second<int, string>(1, "ok")
+val b2: bool = second<float, bool>(3.14, true)
+
+// inference
+val b3: string = second(1, "hello")
+val b4: bool = second("x", false)
+
+// ============================================================
+// BLOCO 3 — ARRAYS GENÉRICOS
+// ============================================================
+
+func first<T>(arr: T[]): T {
+  return arr[0]
+}
+
+val c1: int = first<int>([1, 2, 3])
+val c2: string = first<string>(["a", "b"])
+
+// inference
+val c3: int = first([10, 20])
+val c4: string = first(["x", "y"])
+
+// ============================================================
+// BLOCO 4 — GENERIC RETORNANDO ARRAY
+// ============================================================
+
+func duplicate<T>(x: T): T[] {
+  return [x, x]
+}
+
+val d1: int[] = duplicate<int>(42)
+val d2: string[] = duplicate<string>("hello")
+
+// inference
+val d3: bool[] = duplicate(true)
+
+// ============================================================
+// BLOCO 5 — GENERIC COM NULLABLE
+// ============================================================
+
+func nullableIdentity<T>(x: T?): T? {
+  return x
+}
+
+val e1: int? = nullableIdentity<int>(42)
+val e2: int? = nullableIdentity<int>(null)
+
+val e3: string? = nullableIdentity("hello")
+val e4: string? = nullableIdentity(null)
+
+// ============================================================
+// BLOCO 6 — GENERIC COM FUNCTION TYPE
+// ============================================================
+
+func call<T>(fn: () => T): T {
+  return fn()
+}
+
+val f1: int = call<int>(() : int => 42)
+val f2: string = call<string>(() : string => "hello")
+
+// ============================================================
+// BLOCO 7 — GENERIC COM ARRAY DE FUNCTIONS
+// ============================================================
+
+func takeFirstFn<T>(arr: (() => T)[]): T {
+  return arr[0]()
+}
+
+val g1: int = takeFirstFn<int>([
+  (): int => 10,
+  (): int => 20
+])
+
+// ============================================================
+// BLOCO 8 — GENERIC NESTED TYPES
+// ============================================================
+
+func wrap<T>(x: T): T {
+  return x
+}
+
+val h1: int[] = wrap<int[]>([1, 2, 3])
+val h2: string[][] = wrap<string[][]>([["a"], ["b"]])
+
+// ============================================================
+// BLOCO 9 — GENERIC + UNION
+// ============================================================
+
+func pass<T>(x: T): T {
+  return x
+}
+
+val i1: int | string = pass<int | string>(42)
+val i2: int | string = pass<int | string>("hello")
+
+// ============================================================
+// BLOCO 10 — GENERIC + TYPEALIAS
+// ============================================================
+
+typealias UserId = int
+
+func get<T>(x: T): T {
+  return x
+}
+
+val j1: UserId = get<UserId>(1)
+
+// ============================================================
+// BLOCO 11 — GENERIC RECURSIVO SIMPLES
+// ============================================================
+
+func self<T>(x: T): T {
+  return self<T>(x)
+}
+
+// ============================================================
+// BLOCO 12 — GENERIC COM MULTI-DIM ARRAY
+// ============================================================
+
+func matrix<T>(x: T[][]): T[][] {
+  return x
+}
+
+val k1: int[][] = matrix<int>([[1, 2], [3, 4]])
+val k2: string[][] = matrix<string>([["a"], ["b"]])
+
+// ============================================================
+// BLOCO 13 — GENERIC COM SPREAD
+// ============================================================
+
+func clone<T>(arr: T[]): T[] {
+  return [...arr]
+}
+
+val l1: int[] = clone<int>([1, 2, 3])
+val l2: string[] = clone<string>(["a", "b"])
+
+// ============================================================
+// BLOCO 14 — TYPE ARG COUNT ERRORS
+// ============================================================
+
+// EXPECTED: GENERIC_ARG_COUNT
+// val m1 = identity<int, string>(42)
+
+// EXPECTED: GENERIC_ARG_COUNT
+// val m2 = second<int>(1, "hello")
+
+// ============================================================
+// BLOCO 15 — INVALID INFERENCE
+// ============================================================
+
+// EXPECTED: TYPE_MISMATCH
+// val n1: int = identity("hello")
+
+// EXPECTED: TYPE_MISMATCH
+// val n2: string = first([1, 2, 3])
+
+// ============================================================
+// BLOCO 16 — NON GENERIC CALL
+// ============================================================
+
+func normal(x: int): int {
+  return x
+}
+
+// EXPECTED: NOT_GENERIC
+// val o1 = normal<int>(42)
+
+// ============================================================
+// BLOCO 17 — DUPLICATE TYPE PARAMS
+// ============================================================
+
+// EXPECTED: ALREADY_DECLARED
+// func bad<T, T>(x: T): T {
+//   return x
+// }
+
+// ============================================================
+// BLOCO 18 — GENERIC COM INDEXAÇÃO
+// ============================================================
+
+func index<T>(arr: T[], i: int): T {
+  return arr[i]
+}
+
+val p1: int = index<int>([1, 2, 3], 0)
+val p2: string = index<string>(["a", "b"], 1)
+
+// ============================================================
+// BLOCO 19 — GENERIC COM ARRAY NULLABLE
+// ============================================================
+
+func nullableArray<T>(arr: T[]?): T[]? {
+  return arr
+}
+
+val q1: int[]? = nullableArray<int>([1, 2])
+val q2: int[]? = nullableArray<int>(null)
+
+// ============================================================
+// BLOCO 20 — TESTE PESADO DE INFERENCE
+// ============================================================
+
+func choose<T>(a: T, b: T): T {
+  return a
+}
+
+val r1 = choose(1, 2)
+val r2 = choose("a", "b")
+val r3 = choose([1, 2], [3, 4])
+
+// EXPECTED: TYPE_MISMATCH
+// val r4 = choose(1, "hello")

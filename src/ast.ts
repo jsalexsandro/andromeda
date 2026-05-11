@@ -408,6 +408,7 @@ export interface FunctionTypeNode {
   kind: "FunctionType"
   params: (TypeNode & { isRest?: boolean })[]
   returnType: TypeNode
+  typeParameters?: TypeParameterNode[]
 }
 
 // T | U | null — union

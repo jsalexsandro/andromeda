@@ -239,13 +239,117 @@ val map: Array<string> = ["a", "b"]
 // val dict: Map<string, int> = { "a": 1 }
 ```
 
-### Custom Generics (Planned)
+---
+
+### Generic Functions
+
+Functions can be parameterized with type parameters using `<T>` syntax:
 
 ```typescript
-// Future syntax (not fully implemented)
-// typealias Container<T> = T?
-// val a: Container<int> = 42
+// Generic function with one type parameter
+func identity<T>(x: T): T {
+  return x
+}
+
+// Generic function with multiple type parameters
+func pair<A, B>(a: A, b: B): B {
+  return b
+}
+
+// Generic function with type parameter used in multiple params
+func add<T>(n1: T, n2: T): T {
+  return n1
+}
 ```
+
+#### Generic Function Call
+
+Explicit type arguments via `<Type>` before `(`:
+
+```typescript
+val x1 = identity<int>(42)
+val x2 = identity<string>("hello")
+val x3 = add<int>(1, 2)
+val x4 = pair<int, string>(1, "hi")
+```
+
+#### Type Inference
+
+If type arguments are omitted, the compiler infers them from the argument types:
+
+```typescript
+val x1 = identity(42)            // infers T → int
+val x2 = add(1, 2)               // infers T → int
+```
+
+Inference traverses nested types recursively:
+
+```typescript
+func deep<T>(x: T[][][]): T[][][] { return x }
+val d1 = deep([[[1]]])           // infers T → int (3D array unwrapped)
+
+func nullableIdentity<T>(x: T?): T? { return x }
+val n1 = nullableIdentity(42)    // infers T → int (NullableType unwrapped)
+
+func apply<T>(x: T, fn: (T) => T): T { return fn(x) }
+val a1 = apply("hi", (s) => s)   // infers T → string (FunctionType unwrapped)
+```
+
+#### Bidirectional Type Inference
+
+If a type parameter cannot be inferred from the arguments alone, the compiler
+uses **bidirectional inference**: it examines the expected return type
+(`contextualType`) provided by the surrounding context:
+
+```typescript
+// T cannot be inferred from null alone, but the annotation provides it:
+val f: int? = maybe(null)        // ⬅ annotation "int?" tells compiler T → int
+
+func make<T>(): T { return make<T>() }
+val x: string = make()           // ⬅ annotation "string" tells compiler T → string
+```
+
+The contextual type flows from:
+- **Variable type annotations**: `val x: int = identity(42)`
+- **Function return type expectations**: `return identity(42)` with expected return
+- **Array element types**: `var arr: int[] = [identity(42)]`
+
+#### GENERIC_INFERENCE_FAILED
+
+**When a type parameter cannot be inferred from any source, the compiler reports an error.**
+
+Three sources are consulted (in order):
+
+1. **Argument types** — `T` is matched against concrete argument types
+2. **Return type context** — the expected type of the expression (bidirectional)
+3. **Explicit type arguments** — `<Type>` syntax
+
+If all three fail to determine `T`, the error `GENERIC_INFERENCE_FAILED` is emitted:
+
+```typescript
+func maybe<T>(x: T?): T? { return x }
+val a = maybe(null)               // ❌ GENERIC_INFERENCE_FAILED: null provides no type
+
+func empty<T>(): T { return empty<T>() }
+val b = empty()                   // ❌ GENERIC_INFERENCE_FAILED: no arguments, no context
+```
+
+To fix, provide the missing information:
+
+```typescript
+val a = maybe<int>(null)          // ✅ explicit type argument
+val a: int? = maybe(null)         // ✅ contextual type from annotation
+val a = maybe(42)                 // ✅ concrete argument infers T → int
+```
+
+#### Error Cases
+
+| Error | Example | Message |
+|-------|---------|---------|
+| Wrong type arg count | `add<int, string>(1)` (func has `<T>`) | `Generic function 'add' expects 1 type argument(s), got 2` |
+| Not generic | `foo<int>()` (func `foo()` is not generic) | `Function 'foo' is not generic` |
+| Duplicate type param | `func add<T, T>()` | `'T' is already declared` |
+| Inference failed | `maybe(null)` with no context | `Could not infer type for 'T'` |
 
 ---
 
@@ -254,7 +358,14 @@ val map: Array<string> = ["a", "b"]
 ### Syntax
 
 ```typescript
+// Regular function
 func functionName(param1: Type1, param2: Type2): ReturnType {
+  // body
+  return value
+}
+
+// Generic function
+func functionName<T, U>(param1: T, param2: U): ReturnType {
   // body
   return value
 }
@@ -275,6 +386,17 @@ func process(x: int): int | string {
   }
   return "negative"
 }
+
+// Generic function
+func identity<T>(x: T): T {
+  return x
+}
+
+// Generic function with explicit type args
+val r1: int = identity<int>(42)
+
+// Generic function with inference
+val r2: string = identity("hello")
 
 // Function call
 val result: int = add(1, 2)
@@ -552,7 +674,12 @@ val x: int = 10  // Comment at end of line
 typealias ID = int
 typealias UserData = ID | string
 
-// Function
+// Generic function
+func identity<T>(x: T): T {
+  return x
+}
+
+// Regular function
 func greet(name: string): string {
   return "Hello, " + name
 }
@@ -560,6 +687,12 @@ func greet(name: string): string {
 // Variables
 val userId: ID = 123
 var count: int = 0
+
+// Generic function call with type inference
+val inferred = identity(42)     // T → int
+
+// Generic function call with explicit type args
+val explicit = identity<string>("hello")
 
 // Array with spread
 val numbers: int[] = [1, 2, 3]
@@ -587,19 +720,24 @@ val result: int = double(5)
 
 ---
 
+## Implemented Features (✓)
+
+- [x] **For loops** - `for (var i: int = 0; i < 10; i++)`
+- [x] **Ternary Operator** - `condition ? a : b`
+- [x] **Nullish Coalescing** - `??` operator
+- [x] **Generic Functions** - `func foo<T>(x: T): T`
+- [x] **Bidirectional Type Inference** - contextual type participates in generic inference
+
+
 ## Planned Features (Not Yet Implemented)
 
-- [ ] **For loops** - `for (val i: int = 0; i < 10; i++)`
 - [ ] **Classes** - Object-oriented programming
 - [ ] **Androx** - JSX-like syntax native to the language
 - [ ] **Import/Export** - Module system
 - [ ] **Template Literals** - String interpolation
-- [ ] **Ternary Operator** - `condition ? a : b`
-- [ ] **Nullish Coalescing** - `??` operator
 - [ ] **Async/Await** - Asynchronous programming
-- [ ] **Enums** - Enumerated types
-- [ ] **Protocols/Interfaces** - Type contracts
-- [ ] **Structs** - Value types
+- [ ] **Generic type aliases** - `typealias Container<T> = T`
+- [ ] **Generic Arrow Functions** - `<T>(x: T): T => x`
 
 ---
 
@@ -628,4 +766,4 @@ bun src/main.ts version
 ---
 
 **Documentation Version:** 1.0.2  
-**Last Updated:** April 2026
+**Last Updated:** May 2026

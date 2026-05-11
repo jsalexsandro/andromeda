@@ -1,4 +1,0 @@
-typealias name<T> = T
-
-
-app<js>

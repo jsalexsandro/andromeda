@@ -1,7 +1,7 @@
 import { Token } from "../lexer/types";
 import { TypeNode } from "../ast";
 
-export type SymbolKind = "variable" | "function" | "type" | "struct" | "enum" | "protocol" | "parameter";
+export type SymbolKind = "variable" | "function" | "type" | "struct" | "enum" | "protocol" | "parameter" | "typeParam";
 
 export interface Symbol {
   name: string;
@@ -10,6 +10,7 @@ export interface Symbol {
   mutable: boolean;
   initialized: boolean;
   declarationToken?: Token;
+  constraint?: TypeNode;
 }
 
 export function createSymbol(

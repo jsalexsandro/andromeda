@@ -1,0 +1,278 @@
+# Semantic Analyzer — Generic System Plan
+
+> Estratégia: o sistema genérico é uma camada **transversal** do semantic.
+> O core é implementado **uma vez** e reutilizado em func, typealias, struct, enum, protocol.
+> O semantic **não transforma** o AST — ele **anota** (types) e **reporta erros**.
+
+---
+
+## CORE — Infraestrutura Genérica (fazer primeiro, base de tudo)
+
+> Tudo que vem depois depende dessas peças. Não pule essa fase.
+
+### GenericContext
+- [ ] Criar interface `GenericContext`
+  - [ ] `params: string[]` — nomes dos type params: `["T", "U"]`
+  - [ ] `constraints: Map<string, TypeNode>` — `T extends Comparable`
+  - [ ] `defaults: Map<string, TypeNode>` — `T = string`
+
+### SubstitutionMap
+- [ ] Criar tipo `SubstitutionMap = Map<string, TypeNode>`
+- [ ] Criar `buildSubstitutionMap(params: string[], args: TypeNode[]): SubstitutionMap`
+  - [ ] Verificar que `params.length === args.length`
+  - [ ] Mapear `{ T → int, U → string }`
+
+### substituteType — coração do sistema
+- [ ] Criar `substituteType(type: TypeNode, map: SubstitutionMap): TypeNode`
+  - [ ] `PrimitiveTypeNode` → retorna igual (primitivos não são substituídos)
+  - [ ] `NamedTypeNode` → verifica se o nome está no map → substitui
+  - [ ] `GenericTypeNode` → substitui recursivamente cada `arg`
+  - [ ] `ArrayTypeNode` → substitui `elementType` recursivamente
+  - [ ] `NullableTypeNode` → substitui `type` interno
+  - [ ] `UnionTypeNode` → substitui cada membro do `types[]`
+  - [ ] `TupleTypeNode` → substitui cada `element`
+  - [ ] `FunctionTypeNode` → substitui `params[]` e `returnType`
+  - [ ] `GroupingTypeNode` → substitui `type` interno
+  - [ ] `LiteralTypeNode` → retorna igual
+
+### validateGenericArgs
+- [ ] Criar `validateGenericArgs(host: GenericContext, args: TypeNode[], token: Token): void`
+  - [ ] Nenhum arg passado e host tem params → erro: `"esperava N tipo(s) genérico(s)"`
+  - [ ] `args.length !== params.length` → erro: `"esperava N, recebeu M"`
+  - [ ] Cada arg deve ser um TypeNode válido (chamar `validateTypeAnnotation`)
+  - [ ] Se param tem `constraint` → verificar compatibilidade do arg com a constraint
+
+### inferGenericArgs — type inference
+- [ ] Criar `inferGenericArgs(params: string[], paramTypes: TypeNode[], callArgTypes: TypeNode[]): SubstitutionMap | null`
+  - [ ] Percorrer `paramTypes` tentando unificar com `callArgTypes`
+  - [ ] Se `paramType` é `NamedType` e nome está em `params` → bind `T → callArgType`
+  - [ ] Se conflito (T inferido como `int` e depois como `string`) → retorna `null`
+  - [ ] Se não conseguir inferir todos os params → retorna `null`
+  - [ ] Retorna o map completo se conseguir inferir tudo
+
+### isGenericHost
+- [ ] Criar helper `hasGenerics(typeParameters?: TypeParameterNode[]): boolean`
+- [ ] Criar helper `extractGenericContext(typeParameters: TypeParameterNode[]): GenericContext`
+
+---
+
+## Fase 6.3a — FunctionStmt com Generics
+
+> Parser já suporta. Reutiliza o CORE acima.
+
+### Declaração
+- [ ] Detectar `FunctionStmt.typeParameters` → função genérica
+- [ ] Antes de checar params e body: chamar `extractGenericContext(typeParameters)`
+- [ ] `enterScope()` para o escopo da função
+- [ ] Registrar cada `TypeParameterNode` no escopo como `kind: "typeParam"`
+  - [ ] `define("T", { kind: "typeParam", name: "T", constraint: ... })`
+- [ ] Validar `constraint` de cada TypeParameter (se existir)
+  - [ ] Constraint deve ser um tipo conhecido no escopo
+- [ ] Validar `default` de cada TypeParameter (se existir)
+  - [ ] Default deve ser compatível com a constraint (se houver)
+- [ ] Checar params normalmente — `NamedTypeNode` que bate com `T` é válido
+- [ ] Checar `returnType` normalmente — pode conter `T`
+- [ ] Registrar função no escopo com `genericContext` na Symbol
+
+### Symbol da Função Genérica
+- [ ] Adicionar ao `FunctionSymbol`:
+  - [ ] `genericContext: GenericContext | null`
+  - [ ] `paramTypes: TypeNode[]`
+  - [ ] `returnType: TypeNode`
+
+---
+
+## Fase 6.3b — ArrowFunction com Generics
+
+> Mesmas regras de FunctionStmt.
+
+- [ ] Detectar `ArrowFunctionExpr.typeParameters`
+- [ ] Registrar TypeParameters no escopo da arrow
+- [ ] Checar params com TypeParameters no escopo
+- [ ] Checar body (expr ou block) com TypeParameters no escopo
+- [ ] Inferir returnType se body é `Expr`
+  - [ ] returnType pode conter `T` → retornar como TypeNode genérico
+
+---
+
+## Fase 6.3c — CallExpr com Generics
+
+> Ponto onde a substituição acontece de fato.
+
+### Call com typeArgs explícitos — `add<int>(1, 2)`
+- [ ] Resolver callee → buscar Symbol no escopo
+- [ ] Verificar que Symbol é função genérica (`genericContext !== null`)
+  - [ ] Se não é genérica mas tem `typeArgs` → erro: `"função não é genérica"`
+- [ ] Chamar `validateGenericArgs(genericContext, typeArgs, token)`
+- [ ] Chamar `buildSubstitutionMap(params, typeArgs)` → `{ T → int }`
+- [ ] Para cada argumento:
+  - [ ] Resolver tipo do argumento
+  - [ ] Chamar `substituteType(paramType, map)` → tipo esperado
+  - [ ] Verificar compatibilidade
+- [ ] Retornar `substituteType(returnType, map)` como tipo da call
+
+### Call sem typeArgs — `add(1, 2)` (type inference)
+- [ ] Resolver callee → buscar Symbol
+- [ ] Verificar que Symbol é função genérica
+- [ ] Resolver tipos de todos os argumentos primeiro
+- [ ] Chamar `inferGenericArgs(params, paramTypes, argTypes)`
+  - [ ] Se retorna `null` → erro: `"não foi possível inferir tipos genéricos, use add<T>(...)"`
+  - [ ] Se retorna map → usar como substituição
+- [ ] Verificar argumentos com o map inferido
+- [ ] Retornar `substituteType(returnType, map)`
+
+### Erros esperados
+- [ ] `"add espera 1 tipo genérico, recebeu 2"` — args.length errado
+- [ ] `"argumento 1: esperava int, recebeu string"` — tipo incompatível após substituição
+- [ ] `"não foi possível inferir T — forneça os tipos explicitamente"`
+- [ ] `"T deve satisfazer a constraint Comparable"` — violação de constraint
+
+---
+
+## Fase 6.3d — TypeAliasStmt com Generics
+
+> `typealias Box<T> = T[]` / `typealias Pair<A, B> = { first: A, second: B }`
+
+### Declaração
+- [ ] Detectar `TypeAliasStmt.typeParameters`
+- [ ] `enterScope()` exclusivo para o alias
+- [ ] Registrar TypeParameters no escopo
+- [ ] Validar `type` do alias com TypeParameters no escopo
+- [ ] Registrar no escopo de tipos com `genericContext`
+- [ ] `exitScope()`
+
+### Uso do TypeAlias Genérico — `val x: Box<int>`
+- [ ] Detectar `GenericTypeNode` com nome que resolve para TypeAlias genérico
+- [ ] Chamar `validateGenericArgs`
+- [ ] Chamar `buildSubstitutionMap`
+- [ ] Chamar `substituteType(aliasType, map)` → expandir o alias
+- [ ] Retornar tipo expandido
+
+### Erros esperados
+- [ ] `"Box espera 1 tipo, recebeu 0"` — uso sem args
+- [ ] `"Box<int, string>: espera 1 tipo, recebeu 2"` — args demais
+
+---
+
+## Fase 6.3e — StructStmt com Generics
+
+> `struct Pair<T, U> { first: T; second: U }`
+
+### Declaração
+- [ ] Detectar `StructStmt.typeParameters`
+- [ ] `enterScope()` exclusivo para o struct
+- [ ] Registrar TypeParameters no escopo
+- [ ] Validar cada `StructField.type` com TypeParameters no escopo
+- [ ] Registrar Struct no escopo com `genericContext`
+- [ ] `exitScope()`
+
+### Instanciação — `val p: Pair<int, string>`
+- [ ] Detectar `GenericTypeNode` que resolve para Struct genérico
+- [ ] Chamar `validateGenericArgs`
+- [ ] Chamar `buildSubstitutionMap` → `{ T → int, U → string }`
+- [ ] Criar tipo concreto substituindo campos:
+  - [ ] `first: T` → `first: int`
+  - [ ] `second: U` → `second: string`
+- [ ] Registrar instância concreta (cache por args) para reuso
+
+### MemberExpr em Struct Genérico — `p.first`
+- [ ] Resolver tipo de `p` → `Pair<int, string>` → já tem map `{ T → int }`
+- [ ] Buscar campo `first` no Struct
+- [ ] Chamar `substituteType(field.type, map)` → `int`
+- [ ] Retornar tipo substituído
+
+### Erros esperados
+- [ ] `"campo 'first' não existe em Pair<int, string>"`
+- [ ] `"Pair espera 2 tipos, recebeu 1"`
+
+---
+
+## Fase 6.3f — EnumStmt com Generics
+
+> `enum Option<T> { Some(T); None }`
+> `enum Result<T, E> { Ok(T); Err(E) }`
+
+### Declaração
+- [ ] Detectar `EnumStmt.typeParameters`
+- [ ] `enterScope()` exclusivo para o enum
+- [ ] Registrar TypeParameters no escopo
+- [ ] Validar cada `EnumVariant.payload[]` com TypeParameters no escopo
+- [ ] Registrar Enum no escopo com `genericContext`
+- [ ] `exitScope()`
+
+### Uso — `val x: Option<int>`
+- [ ] Detectar `GenericTypeNode` que resolve para Enum genérico
+- [ ] Chamar `validateGenericArgs`
+- [ ] Chamar `buildSubstitutionMap` → `{ T → int }`
+- [ ] Substituir payloads:
+  - [ ] `Some(T)` → `Some(int)`
+  - [ ] `None` → `None` (sem payload, não muda)
+
+### Erros esperados
+- [ ] `"Option espera 1 tipo, recebeu 0"`
+- [ ] `"payload de Some: esperava int, recebeu string"`
+
+---
+
+## Fase 6.3g — ProtocolStmt com Generics
+
+> `protocol Comparable<T> { func compare(other: T): int }`
+
+### Declaração
+- [ ] Detectar `ProtocolStmt.typeParameters`
+- [ ] `enterScope()` exclusivo para o protocol
+- [ ] Registrar TypeParameters no escopo
+- [ ] Validar cada `ProtocolMethod` com TypeParameters no escopo
+- [ ] Registrar Protocol no escopo com `genericContext`
+- [ ] `exitScope()`
+
+### Conformidade de Struct — `struct User implements Comparable<User>`
+- [ ] Verificar que `Comparable<User>` é protocol genérico válido
+- [ ] Chamar `buildSubstitutionMap` → `{ T → User }`
+- [ ] Expandir métodos do protocol com substituição
+- [ ] Verificar que Struct implementa todos os métodos expandidos
+  - [ ] `compare(other: User): int` deve existir no Struct
+
+---
+
+## Ordem de Implementação
+
+```
+1️⃣  CORE
+     substituteType
+     buildSubstitutionMap
+     validateGenericArgs
+     inferGenericArgs
+
+2️⃣  FunctionStmt + ArrowFunction
+     (já tem parser, mais simples de testar)
+
+3️⃣  CallExpr
+     com typeArgs explícitos primeiro
+     depois type inference
+
+4️⃣  TypeAliasStmt
+     mais simples entre as estruturas
+
+5️⃣  StructStmt
+     incluindo MemberExpr em struct genérico
+
+6️⃣  EnumStmt
+
+7️⃣  ProtocolStmt + conformidade
+```
+
+---
+
+## Tabela de Erros do Sistema Genérico
+
+| Código | Mensagem | Onde |
+|--------|----------|------|
+| G001 | `"X espera N tipo(s) genérico(s), recebeu M"` | validateGenericArgs |
+| G002 | `"argumento N: esperava T, recebeu U"` | CallExpr |
+| G003 | `"não foi possível inferir T — use X<tipo>(...)"` | inferGenericArgs |
+| G004 | `"T deve satisfazer a constraint C"` | validateGenericArgs |
+| G005 | `"função X não é genérica"` | CallExpr com typeArgs |
+| G006 | `"tipo T conflita: inferido como int e string"` | inferGenericArgs |
+| G007 | `"struct X não implementa método Y de protocol Z"` | conformidade |
+| G008 | `"default de T deve ser compatível com constraint C"` | TypeParameter |

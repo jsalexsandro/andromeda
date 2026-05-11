@@ -1,0 +1,155 @@
+// ============================================================
+// ARMAGEDDON FINAL — GENERIC STRESS TESTS
+// ============================================================
+
+// ============================================================
+// TEST 1 — NESTED ARRAY INFERENCE
+// ============================================================
+
+func deep<T>(x: T[][][]): T[][][] {
+  return x
+}
+
+val a1 = deep([
+  [
+    [1, 2]
+  ]
+])
+
+val a2: int[][][] = deep([
+  [
+    [1]
+  ]
+])
+
+// ============================================================
+// TEST 2 — GENERIC COM FUNCTION PARAMS BIDIRECIONAL
+// ============================================================
+
+func apply<T>(x: T, fn: (T) => T): T {
+  return fn(x)
+}
+
+val b1 = apply<int>(10, (x: int): int => x + 1)
+
+val b2 = apply("hello", (x: string): string => x)
+
+// ============================================================
+// TEST 3 — INFERENCE VIA CALLBACK RETURN
+// ============================================================
+
+func produce<T>(fn: () => T): T {
+  return fn()
+}
+
+val c1 = produce((): int => 42)
+val c2 = produce((): string => "ok")
+
+// ============================================================
+// TEST 4 — GENERIC DENTRO DE GENERIC
+// ============================================================
+
+func unwrap<T>(x: T): T {
+  return x
+}
+
+func wrap<T>(x: T): T {
+  return unwrap<T>(x)
+}
+
+val d1 = wrap(42)
+val d2 = wrap("hello")
+
+// ============================================================
+// TEST 5 — GENERIC COM UNION INFERENCE
+// ============================================================
+
+func pair<T>(a: T, b: T): T {
+  return a
+}
+
+val e1 = pair<int | string>(1, "hello")
+
+// EXPECTED: TYPE_MISMATCH
+// val e2 = pair(1, "hello")
+
+// ============================================================
+// TEST 6 — GENERIC COM NULL INFERENCE
+// ============================================================
+
+func maybe<T>(x: T?): T? {
+  return x
+}
+
+val f1 = maybe(42)
+val f2 = maybe(null)
+
+// ============================================================
+// TEST 7 — GENERIC AUTO RECURSIVO
+// ============================================================
+
+func loop<T>(x: T): T {
+  return loop(x)
+}
+
+val g1 = loop(42)
+
+// ============================================================
+// TEST 8 — GENERIC COM ARRAYS HETEROGÊNEOS
+// ============================================================
+
+func first<T>(arr: T[]): T {
+  return arr[0]
+}
+
+// EXPECTED: TYPE_MISMATCH
+// val h1 = first([1, "hello"])
+
+// ============================================================
+// TEST 9 — SHADOWING DE TYPE PARAM
+// ============================================================
+
+func outer<T>(x: T): T {
+
+  func inner<T>(y: T): T {
+    return y
+  }
+
+  return inner(x)
+}
+
+// ============================================================
+// TEST 10 — GENERIC COM TYPEALIAS COMPLEXO
+// ============================================================
+// NOTA: typealias Box<T> = T[] ainda não é suportado pelo parser
+// (typealias genérico não implementado no parser)
+// Usamos o tipo diretamente:
+
+func take2<T>(x: T[]): T {
+  return x[0]
+}
+
+val i1 = take2<int>([1, 2, 3])
+
+// ============================================================
+// TEST 11 — GENERIC + HIGHER ORDER FUNCTION
+// ============================================================
+
+func map<T, U>(arr: T[], fn: (T) => U): U[] {
+  return []
+}
+
+val j1 = map<int, string>(
+  [1, 2, 3],
+  (x: int): string => "n"
+)
+
+// ============================================================
+// TEST 12 — INFERENCE COM RETURN ESPERADO
+// ============================================================
+
+func id<T>(x: T): T {
+  return x
+}
+
+val k1: int = id(42)

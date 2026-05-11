@@ -45,5 +45,5 @@ val nums: int[] = [10, 20]
 
 
 // testar muito
-var s = 2 + 3 (inferencia)
+var s = 2 + 3//   (inferencia)
 var t:string = "" // tipo bate com a atribuição

@@ -8,7 +8,6 @@ func add<T>(n1: T, n2: T): T {
 }
 
 func app<A, B>(n1: A, n2: B): B {
-  print(n1)
   return n2
 }
 

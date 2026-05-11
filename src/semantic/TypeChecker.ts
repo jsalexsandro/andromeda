@@ -80,6 +80,275 @@ export class TypeChecker {
     return type;
   }
 
+  /**
+   * Substitui type params por types concretos em um TypeNode.
+   * Percorre recursivamente todos os kinds de TypeNode.
+   */
+  private substitute(type: TypeNode, mapping: Map<string, TypeNode>): TypeNode {
+    switch (type.kind) {
+      case "NamedType": {
+        const name = type.name.value as string;
+        const replacement = mapping.get(name);
+        if (replacement) return replacement;
+        return type;
+      }
+      case "GenericType": {
+        const newArgs = type.args.map(a => this.substitute(a, mapping));
+        return { ...type, args: newArgs };
+      }
+      case "FunctionType": {
+        const newParams = type.params.map(p => ({ ...p, ...this.substitute(p, mapping) }));
+        const newReturn = this.substitute(type.returnType, mapping);
+        return { ...type, params: newParams, returnType: newReturn };
+      }
+      case "UnionType": {
+        const newTypes = type.types.map(t => this.substitute(t, mapping));
+        return { ...type, types: newTypes };
+      }
+      case "NullableType": {
+        const inner = this.substitute(type.type, mapping);
+        return { ...type, type: inner };
+      }
+      case "TupleType": {
+        const newElements = type.elements.map(e => this.substitute(e, mapping));
+        return { ...type, elements: newElements };
+      }
+      case "ArrayType": {
+        const newElement = this.substitute(type.elementType, mapping);
+        return { ...type, elementType: newElement };
+      }
+      case "GroupingType": {
+        const newInner = this.substitute(type.type, mapping);
+        return { ...type, type: newInner };
+      }
+      default:
+        return type;
+    }
+  }
+
+  /**
+   * Tenta inferir type args a partir dos tipos dos argumentos.
+   * Usa unify() recursivo que percorre ArrayType, NullableType,
+   * GenericType, FunctionType, GroupingType, UnionType para
+   * encontrar referências a type params em qualquer profundidade.
+   */
+  private tryInferTypeArgs(
+    typeParams: TypeParameterNode[],
+    fnParamTypes: (TypeNode & { isRest?: boolean })[],
+    argTypes: TypeNode[]
+  ): Map<string, TypeNode> | null {
+    const mapping = new Map<string, TypeNode>();
+    const typeParamNames = new Set(typeParams.map(tp => tp.name.value as string));
+
+    const unify = (paramType: TypeNode, argType: TypeNode): boolean => {
+      // Desembrulha GroupingType em ambos os lados
+      if (paramType.kind === "GroupingType") return unify(paramType.type, argType);
+      if (argType.kind === "GroupingType") return unify(paramType, argType.type);
+
+      // T — type param direto
+      if (paramType.kind === "NamedType") {
+        const name = paramType.name.value as string;
+        if (typeParamNames.has(name)) {
+          const existing = mapping.get(name);
+          if (existing) {
+            return this.areTypesCompatible(existing, argType);
+          }
+          mapping.set(name, argType);
+        }
+        return true;
+      }
+
+      // T[] — ArrayType legacy
+      if (paramType.kind === "ArrayType") {
+        const elemArg = this.isArray(argType)
+          ? this.arrayElement(argType as GenericTypeNode)
+          : argType.kind === "ArrayType"
+            ? argType.elementType
+            : null;
+        if (elemArg) return unify(paramType.elementType, elemArg);
+        return true;
+      }
+
+      // Array<T> / Map<K,V> etc — GenericType
+      if (paramType.kind === "GenericType") {
+        const paramName = paramType.name.value as string;
+
+        // Array<T> com argType sendo ArrayType legacy
+        if (paramName === "Array" && paramType.args.length === 1) {
+          const elemArg = argType.kind === "ArrayType"
+            ? argType.elementType
+            : this.isArray(argType)
+              ? this.arrayElement(argType as GenericTypeNode)
+              : null;
+          if (elemArg) return unify(paramType.args[0], elemArg);
+        }
+
+        // Optional<T> com argType sendo tipo direto (ex: int → T = int)
+        // ou NullableType (ex: int? → T = int) ou Optional<T> (ex: Optional<int> → T = int)
+        if (paramName === "Optional" && paramType.args.length === 1) {
+          const innerArg = argType.kind === "GenericType" && (argType.name.value as string) === "Optional" && argType.args.length === 1
+            ? argType.args[0]
+            : argType.kind === "NullableType"
+              ? argType.type
+              : argType.kind === "PrimitiveType" && argType.name === "null"
+                ? null
+                : argType;
+          if (innerArg) return unify(paramType.args[0], innerArg);
+          return true;
+        }
+
+        if (
+          argType.kind === "GenericType" &&
+          (argType.name.value as string) === paramName &&
+          argType.args.length === paramType.args.length
+        ) {
+          return paramType.args.every((pa, i) => unify(pa, argType.args[i]));
+        }
+        return true;
+      }
+
+      // T? — NullableType
+      if (paramType.kind === "NullableType") {
+        const innerArg =
+          argType.kind === "NullableType" ? argType.type :
+          argType.kind === "PrimitiveType" && argType.name === "null" ? null :
+          argType;
+        if (innerArg) return unify(paramType.type, innerArg);
+        return true;
+      }
+
+      // (A, B) => R — FunctionType
+      if (paramType.kind === "FunctionType") {
+        const actualFn =
+          argType.kind === "FunctionType" ? argType :
+          argType.kind === "GroupingType" && argType.type.kind === "FunctionType"
+            ? argType.type : null;
+        if (actualFn && actualFn.kind === "FunctionType") {
+          const paramsOk = paramType.params.every((pp, i) =>
+            i < actualFn.params.length ? unify(pp, actualFn.params[i]) : true
+          );
+          return paramsOk && unify(paramType.returnType, actualFn.returnType);
+        }
+        return true;
+      }
+
+      // UnionType — tenta unificar com cada membro
+      if (paramType.kind === "UnionType") {
+        return paramType.types.some(pt => unify(pt, argType));
+      }
+
+      return true;
+    };
+
+    for (let i = 0; i < fnParamTypes.length && i < argTypes.length; i++) {
+      if (!unify(fnParamTypes[i], argTypes[i])) return null;
+    }
+
+    return mapping;
+  }
+
+  /**
+   * Tenta inferir type params não resolvidos a partir do contextualType.
+   * Útil quando a inferência dos args deixou algum T como unknown
+   * e o contexto da chamada (ex: val x: string? = nullableIdentity(null))
+   * pode determinar T.
+   */
+  private inferTypeArgsFromReturnType(
+    typeParams: TypeParameterNode[],
+    returnType: TypeNode,
+    contextualType: TypeNode
+  ): Map<string, TypeNode> | null {
+    const mapping = new Map<string, TypeNode>();
+    const typeParamNames = new Set(typeParams.map(tp => tp.name.value as string));
+
+    const unify = (paramType: TypeNode, argType: TypeNode): boolean => {
+      if (paramType.kind === "GroupingType") return unify(paramType.type, argType);
+      if (argType.kind === "GroupingType") return unify(paramType, argType.type);
+
+      if (paramType.kind === "NamedType") {
+        const name = paramType.name.value as string;
+        if (typeParamNames.has(name)) {
+          const existing = mapping.get(name);
+          if (existing) {
+            return this.areTypesCompatible(existing, argType);
+          }
+          mapping.set(name, argType);
+        }
+        return true;
+      }
+
+      if (paramType.kind === "ArrayType") {
+        const elemArg = this.isArray(argType)
+          ? this.arrayElement(argType as GenericTypeNode)
+          : argType.kind === "ArrayType"
+            ? argType.elementType
+            : null;
+        if (elemArg) return unify(paramType.elementType, elemArg);
+        return true;
+      }
+
+      if (paramType.kind === "GenericType") {
+        const paramName = paramType.name.value as string;
+        if (paramName === "Array" && paramType.args.length === 1) {
+          const elemArg = argType.kind === "ArrayType"
+            ? argType.elementType
+            : this.isArray(argType)
+              ? this.arrayElement(argType as GenericTypeNode)
+              : null;
+          if (elemArg) return unify(paramType.args[0], elemArg);
+        }
+        if (paramName === "Optional" && paramType.args.length === 1) {
+          const innerArg = argType.kind === "GenericType" && (argType.name.value as string) === "Optional" && argType.args.length === 1
+            ? argType.args[0]
+            : argType.kind === "NullableType"
+              ? argType.type
+              : argType.kind === "PrimitiveType" && argType.name === "null"
+                ? null
+                : argType;
+          if (innerArg) return unify(paramType.args[0], innerArg);
+          return true;
+        }
+        if (
+          argType.kind === "GenericType" &&
+          (argType.name.value as string) === paramName &&
+          argType.args.length === paramType.args.length
+        ) {
+          return paramType.args.every((pa, i) => unify(pa, argType.args[i]));
+        }
+        return true;
+      }
+
+      if (paramType.kind === "NullableType") {
+        const innerArg =
+          argType.kind === "NullableType" ? argType.type :
+          argType.kind === "PrimitiveType" && argType.name === "null" ? null :
+          argType;
+        if (innerArg) return unify(paramType.type, innerArg);
+        return true;
+      }
+
+      if (paramType.kind === "FunctionType") {
+        const actualFn = argType.kind === "FunctionType" ? argType : null;
+        if (actualFn) {
+          const paramsOk = paramType.params.every((pp, i) =>
+            i < actualFn.params.length ? unify(pp, actualFn.params[i]) : true
+          );
+          return paramsOk && unify(paramType.returnType, actualFn.returnType);
+        }
+        return true;
+      }
+
+      if (paramType.kind === "UnionType") {
+        return paramType.types.some(pt => unify(pt, argType));
+      }
+
+      return true;
+    };
+
+    if (!unify(returnType, contextualType)) return null;
+    return mapping;
+  }
+
   public check(program: Stmt[]): SemanticError[] {
     this.errors = [];
 
@@ -260,11 +529,14 @@ export class TypeChecker {
       if (validPrimitives.includes(typeName)) {
         return null;
       }
-      const existing = this.globalEnv.lookup(typeName);
-      if (!existing || (existing.kind !== "type" && existing.kind !== "struct")) {
-        return Errors.undefinedType(typeName, token);
+
+      // Verifica no escopo corrente (inclui type params genéricos)
+      const existing = this.currentEnv.lookup(typeName);
+      if (existing && (existing.kind === "type" || existing.kind === "struct" || existing.kind === "typeParam")) {
+        return null;
       }
-      return null;
+
+      return Errors.undefinedType(typeName, token);
     }
 
     if (type.kind === "GenericType") {
@@ -354,11 +626,11 @@ export class TypeChecker {
       return this.areTypesCompatible(resolvedExpected, resolvedActual);
     }
 
+    // any é compatível com tudo (incluindo NamedType como type params)
+    if (resolvedExpected.kind === "PrimitiveType" && resolvedExpected.name === "any") return true;
+    if (resolvedActual.kind === "PrimitiveType" && resolvedActual.name === "any") return true;
+
     if (resolvedExpected.kind === "PrimitiveType" && resolvedActual.kind === "PrimitiveType") {
-      // any aceita tudo (any no expected ou no actual)
-      if (resolvedExpected.name === "any" || resolvedActual.name === "any") {
-        return true;
-      }
       // unknown no expected aceita qualquer actual
       if (resolvedExpected.name === "unknown") {
         return true;
@@ -439,6 +711,11 @@ export class TypeChecker {
              this.areTypesCompatible(expected, { kind: "PrimitiveType", name: "null" });
     }
 
+    // Same NamedType (inclui type params como T) são compatíveis
+    if (expected.kind === "NamedType" && actual.kind === "NamedType") {
+      return (expected.name.value as string) === (actual.name.value as string);
+    }
+
     if (expected.kind === "TupleType" && actual.kind === "TupleType") {
       if (expected.elements.length !== actual.elements.length) return false;
       return expected.elements.every((e, i) => this.areTypesCompatible(e, actual.elements[i]));
@@ -516,6 +793,36 @@ export class TypeChecker {
       return;
     }
 
+    // ── Criar fnEnv com type params registrados ──────────────
+    const fnEnv = new Environment(this.currentEnv, false);
+
+    // Detectar duplicatas e registrar type params
+    if (stmt.typeParameters) {
+      const seen = new Set<string>();
+      for (const tp of stmt.typeParameters) {
+        const tpName = tp.name.value as string;
+        if (seen.has(tpName)) {
+          this.errors.push(Errors.alreadyDeclared(tpName, tp.name));
+        } else {
+          seen.add(tpName);
+          fnEnv.define(tpName, {
+            name: tpName,
+            type: { kind: "NamedType", name: tp.name },
+            kind: "typeParam",
+            mutable: false,
+            initialized: true,
+            declarationToken: tp.name,
+            constraint: tp.constraint,
+          });
+        }
+      }
+    }
+
+    // ── Entrar no escopo da função (type params visíveis) ────
+    const previousEnv = this.currentEnv;
+    this.currentEnv = fnEnv;
+
+    // Validar param types (type params como T são visíveis)
     const paramTypes: TypeNode[] = [];
     for (const param of stmt.params) {
       if (param.type) {
@@ -531,6 +838,7 @@ export class TypeChecker {
       }
     }
 
+    // Validar return type
     if (stmt.returnType) {
       const returnValidation = this.validateTypeNode(stmt.returnType, stmt.name);
       if (returnValidation) {
@@ -543,6 +851,7 @@ export class TypeChecker {
       name: "void",
     };
 
+    // Construir FunctionTypeNode com type parameters
     const fnType: FunctionTypeNode = {
       kind: "FunctionType",
       params: paramTypes.map((pt, i) => ({
@@ -550,8 +859,11 @@ export class TypeChecker {
         isRest: stmt.params[i]?.isRest || false
       })),
       returnType,
+      typeParameters: stmt.typeParameters,
     };
 
+    // ── Definir símbolo da função no escopo externo ──────────
+    this.currentEnv = previousEnv;
     const symbol = createSymbol(
       name,
       fnType,
@@ -559,9 +871,10 @@ export class TypeChecker {
       false,
       stmt.name
     );
-
     this.currentEnv.define(name, symbol);
+    this.currentEnv = fnEnv;
 
+    // Verificar rest params
     for (let i = 0; i < stmt.params.length; i++) {
       const param = stmt.params[i];
       if (param.isRest) {
@@ -571,9 +884,7 @@ export class TypeChecker {
       }
     }
 
-    this.functionDepth++;
-    const fnEnv = new Environment(this.currentEnv, false);
-
+    // Registrar params da função no fnEnv
     for (const param of stmt.params) {
       const paramName = param.name.value as string;
       const paramType = param.type || {
@@ -590,8 +901,7 @@ export class TypeChecker {
       });
     }
 
-    const previousEnv = this.currentEnv;
-    this.currentEnv = fnEnv;
+    this.functionDepth++;
     this.currentFunctionReturnType = returnType;
     this.hasReturn = false;
     this.checkBlockStmt(stmt.body);
@@ -1141,7 +1451,9 @@ export class TypeChecker {
   }
 
 private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
-    const calleeType = this.resolveAlias(this.checkExpression(expr.callee));
+    const calleeType = this.resolveAlias(
+      this.unwrapGrouping(this.checkExpression(expr.callee))
+    );
 
     // callee não é função
     if (calleeType.kind !== "FunctionType") {
@@ -1158,7 +1470,104 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       return { kind: "PrimitiveType", name: "any" };
     }
 
-    const params = calleeType.params;
+    // ── Tratamento de chamadas genéricas ─────────────────────
+    const typeParams = calleeType.typeParameters;
+    let effectiveParams = calleeType.params;
+    let effectiveReturnType = calleeType.returnType;
+
+    if (typeParams && typeParams.length > 0) {
+      if (expr.typeArgs && expr.typeArgs.length > 0) {
+        // Chamada com type args explícitos: add<int>(1, 2)
+        const typeArgs = expr.typeArgs;
+        if (typeArgs.length !== typeParams.length) {
+          const token = expr.callee.kind === "Identifier"
+            ? expr.callee.name
+            : { line: 0, column: 0, type: 0, value: "" } as Token;
+          this.errors.push(Errors.genericArgCount(
+            expr.callee.kind === "Identifier" ? (expr.callee.name.value as string) : "",
+            typeParams.length, typeArgs.length, token
+          ));
+        } else {
+          // Validar cada type arg
+          let valid = true;
+          for (const ta of typeArgs) {
+            const err = this.validateTypeNode(ta, expr.callee.kind === "Identifier" ? expr.callee.name : { line: 0, column: 0, type: 0, value: "" } as Token);
+            if (err) {
+              this.errors.push(err);
+              valid = false;
+            }
+          }
+          if (valid) {
+            // Criar mapping de substituição
+            const mapping = new Map<string, TypeNode>();
+            for (let i = 0; i < typeParams.length; i++) {
+              mapping.set(typeParams[i].name.value as string, typeArgs[i]);
+            }
+            // Substituir params e return type
+            effectiveParams = calleeType.params.map(p => ({
+              ...this.substitute(p, mapping),
+              isRest: (p as any).isRest
+            })) as typeof calleeType.params;
+            effectiveReturnType = this.substitute(calleeType.returnType, mapping);
+          }
+        }
+      } else {
+        // Chamada sem type args: add(1, 2) — tentar inferir
+        const argTypes: TypeNode[] = [];
+        for (const arg of expr.args) {
+          argTypes.push(this.checkExpression(arg));
+        }
+        const mapping = this.tryInferTypeArgs(typeParams, calleeType.params, argTypes);
+        if (mapping) {
+          // Bidirectional inference: contextualType pode preencher type params não inferidos dos args
+          if (this.contextualType) {
+            const missingParams = typeParams.filter(tp => !mapping.has(tp.name.value as string));
+            if (missingParams.length > 0) {
+              const ctxMap = this.inferTypeArgsFromReturnType(
+                typeParams, calleeType.returnType, this.contextualType
+              );
+              if (ctxMap) {
+                for (const [k, v] of ctxMap) {
+                  if (!mapping.has(k)) {
+                    mapping.set(k, v);
+                  }
+                }
+              }
+            }
+          }
+
+          // Type params que ainda não foram inferidos → erro + unknown para recovery
+          const missingParams = typeParams.filter(tp => !mapping.has(tp.name.value as string));
+          if (missingParams.length > 0) {
+            const token = expr.callee.kind === "Identifier"
+              ? expr.callee.name
+              : { line: 0, column: 0, type: 0, value: "" } as Token;
+            for (const tp of missingParams) {
+              this.errors.push(Errors.genericInferenceFailed(tp.name.value as string, token));
+              mapping.set(tp.name.value as string, { kind: "PrimitiveType", name: "unknown" });
+            }
+          }
+
+          effectiveParams = calleeType.params.map(p => ({
+            ...this.substitute(p, mapping),
+            isRest: (p as any).isRest
+          })) as typeof calleeType.params;
+          effectiveReturnType = this.substitute(calleeType.returnType, mapping);
+        }
+        // Se inferência falhou (conflito), usar tipos originais
+      }
+    } else if (expr.typeArgs && expr.typeArgs.length > 0) {
+      // Chamada com type args mas função não é genérica
+      const token = expr.callee.kind === "Identifier"
+        ? expr.callee.name
+        : { line: 0, column: 0, type: 0, value: "" } as Token;
+      this.errors.push(Errors.notGeneric(
+        expr.callee.kind === "Identifier" ? (expr.callee.name.value as string) : "",
+        token
+      ));
+    }
+
+    const params = effectiveParams;
     const args = expr.args;
 
     // ── detectar rest param na assinatura ──────────────────────
@@ -1264,7 +1673,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       }
     }
 
-    return calleeType.returnType;
+    return effectiveReturnType;
   }
 
   private checkMemberExpr(expr: Extract<Expr, { kind: "Member" }>): TypeNode {

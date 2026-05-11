@@ -1,4 +1,17 @@
 // fazer bons testes de generic em func
 // fazer bons testes para arrow func em generics
 
-an
+- Aquele arquivo sintax.med em hart-test
+
+// ja temos alguns bugs, o main.med tem um bateria de testes do gpt, não são todos que funcionam
+
+---
+1. É preciso implementar os Generic em Arrow Func, poís só tem em 'Func' Normais.
+
+alguns testes
+
+func s<T>(): T{
+    return T
+}
+
+s<int?>(null)
