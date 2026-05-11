@@ -1,0 +1,31 @@
+// ============================================================
+// FINAL BOSS — EXPECTED ERROR CASES
+// ============================================================
+
+func same<T>(a: T, b: T): T { return a }
+func identity<T>(x: T): T { return x }
+func normal(x: int): int { return x }
+func maybe<T>(x: T?): T? { return x }
+func apply<T>(x: T, fn: (T) => T): T { return fn(x) }
+func box<T>(x: T): T[] { return [x] }
+
+// ── 18. TYPE CONFLICT DETECTION ──────────────────────────
+val r1 = same(1, "hello")
+
+// ── 19. WRONG GENERIC ARG COUNT ──────────────────────────
+val s1 = identity<int, string>(1)
+
+// ── 20. NOT GENERIC ──────────────────────────────────────
+val t1 = normal<int>(1)
+
+// ── 22. GENERIC INFERENCE FAILURE ────────────────────────
+val u1 = maybe(null)
+
+// ── 23. FUNCTION PARAM MISMATCH ──────────────────────────
+val v1 = apply(10, (s: string) => s)
+
+// ── 24. ARRAY TYPE CONFLICT ─────────────────────────────
+val w1: string[] = box(42)
+
+// ── 25. RETURN TYPE CONFLICT ─────────────────────────────
+val x1: int = identity("hello")

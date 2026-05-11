@@ -151,7 +151,8 @@ export class TypeChecker {
         if (typeParamNames.has(name)) {
           const existing = mapping.get(name);
           if (existing) {
-            return this.areTypesCompatible(existing, argType);
+            // Conflito: primeiro binding vence, arg checking pega depois
+            return true;
           }
           mapping.set(name, argType);
         }
@@ -270,7 +271,7 @@ export class TypeChecker {
         if (typeParamNames.has(name)) {
           const existing = mapping.get(name);
           if (existing) {
-            return this.areTypesCompatible(existing, argType);
+            return true;
           }
           mapping.set(name, argType);
         }
@@ -1487,6 +1488,16 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
             expr.callee.kind === "Identifier" ? (expr.callee.name.value as string) : "",
             typeParams.length, typeArgs.length, token
           ));
+          // Fallback: unknown para todos os type params (evita cascade com raw T)
+          const fallbackMapping = new Map<string, TypeNode>();
+          for (const tp of typeParams) {
+            fallbackMapping.set(tp.name.value as string, { kind: "PrimitiveType", name: "unknown" });
+          }
+          effectiveParams = calleeType.params.map(p => ({
+            ...this.substitute(p, fallbackMapping),
+            isRest: (p as any).isRest
+          })) as typeof calleeType.params;
+          effectiveReturnType = this.substitute(calleeType.returnType, fallbackMapping);
         } else {
           // Validar cada type arg
           let valid = true;
@@ -1513,12 +1524,16 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         }
       } else {
         // Chamada sem type args: add(1, 2) — tentar inferir
+        const savedErrorCount = this.errors.length;
         const argTypes: TypeNode[] = [];
         for (const arg of expr.args) {
           argTypes.push(this.checkExpression(arg));
         }
         const mapping = this.tryInferTypeArgs(typeParams, calleeType.params, argTypes);
         if (mapping) {
+          // Primeira passada foi só para inferência; descarta erros spurious.
+          // A segunda passada (abaixo) re-checa com contexto adequado.
+          this.errors.length = savedErrorCount;
           // Bidirectional inference: contextualType pode preencher type params não inferidos dos args
           if (this.contextualType) {
             const missingParams = typeParams.filter(tp => !mapping.has(tp.name.value as string));
