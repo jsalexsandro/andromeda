@@ -414,6 +414,17 @@ val name: (ParamType) => ReturnType = (param) => expression
 
 // With type annotation
 val double: (int) => int = (x) => x * 2
+
+// Block body
+val name: (int) => int = (x) => {
+  return x * 2
+}
+
+// Generic arrow function (type parameters before params)
+val name = <T>(x: T): T => x
+
+// Generic arrow with multiple type params
+val name = <A, B>(a: A, b: B): A => a
 ```
 
 ### Examples
@@ -425,7 +436,54 @@ val result: int = triple(10)  // 30
 
 // Arrow function as variable
 val greet: (string) => string = (name) => "Hello, " + name
+
+// Generic arrow function
+val identity = <T>(x: T): T => x
+val r1: int = identity<int>(42)        // explicit type args
+val r2: string = identity<string>("hi") // explicit type args
+
+// Generic arrow with block body
+val idBlock = <T>(x: T): T => {
+  return x
+}
+
+// Generic arrow with array type
+val first = <T>(arr: T[]): T => arr[0]
+val r3: int = first<int>([1, 2, 3])
+
+// Generic arrow passed as argument (contextual inference)
+func apply<T>(x: T, fn: (T) => T): T { return fn(x) }
+val ctx = apply(10, <T>(x: T): T => x)  // T inferred as int from context
+
+// Grouped generic arrow + immediate call
+val r4 = (<T>(x: T): T => x)(42)
+
+// Higher-order: arrow returning generic arrow
+val nested = <T>(x: T): (T) => T => (y: T): T => y
 ```
+
+### Generic Arrow Call
+
+Generic arrows are called with explicit type arguments just like generic functions:
+
+```typescript
+val id = <T>(x: T): T => x
+val r1 = id<int>(42)
+val r2 = id<string>("hello")
+```
+
+### Contextual Type Inference for Generic Arrows
+
+When a generic arrow is passed as an argument to a function parameter with a concrete type, the compiler attempts to infer the arrow's type parameters from context:
+
+```typescript
+func apply<T>(x: T, fn: (T) => T): T { return fn(x) }
+
+// The arrow's T is inferred as int from apply's T=int
+val result = apply(10, <T>(x: T): T => x)  // ✅
+```
+
+**Limitation:** Type parameters of a generic arrow are in a separate scope from the enclosing function's type parameters. Inference currently works for simple cases (single type param matching by position) but may fail for complex scenarios with multiple type params across nested scopes. See `docs/bugs.md` Bug #11 for details.
 
 ---
 
@@ -726,6 +784,7 @@ val result: int = double(5)
 - [x] **Ternary Operator** - `condition ? a : b`
 - [x] **Nullish Coalescing** - `??` operator
 - [x] **Generic Functions** - `func foo<T>(x: T): T`
+- [x] **Generic Arrow Functions** - `<T>(x: T): T => x` with explicit type args and contextual inference
 - [x] **Bidirectional Type Inference** - contextual type participates in generic inference
 
 
@@ -737,7 +796,6 @@ val result: int = double(5)
 - [ ] **Template Literals** - String interpolation
 - [ ] **Async/Await** - Asynchronous programming
 - [ ] **Generic type aliases** - `typealias Container<T> = T`
-- [ ] **Generic Arrow Functions** - `<T>(x: T): T => x`
 
 ---
 

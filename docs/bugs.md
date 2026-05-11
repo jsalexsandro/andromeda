@@ -204,6 +204,54 @@ Desativar ANDROX_TAG em contextos de tipo ou refatorar o lexer para ser sensíve
 
 ---
 
+---
+
+## Bug #11: Type Parameter Scope Collision — Generic Arrow Inside Generic Call
+
+**File:** `src/semantic/TypeChecker.ts` — `checkArrowFunctionExpr` / `checkCallExpr`
+**Severity:** 🟡 Medium
+**Status:** Open — Backlog
+
+### Description
+
+Quando uma arrow function genérica é passada como argumento para uma função genérica, os type parameters da arrow têm escopo independente dos type parameters da função envelope. Eles não são unificados.
+
+### Reproduction
+
+```typescript
+func swap<A, B>(pair: (A, B) => B, a: A, b: B): B { return pair(a, b) }
+swap(<A, B>(a: A, b: B): B => b, 1, "hello")
+// ❌ TYPE_MISMATCH: argument 2: expected 'A', got 'int'
+```
+
+### Funciona ✅ (caso simples já tratado)
+
+```typescript
+func apply<T>(x: T, fn: (T) => T): T { return fn(x) }
+apply(10, <T>(x: T): T => x)  // ✅ T da arrow inferido como int via mapeamento posicional
+```
+
+### Por que `apply` funciona mas `swap` não
+
+`inferArrowTypeParamsFromContext` faz **mapeamento posicional simples**: olha para o tipo contextual (ex: `(int) => int`) e casa com as anotações da arrow por posição do parâmetro. Isso funciona quando há 1 type param e ele aparece na mesma posição em params e contexto.
+
+Em `swap`, existem **dois** type params (`A, B`), a arrow tem múltiplos parâmetros, e o contexto ainda não foi resolvido (os `A, B` de `swap` ainda são símbolos, não `int, string`). O mapeamento precisaria:
+1. Perceber que o parâmetro `pair` espera `(A, B) => B` (símbolos não resolvidos)
+2. Unificar os `A, B` da arrow com os `A, B` de `swap`
+3. Propagar essa unificação para os outros argumentos (`a: A` recebe `1` como int)
+
+### Root Cause
+
+O sistema de tipos atual faz **inferência linear por substituição**: primeiro inferimos os type params da chamada externa a partir dos argumentos, depois verificamos a compatibilidade dos argumentos individuais. A arrow genérica interna tem seus próprios type params que são verificados contra o tipo do parâmetro — mas nesse ponto o tipo do parâmetro `pair` ainda contém símbolos não resolvidos (os type params de `swap`).
+
+### Solução Potencial (Backlog)
+
+Implementar **unificação bidirecional entre escopos**: quando uma arrow genérica é passada como argumento para uma função genérica, os type params da arrow devem ser unificados com os type params correspondentes da função envelope. Isso se aproxima de um algoritmo Hindley-Milner com polimorfismo let-bound.
+
+Também seria possível usar a mesma `tryInferTypeArgs` que já existe para chamadas de função, aplicada ao parâmetro `pair` contra o tipo da arrow.
+
+---
+
 ## Priority Matrix
 
 | Bug | Severity | Impact | Status |
@@ -218,6 +266,7 @@ Desativar ANDROX_TAG em contextos de tipo ou refatorar o lexer para ser sensíve
 | #2 — Spread union types | 🟡 Medium | Array spread inference | Backlog |
 | #3 — Empty array inference | 🟢 Low | UX improvement | Backlog |
 | #4 — Multi-dimensional array validation | 🟢 Low | Edge case | Backlog |
+| #11 — Type param scope collision (arrow in generic call) | 🟡 Medium | Generic arrow as argument with multi type params | Backlog |
 
 ---
 
