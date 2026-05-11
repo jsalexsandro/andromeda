@@ -242,6 +242,7 @@ GenericCall — add<int>(1, 2)
 - [ ] Verificar argumentos contra tipos substituídos
 - [ ] Inferir returnType substituído:
       retorna T → retorna int
+- [] Inferência bilateral
       
 Type Inference em GenericCall (bônus)
 - [ ] Se chamada sem tipo explícito: add(1, 2)

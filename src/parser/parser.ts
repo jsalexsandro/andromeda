@@ -110,6 +110,13 @@ export class Parser {
       this.parseObjectLiteral.bind(this),
     );
 
+    // Prefixo para arrow function genérica: <T>(x: T): T => x
+    // Reusa parseTypeParamList() (mesma lógica de func foo<T>(...))
+    this.prefixParselets.set(
+      TokenType.LESS_THAN,
+      this.parseGenericArrow.bind(this),
+    );
+
     this.infixParselets.set(
       TokenType.INCREMENT,
       this.parsePostfixIncrement.bind(this),
@@ -343,9 +350,23 @@ export class Parser {
     return this.parseGroup();
   }
 
+  /**
+   * Tenta parsear arrow function a partir de '(' já consumido.
+   * Chamado por parseArrowOrGroup() após parseExpression consumir '('.
+   */
   private tryParseArrowFunction(): Expr | null {
+    return this.parseArrowFunctionRest();
+  }
+
+  /**
+   * Parseia params, return type, arrow, e body de uma arrow function.
+   * Pressupõe que '(' JÁ FOI consumido (current token é o primeiro param ou ')').
+   * @param typeParameters Parâmetros de tipo genérico opcionais (<T, U>), reusado por parseGenericArrow().
+   */
+  private parseArrowFunctionRest(typeParameters?: TypeParameterNode[]): Expr | null {
     const params: { name: Token; isRest?: boolean; type?: TypeNode }[] = [];
 
+    // Parâmetros vazios: () => body
     if (this.check(TokenType.RPAREN)) {
       this.advance();
 
@@ -360,9 +381,10 @@ export class Parser {
         return null;
       }
       this.advance();
-      return this.parseArrowBody(params, returnType);
+      return this.parseArrowBody(params, returnType, typeParameters);
     }
 
+    // Parseia parâmetros nomeados: (x: int, y: string) => ...
     while (!this.isAtEnd() && !this.check(TokenType.RPAREN)) {
       let isRest = false;
       if (this.check(TokenType.SPREAD)) {
@@ -409,7 +431,55 @@ export class Parser {
     }
     this.advance();
 
-    return this.parseArrowBody(params, returnType);
+    return this.parseArrowBody(params, returnType, typeParameters);
+  }
+
+  /**
+   * Prefix parselet para '<' em posição de expressão.
+   * Parseia arrow function genérica: <T>(x: T): T => x
+   *
+   * Fluxo:
+   *   1. '<' já foi consumido por parseExpression()
+   *   2. parseTypeParamList() parseia T, U, ... > (mesma função usada em func foo<T>())
+   *   3. Verifica '(' e delega para parseArrowFunctionRest() (params + corpo)
+   *
+   * Se falhar, restaura posição e reporta erro — '<' sem left operand não é válido.
+   */
+  private parseGenericArrow(): Expr {
+    // Salva posição do '<' (previous) para error recovery
+    const lessToken = this.previous();
+    const savedPos = this.current;
+    const savedErrorsLen = this.errors.errors.length;
+
+    // Passo 2: parseia type params <T, U> — reusa a lógica de func foo<T>()
+    const typeParameters = this.parseTypeParamList();
+
+    // Se parseTypeParamList encontrou erro, restaura e reporta erro limpo
+    if (this.errors.errors.length > savedErrorsLen) {
+      this.current = savedPos;
+      this.errors.errors = this.errors.errors.slice(0, savedErrorsLen);
+      this.error("Invalid generic type parameters in arrow function", lessToken);
+      return { kind: "Literal", value: null };
+    }
+
+    // Passo 3: precisa de '(' para iniciar params
+    if (!this.check(TokenType.LPAREN)) {
+      this.current = savedPos;
+      this.errors.errors = this.errors.errors.slice(0, savedErrorsLen);
+      this.error("Expected '(' after type parameters in arrow function", this.peek());
+      return { kind: "Literal", value: null };
+    }
+    this.advance(); // consume '('
+
+    // Passo 4: delega para parseArrowFunctionRest() com os type parameters
+    const arrow = this.parseArrowFunctionRest(typeParameters);
+    if (arrow) return arrow;
+
+    // Falhou — restaura e reporta erro
+    this.current = savedPos;
+    this.errors.errors = this.errors.errors.slice(0, savedErrorsLen);
+    this.error("Expected arrow function after type parameters", lessToken);
+    return { kind: "Literal", value: null };
   }
 
   private isObjectTypeAnnotation(lbracePos: number): boolean {
@@ -464,7 +534,15 @@ export class Parser {
     return false;
   }
 
-  private parseArrowBody(params: { name: Token; isRest?: boolean; type?: TypeNode }[], returnType?: TypeNode): Expr {
+  /**
+   * Parseia o corpo de uma arrow function (bloco, objeto literal, ou expressão).
+   * @param typeParameters Parâmetros de tipo genérico (<T, U>) opcionais, propagados ao AST.
+   */
+  private parseArrowBody(
+    params: { name: Token; isRest?: boolean; type?: TypeNode }[],
+    returnType?: TypeNode,
+    typeParameters?: TypeParameterNode[]
+  ): Expr {
     if (this.check(TokenType.LBRACE)) {
       if (this.looksLikeBlockStatement()) {
         const body = this.parseBlockStatement();
@@ -472,6 +550,7 @@ export class Parser {
           kind: "ArrowFunction",
           params,
           body,
+          typeParameters,
         };
       }
 
@@ -484,6 +563,7 @@ export class Parser {
           params,
           body: objLiteral,
           returnType,
+          typeParameters,
         };
       } catch (e) {
         this.current = savedPos;
@@ -494,6 +574,7 @@ export class Parser {
           params,
           body,
           returnType,
+          typeParameters,
         };
       }
     } else {
@@ -507,6 +588,7 @@ export class Parser {
         params,
         body,
         returnType,
+        typeParameters,
       };
     }
   }
@@ -1883,9 +1965,24 @@ export class Parser {
    *
    * @returns {TypeParameterNode[]} Lista de parâmetros de tipo
    */
+  /**
+   * Parseia <T, U, V> para func foo<T>(...) e func foo<T>().
+   * Consome '<' no início. A lógica interna (depois de '<') fica em parseTypeParamList()
+   * para ser reusada por arrow functions genéricas: <T>(x: T): T => x.
+   */
   private parseGenericTypeParameters(): TypeParameterNode[] {
     this.advance(); // consume '<'
+    return this.parseTypeParamList();
+  }
 
+  /**
+   * BASE DO GENERIC — Parseia a lista de nomes de type parameters DEPOIS do '<'.
+   * Ex: T, U, V >  → retorna [T, U, V] e consome '>'.
+   * Reusado por:
+   *   - parseGenericTypeParameters()  (func foo<T>(...))
+   *   - parseGenericArrow()          (val f = <T>(x: T): T => x)
+   */
+  private parseTypeParamList(): TypeParameterNode[] {
     const params: TypeParameterNode[] = [];
 
     while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {

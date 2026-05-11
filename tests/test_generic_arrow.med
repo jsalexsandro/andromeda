@@ -1,0 +1,19 @@
+// ── Básico: arrow genérica ───────────────────────────────────
+val f1 = <T>(x: T): T => x
+
+// ── Multi type params ────────────────────────────────────────
+val f2 = <A, B>(a: A, b: B): A => a
+
+// ── Arrow genérica chamada com type args explícitos ──────────
+val f3 = f1<int>(42)
+
+// ── Arrow genérica usada como argumento ─────────────────────
+func apply<T>(x: T, fn: (T) => T): T { return fn(x) }
+val f4 = apply(10, <T>(x: T): T => x)
+
+// ── Arrow genérica com arrays ────────────────────────────────
+val f5 = <T>(arr: T[]): T => arr[0]
+val f6 = f5<int>([1, 2, 3])
+
+// ── Arrow genérica com retorno contextual ────────────────────
+val f7: int = <T>(x: T): T => x

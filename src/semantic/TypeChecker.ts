@@ -1994,6 +1994,45 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     let fnContext: FunctionTypeNode | null = unwrapped?.kind === "FunctionType" ? unwrapped : null;
     this.contextualType = null;
 
+    // ── Cria escopo cedo para registrar type params ANTES de validar tipos ──
+    const fnEnv = new Environment(this.currentEnv, false);
+
+    // Registra type params (T, U) para que sejam visíveis em anotações de tipo
+    if (expr.typeParameters) {
+      const seen = new Set<string>();
+      for (const tp of expr.typeParameters) {
+        const tpName = tp.name.value as string;
+        if (seen.has(tpName)) {
+          this.errors.push(Errors.alreadyDeclared(tpName, tp.name));
+        } else {
+          seen.add(tpName);
+          fnEnv.define(tpName, {
+            name: tpName,
+            type: { kind: "NamedType", name: tp.name },
+            kind: "typeParam",
+            mutable: false,
+            initialized: true,
+            declarationToken: tp.name,
+            constraint: tp.constraint,
+          });
+        }
+      }
+    }
+
+    // Entra no escopo para que type params e params sejam visíveis durante validação
+    const previousEnv = this.currentEnv;
+    const previousReturnType = this.currentFunctionReturnType;
+    const previousHasReturn = this.hasReturn;
+    const previousFunctionDepth = this.functionDepth;
+    this.currentEnv = fnEnv;
+
+    // Se temos type parameters e contexto, tenta inferir mapeamento concreto
+    // Ex: apply(10, <T>(x: T): T => x) → fnContext = (int) => int → T=int
+    const inferredMapping = expr.typeParameters && fnContext
+      ? this.inferArrowTypeParamsFromContext(expr.typeParameters, expr.params, expr.returnType, fnContext)
+      : null;
+
+    // Valida tipos dos params (type params como T estão visíveis agora)
     const paramTypes: TypeNode[] = [];
     for (let i = 0; i < expr.params.length; i++) {
       const param = expr.params[i];
@@ -2012,12 +2051,14 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       }
     }
 
+    // Verifica rest params
     for (let i = 0; i < expr.params.length - 1; i++) {
       if (expr.params[i].isRest) {
         this.errors.push(Errors.restNotLast(expr.params[i].name));
       }
     }
 
+    // Valida return type annotation
     const annotatedReturn = expr.returnType
       ? (() => {
           const err = this.validateTypeNode(expr.returnType!, expr.params[0]?.name ?? { line: 0, column: 0, type: 0, value: "" } as Token);
@@ -2029,12 +2070,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const expectedReturn: TypeNode | null =
       annotatedReturn ?? fnContext?.returnType ?? null;
 
-    const previousEnv = this.currentEnv;
-    const previousReturnType = this.currentFunctionReturnType;
-    const previousHasReturn = this.hasReturn;
-    const previousFunctionDepth = this.functionDepth;
-
-    const fnEnv = new Environment(this.currentEnv, false);
+    // Registra params da função no escopo
     for (let i = 0; i < expr.params.length; i++) {
       const param = expr.params[i];
       const paramName = param.name.value as string;
@@ -2048,7 +2084,6 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       });
     }
 
-    this.currentEnv = fnEnv;
     this.functionDepth++;
     this.hasReturn = false;
     this.currentFunctionReturnType = expectedReturn;
@@ -2094,14 +2129,60 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     this.functionDepth = previousFunctionDepth;
 
     const finalReturn = annotatedReturn ?? inferredReturn;
-    return {
+    const result: TypeNode = {
       kind: "FunctionType",
       params: paramTypes.map((pt, i) => ({
         ...pt,
         isRest: expr.params[i]?.isRest || false
       })),
       returnType: finalReturn,
+      typeParameters: expr.typeParameters,
     };
+
+    // Se temos um mapeamento de type params inferidos do contexto, substitui
+    if (inferredMapping) {
+      return this.substitute(result, inferredMapping);
+    }
+
+    return result;
+  }
+
+  /**
+   * Quando uma arrow function genérica (<T>(x: T): T => x) é passada como argumento
+   * para um parâmetro que espera um tipo concreto (ex: (int) => int), infere
+   * o mapeamento T → int a partir das anotações da arrow vs o tipo contextual.
+   *
+   * Exemplo:
+   *   func apply<T>(x: T, fn: (T) => T): T { return fn(x) }
+   *   apply(10, <T>(x: T): T => x)
+   *   // Aqui, o T de apply vira int, e fn espera (int) => int
+   *   // O T da arrow é inferido como int a partir do contexto
+   */
+  private inferArrowTypeParamsFromContext(
+    typeParameters: TypeParameterNode[],
+    exprParams: { name: Token; type?: TypeNode }[],
+    returnType: TypeNode | undefined,
+    contextType: FunctionTypeNode
+  ): Map<string, TypeNode> | null {
+    const mapping = new Map<string, TypeNode>();
+    const typeParamNames = new Set(typeParameters.map(tp => tp.name.value as string));
+
+    // Match params por posição: anotação T → tipo concreto do contexto
+    for (let i = 0; i < Math.min(exprParams.length, contextType.params.length); i++) {
+      const annotated = exprParams[i].type;
+      if (annotated?.kind === "NamedType" && typeParamNames.has(annotated.name.value as string)) {
+        mapping.set(annotated.name.value as string, contextType.params[i]);
+      }
+    }
+
+    // Match return type: anotação T → tipo concreto do contexto
+    if (returnType?.kind === "NamedType" && typeParamNames.has(returnType.name.value as string)) {
+      if (!mapping.has(returnType.name.value as string)) {
+        mapping.set(returnType.name.value as string, contextType.returnType);
+      }
+    }
+
+    return mapping.size > 0 ? mapping : null;
   }
 
   private checkSpreadExpr(expr: Extract<Expr, { kind: "Spread" }>): TypeNode {
