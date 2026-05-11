@@ -1,0 +1,190 @@
+// ============================================================
+// SUITE FINALISTA — OPTIONAL<T> + NULLABLE + ALIAS + GENERICS
+// ============================================================
+
+
+// ============================================================
+// BLOCO A — EQUIVALÊNCIA Optional<T> ↔ T?
+// O checker deve tratar ambos como idênticos em todos os contextos
+// ============================================================
+
+val a1: Optional<int>    = null
+val a2: Optional<int>    = 42
+val a3: int?             = null
+val a4: int?             = 42
+
+// Atribuição cruzada — Optional<T> e T? devem ser compatíveis
+var a5: Optional<string> = "hello"
+var a6: string?          = a5        // Optional<string> → string? PASS
+var a7: Optional<string> = a6        // string? → Optional<string> PASS
+
+// [EXPECTED] PASS — ambas as formas são o mesmo tipo
+
+
+// ============================================================
+// BLOCO B — Optional DENTRO DE ARRAY
+// Optional<string>[] ↔ string?[]
+// ============================================================
+
+val b1: Optional<string>[] = ["a", null, "c"]
+val b2: string?[]          = ["a", null, "c"]
+val b3: Optional<string>[] = b2   // PASS
+val b4: string?[]          = b1   // PASS
+
+// Array nullable de Optional
+var b5: Optional<int>[]?   = [1, null, 3]
+var b6: int?[]?            = b5    // PASS
+
+// [EXPECTED] PASS
+
+
+// ============================================================
+// BLOCO C — Optional COMO ARGUMENTO DE GENÉRICO ANINHADO
+// Array<Optional<T>> = T?[] — garantia de canonicalização
+// ============================================================
+
+typealias MaybeInt    = Optional<int>
+typealias MaybeIntArr = MaybeInt[]
+
+val c1: MaybeIntArr = [1, null, 2, null, 3]
+
+func c_sum(arr: MaybeIntArr): int {
+  return 0
+}
+
+val c2 = c_sum([10, null, 20])   // PASS — MaybeIntArr = Optional<int>[] = int?[]
+
+// [EXPECTED] PASS
+
+
+// ============================================================
+// BLOCO D — CADEIA PROFUNDA DE ALIAS COM Optional
+// Cada nível adiciona Optional ou Array, checker deve resolver tudo
+// ============================================================
+
+typealias Base     = int
+typealias Opt      = Optional<Base>          // int?
+typealias ArrOpt   = Opt[]                   // int?[]
+typealias OptArr   = Optional<int[]>         // int[]?
+typealias OptArrOpt = Optional<ArrOpt>       // int?[]?
+
+val d1: Opt       = null
+val d2: Opt       = 42
+val d3: ArrOpt    = [1, null, 3]
+val d4: OptArr    = [1, 2, 3]
+val d5: OptArr    = null
+val d6: OptArrOpt = [1, null, 3]
+val d7: OptArrOpt = null
+
+// [EXPECTED] PASS — todos os aliases devem resolver corretamente
+
+
+// ============================================================
+// BLOCO E — FUNÇÃO QUE RECEBE E RETORNA Optional
+// Parâmetros Optional devem aceitar null e valor
+// ============================================================
+
+func e_identity(x: Optional<string>): Optional<string> {
+  return x
+}
+
+val e1 = e_identity("hello")   // PASS
+val e2 = e_identity(null)      // PASS
+
+func e_unwrapOr(x: Optional<int>, fallback: int): int {
+  return fallback
+}
+
+val e3 = e_unwrapOr(42, 0)     // PASS
+val e4 = e_unwrapOr(null, 0)   // PASS
+
+// [EXPECTED] PASS
+
+
+// ============================================================
+// BLOCO F — Optional EM FUNÇÃO DE ORDEM SUPERIOR
+// Callback com param Optional — contextual typing deve funcionar
+// ============================================================
+
+typealias Transform = (Optional<int>) => int
+
+func f_apply(val_: Optional<int>, f: Transform): int {
+  return f(val_)
+}
+
+val f1 = f_apply(10,   (x) => 0)    // x inferido como Optional<int>
+val f2 = f_apply(null, (x) => 0)    // PASS
+
+// Array de funções com Optional
+val f3: Transform[] = [
+  (x) => 0,
+  (x) => 1
+]
+
+val f4: int = f3[0](null)    // PASS
+val f5: int = f3[1](42)      // PASS
+
+// [EXPECTED] PASS
+
+
+// ============================================================
+// BLOCO G — INDEXAÇÃO EM Optional<Array>
+// int[]? — o checker deve aceitar indexação (unwrap implícito)
+// ============================================================
+
+var g1: int[]? = [10, 20, 30]
+val g2 = g1[0]    // PASS — nullable array, index → int
+
+var g3: Optional<int[]> = [1, 2, 3]
+val g4 = g3[0]    // PASS — mesmo comportamento
+
+// [EXPECTED] PASS
+
+
+// ============================================================
+// BLOCO H — MISTURA MÁXIMA
+// Optional + alias profundo + callback + array + indexação
+// ============================================================
+
+typealias Score     = int
+typealias MaybeScore = Optional<Score>
+typealias ScoreList = MaybeScore[]
+typealias Picker    = (ScoreList) => MaybeScore
+
+func h_pick(scores: Optional<ScoreList>, picker: Picker): MaybeScore {
+  val safe: ScoreList = scores ?? []
+  return picker(safe)
+}
+
+val h1 = h_pick(
+  [10, null, 30, null, 50],
+  (arr) => arr[0]
+)
+
+val h2 = h_pick(
+  null,
+  (arr) => arr[0]
+)
+
+val h3: MaybeScore = h1
+val h4: int?       = h1    // MaybeScore = Optional<Score> = int? PASS
+
+// [EXPECTED] PASS — se passar, o núcleo de typing está sólido para Optional
+
+
+// ============================================================
+// BLOCO I — ERROS ESPERADOS (EXPECTED ERRORS)
+// ============================================================
+
+// EXPECTED ERROR: int ≠ Optional<string>
+// val i1: Optional<string> = 42
+
+// EXPECTED ERROR: Optional precisa de exatamente 1 arg
+// var i2: Optional<int, string> = null
+
+// EXPECTED ERROR: string[] ≠ Optional<int>[]
+// val i3: Optional<int>[] = ["a", "b"]
+
+// EXPECTED ERROR: não pode indexar Optional<string> (não é array)
+// var i4: Optional<string> = "hello"
+// val i5 = i4[0]

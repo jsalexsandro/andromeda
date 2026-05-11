@@ -49,7 +49,7 @@ val x: int = 10
 | Keyword | Mutability | Type Required | Description |
 |---------|-------------|---------------|-------------|
 | `var` | Mutable | No | Variable that can be reassigned |
-| `val` | Immutable | **Yes** | Value that cannot be reassigned (type annotation mandatory) |
+| `val` | Immutable | No | Variable Imutable
 | `const` | Immutable | No | Constant (similar to val) |
 
 ### Examples
@@ -550,10 +550,7 @@ val x: int = 10  // Comment at end of line
 ```typescript
 // Type aliases
 typealias ID = int
-typealias UserData = {
-  id: ID,
-  name: string
-}
+typealias UserData = ID | string
 
 // Function
 func greet(name: string): string {

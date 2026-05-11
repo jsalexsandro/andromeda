@@ -88,6 +88,8 @@ export interface CallExpr {
   kind: "Call"
   callee: Expr
   args: Expr[]
+  /** Type arguments em chamadas genéricas: foo<int, string>(x, y) */
+  typeArgs?: TypeNode[]
 }
 
 export interface ArrayExpr {
@@ -191,6 +193,8 @@ export interface FunctionStmt {
   body: BlockStmt
   async?: boolean
   returnType?: TypeNode
+  /** Parâmetros de tipo genérico: func foo<T, U>(...) */
+  typeParameters?: TypeParameterNode[]
 }
 
 export interface ReturnStmt {
@@ -266,6 +270,8 @@ export interface ArrowFunctionExpr {
   body: Expr | Stmt
   async?: boolean
   returnType?: TypeNode
+  /** Parâmetros de tipo genérico: <T>(x: T): T => x */
+  typeParameters?: TypeParameterNode[]
 }
 
 export interface TemplateLiteralExpr {

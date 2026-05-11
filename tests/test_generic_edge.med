@@ -1,0 +1,19 @@
+// Edge cases: comparação < ainda funciona?
+val cmp1 = 1 < 2
+val cmp2 = 1 < 2 + 3
+val cmp3 = 1 < 2 && 3 < 4
+
+// Chamadas genéricas
+func wrap<T>(x: T): T { return x }
+
+val g1 = wrap<int>(42)
+val g2 = wrap<string>("hi")
+
+// Múltiplos type args
+func pair<A, B>(a: A, b: B): string { return "ok" }
+val g3 = pair<int, string>(1, "a")
+
+// Type args com tipos builtin
+func id<T>(x: T): T { return x }
+val g4 = id<Array<int>>([1, 2, 3])
+val g5 = id<Optional<int>>(null)

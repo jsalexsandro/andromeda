@@ -1,2 +1,4 @@
-var names: string? = null
-var names: string[]? = null
+typealias name<T> = T
+
+
+app<js>

@@ -206,6 +206,45 @@
 - [ ] Verificar que está dentro de `while` ou `for` → senão erro
 
 ---
+### Generics
+GenericTypeParameter
+- [ ] Criar `TypeParameter` no Symbol
+      kind: "typeParam"
+      name: "T"
+      constraint: TypeNode | null  (futuro: T implements X)
+
+- [ ] Ao entrar em FunctionStatement com generics:
+      → enterScope()
+      → registrar cada <T> como TypeParameter no escopo
+      → checar params e returnType dentro desse escopo
+      → exitScope()
+FunctionStatement com Generics
+- [ ] Detectar se função tem GenericDecl (<T>, <T, U>)
+- [ ] Registrar TypeParameters no escopo da função
+- [ ] Validar params: se tipo é T → aceitar como TypeParameter válido
+- [ ] Validar returnType: se é T → válido dentro do escopo
+- [ ] Guardar na Symbol da função:
+      genericParams: string[]  → ["T", "U"]
+      paramTypes: TypeNode[]   → [T, T]
+      returnType: TypeNode     → T
+GenericCall — add<int>(1, 2)
+- [ ] Verificar que a função existe e é genérica
+- [ ] Verificar que número de tipos passados bate com genericParams
+      add<int, string> → função tem <T> → erro: esperava 1, recebeu 2
+- [ ] Criar mapa de substituição:
+      { T → int }
+- [ ] Substituir tipos dos params:
+      (n1: T, n2: T) → (n1: int, n2: int)
+- [ ] Verificar argumentos contra tipos substituídos
+- [ ] Inferir returnType substituído:
+      retorna T → retorna int
+Type Inference em GenericCall (bônus)
+- [ ] Se chamada sem tipo explícito: add(1, 2)
+      → inferir T a partir dos argumentos
+      → arg1 é int → T = int
+      → verificar que arg2 também é int
+      → se conflito → erro: "não foi possível inferir T"
+---
 
 ## Fase 6.5 — Tipos nominais (declarações)
 

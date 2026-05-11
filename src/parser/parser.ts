@@ -1,6 +1,6 @@
 import { Token, TokenType } from "../lexer/types";
 import { ErrorHandler } from "./error";
-import { Expr, Stmt, TypeNode } from "../ast";
+import { Expr, Stmt, TypeNode, TypeParameterNode } from "../ast";
 import { Precedence, getPrecedence } from "./precedence";
 
 type PrefixParselet = () => Expr | null;
@@ -78,7 +78,7 @@ export class Parser {
 
     this.infixParselets.set(TokenType.EQUAL, this.parseBinary.bind(this));
     this.infixParselets.set(TokenType.NOT_EQUAL, this.parseBinary.bind(this));
-    this.infixParselets.set(TokenType.LESS_THAN, this.parseBinary.bind(this));
+    this.infixParselets.set(TokenType.LESS_THAN, this.parseGenericCallOrBinary.bind(this));
     this.infixParselets.set(
       TokenType.GREATER_THAN,
       this.parseBinary.bind(this),
@@ -541,12 +541,90 @@ export class Parser {
     return { kind: "Unary", operator, right: left };
   }
 
+  /**
+   * Tenta parsear argumentos de tipo em chamada genérica: <int, string>
+   * Usado por parseGenericCallOrBinary para detectar foo<int>(args).
+   * Avança '>' no final. Retorna null se não for lista de tipos válida.
+   */
+  private tryParseCallTypeArgs(): TypeNode[] | null {
+    const args: TypeNode[] = [];
+
+    while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
+      const typeArg = this.parseAnnotationType();
+      if (!typeArg) return null;
+      args.push(typeArg);
+
+      if (this.check(TokenType.COMMA)) {
+        this.advance(); // consume ','
+      } else if (!this.check(TokenType.GREATER_THAN)) {
+        return null; // unexpected token — não é lista de tipos
+      }
+    }
+
+    if (!this.check(TokenType.GREATER_THAN)) return null;
+    this.advance(); // consume '>'
+    return args;
+  }
+
+  /**
+   * Infix parselet para '<' que tenta primeiro como chamada genérica.
+   * Se left for chamável e <Type,...>( vier em seguida, parseia como
+   * CallExpr com typeArgs. Caso contrário, faz parseBinary (comparação).
+   *
+   * Exemplos:
+   *   add<int>(1, 2)     → CallExpr { typeArgs: [int], args: [1, 2] }
+   *   a < b              → BinaryExpr { left: a, op: '<', right: b }
+   */
+  private parseGenericCallOrBinary(left: Expr): Expr | null {
+    const operator = this.previous(); // '<'
+    const savedPos = this.current;
+    const savedErrorsLen = this.errors.errors.length;
+
+    // Tenta parsear como argumentos de tipo + chamada
+    const typeArgs = this.tryParseCallTypeArgs();
+    if (typeArgs && this.check(TokenType.LPAREN)) {
+      this.advance(); // consume '('
+      const args = this.parseCallArgs();
+      return {
+        kind: "Call",
+        callee: left,
+        args,
+        typeArgs
+      };
+    }
+
+    // Falhou — restaura e faz binary comparison
+    this.current = savedPos;
+    this.errors.errors = this.errors.errors.slice(0, savedErrorsLen);
+    const precedence = getPrecedence(operator.type);
+    const right = this.parseExpression(precedence);
+    if (!right) {
+      this.error("Expected expression after '<'", operator);
+      return null;
+    }
+    return { kind: "Binary", left, operator, right };
+  }
+
+  /**
+   * Infix parselet para '(' — parseia chamada de função.
+   * Também usado por parseGenericCallOrBinary para chamadas genéricas.
+   */
   private parseCall(left: Expr): Expr | null {
+    const args = this.parseCallArgs();
+    return { kind: "Call", callee: left, args };
+  }
+
+  /**
+   * Parseia argumentos entre parênteses: (arg1, arg2, ...)
+   * Avança ')' no final. Retorna array vazio se args vazios.
+   */
+  private parseCallArgs(): Expr[] {
     const args: Expr[] = [];
 
+    // Empty args: ()
     if (this.check(TokenType.RPAREN)) {
       this.advance();
-      return { kind: "Call", callee: left, args };
+      return args;
     }
 
     while (!this.isAtEnd()) {
@@ -579,7 +657,7 @@ export class Parser {
       }
     }
 
-    return { kind: "Call", callee: left, args };
+    return args;
   }
 
   private parseMember(left: Expr): Expr | null {
@@ -1073,6 +1151,12 @@ export class Parser {
       };
     }
 
+    // Parâmetros de tipo genérico: func add<T, U>(n1: T, n2: U): T
+    let typeParameters: TypeParameterNode[] | undefined;
+    if (this.check(TokenType.LESS_THAN)) {
+      typeParameters = this.parseGenericTypeParameters();
+    }
+
     if (!this.check(TokenType.LPAREN)) {
       this.error("Expected '(' after function name", this.peek());
     }
@@ -1101,7 +1185,8 @@ export class Parser {
       name: nameToken,
       params,
       body,
-      returnType
+      returnType,
+      typeParameters
     }
   }
 
@@ -1793,11 +1878,53 @@ export class Parser {
   }
 
   /**
-   * Parses a named type node (custom types like User, Product, etc.)
+   * Parses type parameter list: <T, U, V>
+   * Usado por declarações genéricas: func foo<T, U>(x: T, y: U): T
+   *
+   * @returns {TypeParameterNode[]} Lista de parâmetros de tipo
+   */
+  private parseGenericTypeParameters(): TypeParameterNode[] {
+    this.advance(); // consume '<'
+
+    const params: TypeParameterNode[] = [];
+
+    while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
+      const nameToken = this.advance();
+      if (nameToken.type !== TokenType.IDENTIFIER) {
+        this.error("Expected type parameter name", nameToken);
+        break;
+      }
+
+      params.push({
+        kind: "TypeParameter",
+        name: nameToken,
+      });
+
+      if (this.check(TokenType.COMMA)) {
+        this.advance(); // consume ','
+      } else if (!this.check(TokenType.GREATER_THAN)) {
+        this.error("Expected ',' or '>' after type parameter", this.peek());
+        break;
+      }
+    }
+
+    if (!this.check(TokenType.GREATER_THAN)) {
+      this.error("Expected '>' to close type parameter list", this.peek());
+    } else {
+      this.advance(); // consume '>'
+    }
+
+    return params;
+  }
+
+  /**
+   * Parses a named type node (e.g., User, Product, Array<T>).
+   * Handles generic parameters through parseNamedTypeWithGenerics.
    * Examples:
-   *   val user: User       → NamedTypeNode { name: "User" }
-   *   val item: Product    → NamedTypeNode { name: "Product" }
-   *   val items: Array<T>  → GenericTypeNode { name: "Array", args: [...] }
+   *   User          → NamedTypeNode { name: "User" }
+   *   Array<int>    → GenericTypeNode (via parseNamedTypeWithGenerics)
+   *
+   * @returns {TypeNode} The parsed type node.
    */
   private parseNamedTypeNode(): TypeNode {
     const nameToken = this.advance();

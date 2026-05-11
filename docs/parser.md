@@ -95,7 +95,21 @@ FASE TYPEALIAS
             |
             |> espera uma keyword
 
+
+Fase 6.3 GenericSystem
+  GenericDecl:
+    Function/ArrowFunction
+    func add<T>(n1: T, n2: T): T {
+      return n1 + n2
+    }
+
+  GenericCall: // para funções
+    add<int>(1, 2)
+
+  - Criar a função ParseGeneric, para reutilizar em outras estruturas
+
 [ate aqui feito]
+  
 
 FASE 6.5 - CONTROLS TYPES
 1. ProtocolStatement

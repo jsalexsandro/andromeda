@@ -1,0 +1,17 @@
+// Teste: Declaração de função genérica
+// func add<T>(n1: T, n2: T): T { return n1 + n2 }
+// func app<A, B>(n1: A, n2: B): B { print(n1); return n2 }
+// Chamada genérica: add<int>(1, 2)
+
+func add<T>(n1: T, n2: T): T {
+  return n1
+}
+
+func app<A, B>(n1: A, n2: B): B {
+  print(n1)
+  return n2
+}
+
+val x1 = add<int>(1, 2)
+val x2 = add<string>("a", "b")
+val x3 = app<int, string>(1, "hello")
