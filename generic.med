@@ -15,3 +15,7 @@ func s<T>(): T{
 }
 
 s<int?>(null)
+
+
+// testar profundamente arrow funcs com generics
+// testar generic em funcs profundamente
