@@ -195,6 +195,63 @@ func testMultiOptionalExpr(): void {
   }
 }
 
+// ============================================================
+// TEST 16 — TYPE ANNOTATION CORRECTA
+// ============================================================
+func testTypeAnnotationCorrect(): void {
+  val x: int? = maybe()
+  if val y: int = x {
+    val z: int = y
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 17 — TYPE ANNOTATION ERRADA (deve emitir TYPE_MISMATCH)
+// ============================================================
+// func testTypeAnnotationWrong(): void {
+//   val x: int? = maybe()
+//   if val y: string = x {
+//     // ❌ Cannot bind 'y' with type 'string' to value of type 'int'
+//     globalCount = globalCount + 1
+//   }
+// }
+
+// ============================================================
+// TEST 18 — CHAINED COM TYPE ANNOTATIONS
+// ============================================================
+func testChainedWithAnnotations(): void {
+  val a: int? = maybe()
+  val b: string? = maybeString()
+  if val x: int = a, val y: string = b {
+    val sum: int = x
+    val msg: string = y
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 19 — VAR COM TYPE ANNOTATION
+// ============================================================
+func testVarWithAnnotation(): void {
+  var x: int? = maybe()
+  if var y: int = x {
+    y = 99
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 20 — FUNÇÃO OPICIONAL COM TYPE ANNOTATION
+// ============================================================
+func testOptionalFnWithAnnotation(): void {
+  val fn: (() => int)? = (): int => 42
+  if val f: () => int = fn {
+    val result: int = f()
+    globalCount = globalCount + 1
+  }
+}
+
 
 // ============================================================
 // RUN ALL
@@ -214,3 +271,7 @@ testNullCase()
 testComplexExpr()
 testGenericIfVal()
 testMultiOptionalExpr()
+testTypeAnnotationCorrect()
+testChainedWithAnnotations()
+testVarWithAnnotation()
+testOptionalFnWithAnnotation()

@@ -60,6 +60,7 @@ FASE 4 — FUNÇÕES
 ├── 20. ArgumentList            (a: int, b: string)
 ├── 21. FunctionStatement       func foo() {}
         Anotação func foo(): int {} [OK]
+        Funções anominas, permitir essa sintaxe
  
 ├── 22. ReturnStatement         return expr
 └── 23. ArrowFunction           x => x  /  (x) => x + 1
@@ -107,6 +108,18 @@ Fase 6.3 GenericSystem
     add<int>(1, 2)
 
   - Criar a função ParseGeneric, para reutilizar em outras estruturas
+
+// desempacotadores de opicionais
+Fase 6.4 IfBindingExpr
+-  IfValExpr
+-  IfVarExpr
+-  IfContExpr
+-  Reutilizar as apis internas de declaração de variaveis do parser
+
+no Ast IfVariableStmt
+
+Fase 6.45 Narrowing automatico
+
 
 [ate aqui feito]
   

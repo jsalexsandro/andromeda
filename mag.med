@@ -1,0 +1,600 @@
+// ============================================================
+// ANDROMEDA — FINAL ABSOLUTE GENERIC + NARROW SUITE
+// ============================================================
+
+// ============================================================
+// TEST 1 — BASIC IF VAL NARROW
+// ============================================================
+
+func unwrap<T>(x: T?): T? {
+
+  if val v = x {
+    return v
+  }
+
+  return null
+}
+
+val a1: int? = unwrap(42)
+val a2: int? = unwrap(null)
+
+
+
+// ============================================================
+// TEST 2 — IF VAL WITH FUNCTION GENERIC
+// ============================================================
+
+func call<T>(fn: (() => T)?): T? {
+
+  if val f = fn {
+    return f()
+  }
+
+  return null
+}
+
+val b1: int? = call((): int => 42)
+val b2: string? = call((): string => "hello")
+val b3: int? = call(null)
+
+
+
+// ============================================================
+// TEST 3 — IF VAR NARROW
+// ============================================================
+
+func process<T>(x: T?): T? {
+
+  if var value = x {
+    value = value
+    return value
+  }
+
+  return null
+}
+
+val c1: int? = process(42)
+
+
+
+// ============================================================
+// TEST 4 — NESTED IF VAL
+// ============================================================
+
+func nested<T>(x: T?): T? {
+
+  if val a = x {
+
+    if val b = a {
+      return b
+    }
+
+  }
+
+  return null
+}
+
+val d1: int? = nested(42)
+val d2: int? = nested(null)
+
+
+
+// ============================================================
+// TEST 5 — NARROW + GENERIC CALLBACK
+// ============================================================
+
+func execute<T>(fn: (() => T)?): T? {
+
+  if val f = fn {
+    return f()
+  }
+
+  return null
+}
+
+val e1: int? = execute((): int => 10)
+
+
+
+// ============================================================
+// TEST 6 — GENERIC INFERENCE THROUGH NARROW
+// ============================================================
+
+func choose<T>(x: T?): T? {
+
+  if val value = x {
+    return value
+  }
+
+  return null
+}
+
+val f1: int? = choose(42)
+val f2: string? = choose("hello")
+
+
+
+// ============================================================
+// TEST 7 — FUNCTION RETURNING NULLABLE FUNCTION
+// ============================================================
+
+func maker<T>(x: T): (() => T)? {
+
+  return (): T => x
+}
+
+val g1: (() => int)? = maker(42)
+
+if val fn = g1 {
+
+  val g2: int = fn()
+
+}
+
+
+
+// ============================================================
+// TEST 8 — DEEP FUNCTION NARROW
+// ============================================================
+
+func deep<T>(x: ((() => T)?)?): T? {
+
+  if val a = x {
+
+    if val b = a {
+      return b()
+    }
+
+  }
+
+  return null
+}
+
+val h1: int? = deep(((): int => 42))
+
+
+
+// ============================================================
+// TEST 9 — ARRAY NULLABLE NARROW
+// ============================================================
+
+func first<T>(arr: T[]?): T? {
+
+  if val a = arr {
+    return a[0]
+  }
+
+  return null
+}
+
+val i1: int? = first([1, 2, 3])
+val i2: int? = first(null)
+
+
+
+// ============================================================
+// TEST 10 — MULTI GENERIC + NARROW
+// ============================================================
+
+func pair<A, B>(a: A?, b: B?): B? {
+
+  if val x = a {
+
+    if val y = b {
+      return y
+    }
+
+  }
+
+  return null
+}
+
+val j1: string? = pair(1, "hello")
+val j2: bool? = pair("x", true)
+
+
+
+// ============================================================
+// TEST 11 — SHADOWING INSIDE IF VAL
+// ============================================================
+
+func shadow<T>(x: T?): T? {
+
+  if val x = x {
+    return x
+  }
+
+  return null
+}
+
+val k1: int? = shadow(42)
+
+
+
+// ============================================================
+// TEST 12 — NARROW + HIGHER ORDER FUNCTION
+// ============================================================
+
+func apply<T>(x: T?, fn: ((T) => T)?): T? {
+
+  if val value = x {
+
+    if val f = fn {
+      return f(value)
+    }
+
+  }
+
+  return null
+}
+
+val l1: int? = apply(
+  10,
+  (n: int): int => n + 1
+)
+
+
+
+// ============================================================
+// TEST 13 — GENERIC ARRAY PROPAGATION
+// ============================================================
+
+func clone<T>(arr: T[]?): T[]? {
+
+  if val a = arr {
+    return [...a]
+  }
+
+  return null
+}
+
+val m1: int[]? = clone([1, 2, 3])
+
+
+
+// ============================================================
+// TEST 14 — RECURSIVE NARROW FLOW
+// ============================================================
+
+func recursive<T>(x: T?): T? {
+
+  if val value = x {
+    return recursive<T>(value)
+  }
+
+  return null
+}
+
+val n1: int? = recursive(42)
+
+
+
+// ============================================================
+// TEST 15 — GENERIC CALLBACK RETURNING GENERIC
+// ============================================================
+
+func run<T>(fn: (() => T)?): T? {
+
+  if val f = fn {
+    return f()
+  }
+
+  return null
+}
+
+val o1: int? = run((): int => 42)
+
+
+
+// ============================================================
+// TEST 16 — INLINE GENERIC FLOW
+// ============================================================
+
+func id<T>(x: T): T {
+  return x
+}
+
+func nullable<T>(x: T?): T? {
+
+  if val v = x {
+    return id(v)
+  }
+
+  return null
+}
+
+val p1: int? = nullable(42)
+
+
+
+// ============================================================
+// TEST 17 — MULTI-DIM ARRAY NARROW
+// ============================================================
+
+func matrix<T>(x: T[][]?): T? {
+
+  if val m = x {
+    return m[0][0]
+  }
+
+  return null
+}
+
+val q1: int? = matrix([
+  [1, 2],
+  [3, 4]
+])
+
+
+
+// ============================================================
+// TEST 18 — GENERIC + FUNCTION ARRAY + NARROW
+// ============================================================
+
+func invoke<T>(arr: (() => T)[]?): T? {
+
+  if val a = arr {
+    return a[0]()
+  }
+
+  return null
+}
+
+val r1: int? = invoke([
+  (): int => 1,
+  (): int => 2
+])
+
+
+
+// ============================================================
+// TEST 19 — DOUBLE NARROW SAME SYMBOL
+// ============================================================
+
+func dual<T>(x: T?): T? {
+
+  if val a = x {
+
+    if val b = a {
+      return b
+    }
+
+  }
+
+  return null
+}
+
+val s1: int? = dual(42)
+
+
+
+// ============================================================
+// TEST 20 — NARROW WITH EMPTY RETURN PATH
+// ============================================================
+
+func safe<T>(x: T?): T? {
+
+  if val value = x {
+    return value
+  }
+
+  return null
+}
+
+val t1: string? = safe("hello")
+val t2: string? = safe(null)
+
+
+
+// ============================================================
+// TEST 21 — TYPE MISMATCH AFTER NARROW
+// ============================================================
+
+// EXPECTED: TYPE_MISMATCH
+/*
+func broken<T>(x: T?): T {
+
+  if val value = x {
+    return "hello"
+  }
+
+  return x
+}
+*/
+
+
+
+// ============================================================
+// TEST 22 — INVALID FUNCTION CALL AFTER NARROW
+// ============================================================
+
+// EXPECTED: NOT_CALLABLE
+/*
+func fail<T>(x: T?): T? {
+
+  if val value = x {
+    return value()
+  }
+
+  return null
+}
+*/
+
+
+
+// ============================================================
+// TEST 23 — GENERIC INFERENCE FAILURE
+// ============================================================
+
+func maybe<T>(x: T?): T? {
+  return x
+}
+
+// EXPECTED: GENERIC_INFERENCE_FAILED
+// val u1 = maybe(null)
+
+
+
+// ============================================================
+// TEST 24 — FUNCTION PARAM MISMATCH
+// ============================================================
+
+// EXPECTED: TYPE_MISMATCH
+/*
+val v1 = apply(
+  10,
+  (s: string): string => s
+)
+*/
+
+
+
+// ============================================================
+// TEST 25 — NARROW WITH GENERIC FUNCTION RETURN
+// ============================================================
+
+func create<T>(x: T): T? {
+  return x
+}
+
+func consume<T>(x: T?): T? {
+
+  if val value = x {
+    return create(value)
+  }
+
+  return null
+}
+
+val w1: int? = consume(42)
+
+
+
+// ============================================================
+// TEST 26 — IF VAR MUTATION FLOW
+// ============================================================
+
+func mutate<T>(x: T?): T? {
+
+  if var value = x {
+
+    value = value
+
+    return value
+  }
+
+  return null
+}
+
+val x1: int? = mutate(42)
+
+
+
+// ============================================================
+// TEST 27 — FUNCTION FACTORY + NARROW
+// ============================================================
+
+func factory<T>(x: T): (() => T)? {
+
+  return (): T => x
+}
+
+val y1 = factory(42)
+
+if val fn = y1 {
+
+  val y2: int = fn()
+
+}
+
+
+
+// ============================================================
+// TEST 28 — COMPLEX CASCADE
+// ============================================================
+
+func cascade<T>(x: T?): T? {
+
+  if val a = x {
+
+    val b = id(a)
+
+    return b
+  }
+
+  return null
+}
+
+val z1: int? = cascade(42)
+
+
+
+// ============================================================
+// TEST 29 — NESTED GENERIC CALLBACKS
+// ============================================================
+
+func nestedCall<T>(fn: (() => (() => T))?): T? {
+
+  if val outer = fn {
+
+    val inner = outer()
+
+    return inner()
+  }
+
+  return null
+}
+
+val aa1: int? = nestedCall(
+  (): (() => int) => {
+    return (): int => 42
+  }
+)
+
+
+
+// ============================================================
+// TEST 30 — THE FINAL BOSS
+// ============================================================
+
+func final<T>(
+  value: T?,
+  transform: ((T) => T)?,
+  fallback: (() => T)?
+): T? {
+
+  if val v = value {
+
+    if val fn = transform {
+      return fn(v)
+    }
+
+  }
+
+  if val fb = fallback {
+    return fb()
+  }
+
+  return null
+}
+
+val ab1: int? = final(
+  10,
+  (n: int): int => n + 1,
+  (): int => 0
+)
+
+val ab2: string? = final(
+  null,
+  (s: string): string => s + "!",
+  (): string => "fallback"
+)
+
+// EXPECTED: TYPE_MISMATCH
+/*
+val ab3 = final(
+  10,
+  (s: string): string => s,
+  (): int => 0
+)
+*/

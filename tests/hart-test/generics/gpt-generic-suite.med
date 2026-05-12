@@ -342,3 +342,4 @@ func maybe<T>(x: T?): T? {
 
 // EXPECTED: TYPE_MISMATCH
 // val x1: int = identity("hello")
+

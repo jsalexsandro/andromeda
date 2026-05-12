@@ -1020,6 +1020,18 @@ export class TypeChecker {
       unwrapped = normalized;
     }
 
+    if (stmt.type) {
+      const resolvedType = this.resolveAlias(stmt.type);
+      if (!this.areTypesCompatible(resolvedType, unwrapped)) {
+        this.errors.push(
+          Errors.typeMismatch(
+            `Cannot bind '${stmt.name.value}' with type '${this.typeToString(resolvedType)}' to value of type '${this.typeToString(unwrapped)}'`,
+            stmt.name,
+          ),
+        );
+      }
+    }
+
     env.define(
       stmt.name.value as string,
       createSymbol(

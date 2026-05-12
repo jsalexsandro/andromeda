@@ -82,7 +82,8 @@ func maybe<T>(x: T?): T? {
 }
 
 val f1 = maybe(42)
-val f2 = maybe(null)
+// val f2 = maybe(null) // error, INFERENCE not possible
+val f2: int? = maybe(null) // bilateral INFERENCE
 
 // ============================================================
 // TEST 7 — GENERIC AUTO RECURSIVO

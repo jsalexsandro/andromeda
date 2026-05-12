@@ -253,7 +253,17 @@ Type Inference em GenericCall (bônus)
 ---
 
 -> [SUPORTAR constraint]
-      
+
+IfVariableExpr (if val x = y {})
+- [ ] checkExpression(initializer) — resolve o tipo da expressão à direita do =
+- [ ] normalizeType() converte Optional<T> → NullableType<T>
+- [ ] Se o resultado não for NullableType, emite INVALID_BINDING_TYPE
+- [ ] Se stmt.type existe (anotação : Tipo), resolve com resolveAlias() e valida com areTypesCompatible(unwrapped) — emite TYPE_MISMATCH se incompatível
+- [ ] A variável é registada no ambiente com o tipo unwrapped (T dentro de NullableType<T>)
+- [ ] Mutabilidade respeita val/var do declarationType
+- [ ] Se houver continuation, processa recursivamente no mesmo sharedEnv
+- [ ] Then-branch corre num novo Environment filho (apenas o root binding cria o escopo)
+- [ ] Else-branch corre no ambiente original (sem as variáveis bound)
 
 ## Fase 6.5 — Tipos nominais (declarações)
 
