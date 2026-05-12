@@ -1,6 +1,6 @@
 import { Token, TokenType } from "../lexer/types";
 import { ErrorHandler } from "./error";
-import { Expr, Stmt, TypeNode, TypeParameterNode } from "../ast";
+import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode } from "../ast";
 import { Precedence, getPrecedence } from "./precedence";
 
 type PrefixParselet = () => Expr | null;
@@ -1016,7 +1016,12 @@ export class Parser {
     return { kind: "BlockStmt", statements };
   }
 
-  private parseVariableDeclaration(): Stmt | null {
+  private parseBindingDeclarator(): {
+    keyword: string;
+    name: Token;
+    type?: TypeNode;
+    initializer?: Expr;
+  } | null {
     const keywordToken = this.advance();
     const keyword = keywordToken.value as string;
 
@@ -1035,18 +1040,55 @@ export class Parser {
       initializer = this.parseExpression(Precedence.LOWEST);
     }
 
+    return { keyword, name: nameToken, type: typeAnnotation, initializer };
+  }
+
+  private parseVariableDeclaration(): Stmt | null {
+    const result = this.parseBindingDeclarator();
+    if (!result) return null;
     return {
       kind: "VariableStmt",
-      declarationType: keyword as "var" | "val" | "const",
-      name: nameToken,
-      type: typeAnnotation,
-      initializer,
+      declarationType: result.keyword as "var" | "val" | "const",
+      name: result.name,
+      type: result.type,
+      initializer: result.initializer,
     };
   }
 
   private parseIfStatement(): Stmt {
     this.advance();
 
+    // ---- If-binding: if val x = expr or if (val x = expr) ----
+    if (
+      this.peek().type === TokenType.LPAREN &&
+      this.peekNext()?.type === TokenType.KEYWORD &&
+      (this.peekNext()!.value === "val" || this.peekNext()!.value === "var")
+    ) {
+      this.advance(); // consume (
+      const stmt = this.parseIfVariableBinding();
+      if (!this.check(TokenType.RPAREN)) {
+        this.error("Expected ')' after if binding", this.peek());
+      } else {
+        this.advance();
+      }
+      const body = this.parseIfBody();
+      stmt.thenBranch = body.thenBranch;
+      stmt.elseBranch = body.elseBranch;
+      return stmt;
+    }
+
+    if (
+      this.peek().type === TokenType.KEYWORD &&
+      (this.peek().value === "val" || this.peek().value === "var")
+    ) {
+      const stmt = this.parseIfVariableBinding();
+      const body = this.parseIfBody();
+      stmt.thenBranch = body.thenBranch;
+      stmt.elseBranch = body.elseBranch;
+      return stmt;
+    }
+
+    // ---- Original if (expr) logic ----
     if (this.peek().type !== TokenType.LPAREN) {
       this.error("Expected '(' after 'if'", this.peek());
       this.synchronize();
@@ -1100,6 +1142,72 @@ export class Parser {
       thenBranch,
       elseBranch,
     };
+  }
+
+  private parseIfVariableBinding(): IfVariableStmt {
+    const decl = this.parseBindingDeclarator();
+    if (!decl || !decl.initializer) {
+      this.error("Expected '= expression' in if binding", this.peek());
+      return {
+        kind: "IfVariableStmt",
+        declarationType: decl?.keyword as "val" | "var" ?? "val",
+        name: decl?.name ?? { type: 0, value: "", line: 0, column: 0 },
+        initializer: { kind: "Literal", value: 0, token: { type: 0, value: "", line: 0, column: 0 } },
+        thenBranch: { kind: "BlockStmt", statements: [] },
+      };
+    }
+
+    const stmt: IfVariableStmt = {
+      kind: "IfVariableStmt",
+      declarationType: decl.keyword as "val" | "var",
+      name: decl.name,
+      type: decl.type,
+      initializer: decl.initializer,
+      thenBranch: { kind: "BlockStmt", statements: [] },
+    };
+
+    if (this.peek().type === TokenType.COMMA) {
+      this.advance();
+      stmt.continuation = this.parseIfVariableBinding();
+    }
+
+    return stmt;
+  }
+
+  private parseIfBody(): { thenBranch: Stmt; elseBranch?: Stmt } {
+    let thenBranch: Stmt;
+    if (this.peek().type === TokenType.LBRACE) {
+      thenBranch = this.parseBlockStatement();
+    } else {
+      thenBranch = this.parseStatement() || {
+        kind: "BlockStmt",
+        statements: [],
+      };
+    }
+
+    let elseBranch: Stmt | undefined;
+    if (
+      this.peek().type === TokenType.KEYWORD &&
+      this.peek().value === "else"
+    ) {
+      this.advance();
+
+      if (
+        this.peek().type === TokenType.KEYWORD &&
+        this.peek().value === "if"
+      ) {
+        elseBranch = this.parseIfStatement();
+      } else if (this.peek().type === TokenType.LBRACE) {
+        elseBranch = this.parseBlockStatement();
+      } else {
+        elseBranch = this.parseStatement() || {
+          kind: "BlockStmt",
+          statements: [],
+        };
+      }
+    }
+
+    return { thenBranch, elseBranch };
   }
 
   private parseWhileStatement(): Stmt {

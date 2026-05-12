@@ -1,5 +1,5 @@
 import { Token, TokenType } from "../lexer/types";
-import { Stmt, Expr, TypeNode, GenericTypeNode } from "../ast";
+import { Stmt, Expr, TypeNode, GenericTypeNode, IfVariableStmt } from "../ast";
 import { Symbol, createSymbol } from "./types";
 import { SemanticError, Errors } from "./errors";
 import { Environment } from "./Environment";
@@ -403,6 +403,9 @@ export class TypeChecker {
         break;
       case "Assign":
         this.checkAssignStmt(stmt);
+        break;
+      case "IfVariableStmt":
+        this.checkIfVariableStmt(stmt);
         break;
       default:
         break;
@@ -993,6 +996,54 @@ export class TypeChecker {
 
     if (stmt.elseBranch) {
       this.checkStatement(stmt.elseBranch);
+    }
+  }
+
+  private checkIfVariableStmt(stmt: Extract<Stmt, { kind: "IfVariableStmt" }>): void {
+    this._checkIfVariableBinding(stmt, null);
+  }
+
+  private _checkIfVariableBinding(stmt: IfVariableStmt, sharedEnv: Environment | null): void {
+    const isRoot = sharedEnv === null;
+    const env = sharedEnv ?? new Environment(this.currentEnv, false);
+
+    const initType = this.checkExpression(stmt.initializer);
+    const normalized = this.normalizeType(initType);
+
+    let unwrapped: TypeNode | null =
+      normalized.kind === "NullableType" ? normalized.type : null;
+
+    if (!unwrapped) {
+      this.errors.push(
+        Errors.invalidBindingType(stmt.name.value as string, stmt.name),
+      );
+      unwrapped = normalized;
+    }
+
+    env.define(
+      stmt.name.value as string,
+      createSymbol(
+        stmt.name.value as string,
+        unwrapped,
+        "variable",
+        stmt.declarationType === "var",
+        stmt.name,
+      ),
+    );
+
+    if (stmt.continuation) {
+      this._checkIfVariableBinding(stmt.continuation, env);
+    }
+
+    if (isRoot) {
+      const prevEnv = this.currentEnv;
+      this.currentEnv = env;
+      this.checkStatement(stmt.thenBranch);
+      this.currentEnv = prevEnv;
+
+      if (stmt.elseBranch) {
+        this.checkStatement(stmt.elseBranch);
+      }
     }
   }
 

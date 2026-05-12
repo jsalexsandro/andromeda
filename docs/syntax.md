@@ -19,6 +19,7 @@
 9. [Functions](#9-functions)
 10. [Arrow Functions](#10-arrow-functions)
 11. [Control Flow](#11-control-flow)
+    - [Optional Binding (if val / if var)](#optional-binding-if-val--if-var)
 12. [Operators](#12-operators)
 13. [Spread Operator](#13-spread-operator)
 14. [Comments](#14-comments)
@@ -400,7 +401,39 @@ val r2: string = identity("hello")
 
 // Function call
 val result: int = add(1, 2)
+
+// Multi-line call with arrow functions as arguments
+func compose<A, B, C>(
+  f: (B) => C,
+  g: (A) => B,
+  x: A
+): C {
+  return f(g(x))
+}
+
+val g1: int = compose(
+  (n: int) => n + 1,
+  (s: string) => 42,
+  "hello"
+)
 ```
+
+### Multi-line Function Calls
+
+Function calls can span multiple lines. Arguments on subsequent lines are parsed
+correctly as call arguments (not standalone expressions):
+
+```typescript
+val result = add(
+  1,
+  2
+)
+```
+
+**Note:** Multi-line calls rely on the lexer recording the token's line number
+*before* advancing past it in `readOperator()`. This ensures the parser sees
+`(` as being on the same line as the function name, keeping the call context
+active.
 
 ---
 
@@ -515,6 +548,50 @@ if (x > 5) {
 } else {
   val msg: string = "zero or negative"
 }
+```
+
+### Optional Binding (if val / if var)
+
+The `if val` and `if var` constructs **unwrap** an optional value and bind it to a
+new variable, making it available inside the then-branch as a non-nullable type:
+
+```typescript
+func maybe(): int? {
+  return 42
+}
+
+val x: int? = maybe()
+
+// if val — binding imutável (com ou sem parênteses)
+if val y = x {
+  val z: int = y   // y é int (unwrapped), não int?
+}
+
+if (val w = x) {
+  val z: int = w   // sintaxe com parênteses também funciona
+}
+
+// if var — binding mutável
+if var z = x {
+  z = 10           // pode reatribuir dentro do bloco
+}
+
+// Múltiplos bindings encadeados (IfContExpr)
+if val a = x, val b = x {
+  val sum: int = a + b   // ambos a e b são int unwrapped
+}
+
+// Com else — variável bound NÃO está disponível no else
+if val y = x {
+  // y: int
+} else {
+  // y NÃO existe aqui — o optional original (x) ainda está em escopo
+}
+```
+
+**Error:** binding a non-optional type:
+```
+[INVALID_BINDING_TYPE] 'y' must be bound to an optional type in if binding
 ```
 
 ### While Loop
@@ -801,6 +878,7 @@ val result: int = double(5)
 - [x] **Generic Arrow Functions** - `<T>(x: T): T => x` with explicit type args and contextual inference
 - [x] **Multi-Type-Param Arrow Inference** - `swap(<A,B>(...)=>..., 1, "hello")` infers A→int, B→string
 - [x] **Bidirectional Type Inference** - contextual type participates in generic inference
+- [x] **Optional Binding** - `if val x = expr`, `if (val x = expr)`, and chained binding `if val x = a, val y = b`
 
 
 ## Planned Features (Not Yet Implemented)

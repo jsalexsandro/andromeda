@@ -131,6 +131,7 @@ export type Stmt =
   | StructStmt      // ← Fase 4
   | EnumStmt        // ← Fase 5
   | ProtocolStmt    // ← Fase 6
+  | IfVariableStmt  // ← Fase 6.4
 
 export interface ExpressionStmt {
   kind: "ExpressionStmt"
@@ -169,6 +170,17 @@ export interface VariableStmt {
   name: Token
   type?: TypeNode
   initializer?: Expr
+}
+
+export interface IfVariableStmt {
+  kind: "IfVariableStmt"
+  declarationType: "val" | "var"
+  name: Token
+  type?: TypeNode
+  initializer: Expr
+  continuation?: IfVariableStmt
+  thenBranch: Stmt
+  elseBranch?: Stmt
 }
 
 export interface BreakStmt {

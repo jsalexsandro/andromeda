@@ -1093,6 +1093,7 @@ readNumber(): Token {
 
   readOperator(): Token {
     const startColumn = this.column
+    const tokenLine = this.line
     const ch = this.ch
 
     switch (ch) {
@@ -1100,11 +1101,11 @@ readNumber(): Token {
         this.readChar()
         if (this.ch === '=') {
           this.readChar()
-          return { type: TokenType.EQUAL, value: '==', line: this.line, column: startColumn }
+          return { type: TokenType.EQUAL, value: '==', line: tokenLine, column: startColumn }
         }
         if (this.ch === '>' && this.previousTokenType !== TokenType.KEYWORD) {
           this.readChar()
-          return { type: TokenType.ARROW, value: '=>', line: this.line, column: startColumn }
+          return { type: TokenType.ARROW, value: '=>', line: tokenLine, column: startColumn }
         }
         // typealias RHS é tipo, não expressão — mantém inTypeAnnotation
         if (this.lastKeyword === 'typealias') {
@@ -1114,61 +1115,61 @@ readNumber(): Token {
         }
         this.genericDepth = 0
         this.lastKeyword = ''
-        return { type: TokenType.ASSIGN, value: '=', line: this.line, column: startColumn }
+        return { type: TokenType.ASSIGN, value: '=', line: tokenLine, column: startColumn }
       
       case '+':
         this.readChar()
         if (this.ch === '=') {
           this.readChar()
-          return { type: TokenType.PLUS_EQUAL, value: '+=', line: this.line, column: startColumn }
+          return { type: TokenType.PLUS_EQUAL, value: '+=', line: tokenLine, column: startColumn }
         }
         if (this.ch === '+') {
           this.readChar()
-          return { type: TokenType.INCREMENT, value: '++', line: this.line, column: startColumn }
+          return { type: TokenType.INCREMENT, value: '++', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.PLUS, value: '+', line: this.line, column: startColumn }
+        return { type: TokenType.PLUS, value: '+', line: tokenLine, column: startColumn }
       
       case '-':
         this.readChar()
         if (this.ch === '=') {
           this.readChar()
-          return { type: TokenType.MINUS_EQUAL, value: '-=', line: this.line, column: startColumn }
+          return { type: TokenType.MINUS_EQUAL, value: '-=', line: tokenLine, column: startColumn }
         }
         if (this.ch === '-') {
           this.readChar()
-          return { type: TokenType.DECREMENT, value: '--', line: this.line, column: startColumn }
+          return { type: TokenType.DECREMENT, value: '--', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.MINUS, value: '-', line: this.line, column: startColumn }
+        return { type: TokenType.MINUS, value: '-', line: tokenLine, column: startColumn }
       
       case '*':
         this.readChar()
         if (this.ch === '=') {
           this.readChar()
-          return { type: TokenType.STAR_EQUAL, value: '*=', line: this.line, column: startColumn }
+          return { type: TokenType.STAR_EQUAL, value: '*=', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.STAR, value: '*', line: this.line, column: startColumn }
+        return { type: TokenType.STAR, value: '*', line: tokenLine, column: startColumn }
       
       case '/':
         this.readChar()
         if (this.ch === '=') {
           this.readChar()
-          return { type: TokenType.SLASH_EQUAL, value: '/=', line: this.line, column: startColumn }
+          return { type: TokenType.SLASH_EQUAL, value: '/=', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.SLASH, value: '/', line: this.line, column: startColumn }
+        return { type: TokenType.SLASH, value: '/', line: tokenLine, column: startColumn }
       
       case '%':
         this.readChar()
         if (this.ch === '=') {
           this.readChar()
-          return { type: TokenType.MODULO_EQUAL, value: '%=', line: this.line, column: startColumn }
+          return { type: TokenType.MODULO_EQUAL, value: '%=', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.MODULO, value: '%', line: this.line, column: startColumn }
+        return { type: TokenType.MODULO, value: '%', line: tokenLine, column: startColumn }
       
       case '<':
         this.readChar()
         if (this.ch === '=') {
           this.readChar()
-          return { type: TokenType.LESS_EQUAL, value: '<=', line: this.line, column: startColumn }
+          return { type: TokenType.LESS_EQUAL, value: '<=', line: tokenLine, column: startColumn }
         }
         if (this.ch === '/') {
           this.readChar()
@@ -1177,7 +1178,7 @@ readNumber(): Token {
         // Se estiver em type annotation, é generic, não ANDROX
         if (this.inTypeAnnotation && (this.isLetter() || this.ch === '_' || this.ch === '$')) {
           this.genericDepth++
-          return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+          return { type: TokenType.LESS_THAN, value: '<', line: tokenLine, column: startColumn }
         }
 
         // Logo após nome de função → type parameter, não Androx
@@ -1185,127 +1186,127 @@ readNumber(): Token {
           this.expectingGenericParams = false
           this.inTypeAnnotation = true
           this.genericDepth++
-          return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+          return { type: TokenType.LESS_THAN, value: '<', line: tokenLine, column: startColumn }
         }
 
         // Já estamos dentro de um generic — qualquer < é outro generic
         if (this.genericDepth > 0 && (this.isLetter() || this.ch === '_' || this.ch === '$')) {
           this.genericDepth++
-          return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+          return { type: TokenType.LESS_THAN, value: '<', line: tokenLine, column: startColumn }
         }
 
         // Generic arrow ou call: <T,> ou <T, U> ou map<string> → não é Androx
         if (this.isLetter() || this.ch === '_' || this.ch === '$') {
           if (this.looksLikeGenericArrow() || this.looksLikeGenericCall()) {
             this.genericDepth++
-            return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+            return { type: TokenType.LESS_THAN, value: '<', line: tokenLine, column: startColumn }
           }
           return this.readAndroxOpenTag()
         }
-        return { type: TokenType.LESS_THAN, value: '<', line: this.line, column: startColumn }
+        return { type: TokenType.LESS_THAN, value: '<', line: tokenLine, column: startColumn }
       
       case '>':
         this.readChar()
         if (this.ch === '=') {
           this.readChar()
-          return { type: TokenType.GREATER_EQUAL, value: '>=', line: this.line, column: startColumn }
+          return { type: TokenType.GREATER_EQUAL, value: '>=', line: tokenLine, column: startColumn }
         }
         // Se estava em generic, fecha o generic e controle profundidade
         // NÃO reseta inTypeAnnotation aqui - precisa durar até fim da type annotation
         if (this.genericDepth > 0) {
           this.genericDepth--
-          return { type: TokenType.GREATER_THAN, value: '>', line: this.line, column: startColumn }
+          return { type: TokenType.GREATER_THAN, value: '>', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.GREATER_THAN, value: '>', line: this.line, column: startColumn }
+        return { type: TokenType.GREATER_THAN, value: '>', line: tokenLine, column: startColumn }
       
       case '!':
         this.readChar()
         if (this.ch === '=') {
           this.readChar()
-          return { type: TokenType.NOT_EQUAL, value: '!=', line: this.line, column: startColumn }
+          return { type: TokenType.NOT_EQUAL, value: '!=', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.NOT, value: '!', line: this.line, column: startColumn }
+        return { type: TokenType.NOT, value: '!', line: tokenLine, column: startColumn }
       
       case '&':
         this.readChar()
         if (this.ch === '&') {
           this.readChar()
-          return { type: TokenType.AND, value: '&&', line: this.line, column: startColumn }
+          return { type: TokenType.AND, value: '&&', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.AMPERSAND, value: '&', line: this.line, column: startColumn }
+        return { type: TokenType.AMPERSAND, value: '&', line: tokenLine, column: startColumn }
       
       case '|':
         this.readChar()
         if (this.ch === '|') {
           this.readChar()
-          return { type: TokenType.OR, value: '||', line: this.line, column: startColumn }
+          return { type: TokenType.OR, value: '||', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.PIPE, value: '|', line: this.line, column: startColumn }
+        return { type: TokenType.PIPE, value: '|', line: tokenLine, column: startColumn }
       
       case '(':
         this.readChar()
-        return { type: TokenType.LPAREN, value: '(', line: this.line, column: startColumn }
+        return { type: TokenType.LPAREN, value: '(', line: tokenLine, column: startColumn }
       
       case ')':
         this.readChar()
-        return { type: TokenType.RPAREN, value: ')', line: this.line, column: startColumn }
+        return { type: TokenType.RPAREN, value: ')', line: tokenLine, column: startColumn }
       
       case '{':
         this.readChar()
-        return { type: TokenType.LBRACE, value: '{', line: this.line, column: startColumn }
+        return { type: TokenType.LBRACE, value: '{', line: tokenLine, column: startColumn }
       
       case '}': 
         this.readChar()
         // Reseta modo tipo - fecha object type ou block
         this.inTypeAnnotation = false
         this.genericDepth = 0
-        return { type: TokenType.RBRACE, value: '}', line: this.line, column: startColumn }
+        return { type: TokenType.RBRACE, value: '}', line: tokenLine, column: startColumn }
       
       case '[':
         this.readChar()
-        return { type: TokenType.LBRACKET, value: '[', line: this.line, column: startColumn }
+        return { type: TokenType.LBRACKET, value: '[', line: tokenLine, column: startColumn }
       
       case ']':
         this.readChar()
-        return { type: TokenType.RBRACKET, value: ']', line: this.line, column: startColumn }
+        return { type: TokenType.RBRACKET, value: ']', line: tokenLine, column: startColumn }
       
       case ',':
         this.readChar()
-        return { type: TokenType.COMMA, value: ',', line: this.line, column: startColumn }
+        return { type: TokenType.COMMA, value: ',', line: tokenLine, column: startColumn }
       
       case '.':
         this.readChar()
         if (this.ch === '.' && this.peek() === '.') {
           this.readChar()
           this.readChar()
-          return { type: TokenType.SPREAD, value: '...', line: this.line, column: startColumn }
+          return { type: TokenType.SPREAD, value: '...', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.DOT, value: '.', line: this.line, column: startColumn }
+        return { type: TokenType.DOT, value: '.', line: tokenLine, column: startColumn }
       
       case ';':
         this.readChar()
         // Reseta modo tipo - fim de statement
         this.inTypeAnnotation = false
         this.genericDepth = 0
-        return { type: TokenType.SEMICOLON, value: ';', line: this.line, column: startColumn }
+        return { type: TokenType.SEMICOLON, value: ';', line: tokenLine, column: startColumn }
       
       case ':':
         this.readChar()
         this.inTypeAnnotation = true
         this.genericDepth = 0
-        return { type: TokenType.COLON, value: ':', line: this.line, column: startColumn }
+        return { type: TokenType.COLON, value: ':', line: tokenLine, column: startColumn }
       
       case '?':
         this.readChar()
         if (this.ch === '?') {
           this.readChar()
-          return { type: TokenType.QUESTION_QUESTION, value: '??', line: this.line, column: startColumn }
+          return { type: TokenType.QUESTION_QUESTION, value: '??', line: tokenLine, column: startColumn }
         }
-        return { type: TokenType.QUESTION, value: '?', line: this.line, column: startColumn }
+        return { type: TokenType.QUESTION, value: '?', line: tokenLine, column: startColumn }
       
       default:
         this.readChar()
-        return { type: TokenType.ERROR, value: ch, line: this.line, column: startColumn }
+        return { type: TokenType.ERROR, value: ch, line: tokenLine, column: startColumn }
     }
   }
 

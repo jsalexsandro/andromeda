@@ -128,6 +128,9 @@ export const Errors = {
   varRequiresInitializer: (name: string, declarationType: string, token: Token) =>
     createError("UNINITIALIZED_VAR", `'${name}' must be initialized. '${declarationType}' requires a value: '${declarationType} ${name} = <value>'`, token, "typecheck"),
 
+  invalidBindingType: (name: string, token: Token) =>
+    createError("INVALID_BINDING_TYPE", `'${name}' must be bound to an optional type in if binding`, token, "typecheck"),
+
   heterogeneousArray: (got: string, suggestion: string, token: Token) =>
     createError("HETEROGENEOUS_ARRAY",
       `array elements must be of a single type. Found '${got}'. Use explicit union: '${suggestion}'`,

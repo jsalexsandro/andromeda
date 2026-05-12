@@ -1,0 +1,216 @@
+// ============================================================
+// if val POWER TESTS
+// ============================================================
+
+// ── helpers ────────────────────────────────────────────────
+func id<T>(x: T): T { return x }
+func maybe(): int? { return 42 }
+func maybeString(): string? { return "hello" }
+
+var globalCount: int = 0
+
+// ============================================================
+// TEST 1 — BASIC UNWRAP
+// ============================================================
+func testBasicUnwrap(): void {
+  val x: int? = maybe()
+  if val y = x {
+    val z: int = y  // y is int, not int?
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 2 — PARENTHESIZED SYNTAX
+// ============================================================
+func testParenSyntax(): void {
+  val x: int? = maybe()
+  if (val y = x) {
+    val z: int = y
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 3 — IF VAR (MUTABLE BINDING)
+// ============================================================
+func testVarBinding(): void {
+  var x: int? = maybe()
+  if var y = x {
+    y = 100  // can reassign
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 4 — CHAINED MULTIPLE BINDINGS
+// ============================================================
+func testChainedBindings(): void {
+  val a: int? = maybe()
+  val b: string? = maybeString()
+  if val x = a, val y = b {
+    val sum: int = x       // int
+    val msg: string = y    // string
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 5 — WITH ELSE BRANCH
+// ============================================================
+func testWithElse(): void {
+  val x: int? = null
+  if val y = x {
+    // not reached (x is null)
+    globalCount = globalCount + 1
+  } else {
+    globalCount = globalCount + 1  // this runs
+  }
+}
+
+// ============================================================
+// TEST 6 — MIXED: val THEN var IN CHAIN
+// ============================================================
+func testMixedChain(): void {
+  val a: int? = maybe()
+  val b: int? = maybe()
+  if val x = a, var y = b {
+    y = 99  // mutable
+    val z: int = x  // immutable
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 7 — if val INSIDE REGULAR if (NO CONFLICT)
+// ============================================================
+func testIfValInsideRegularIf(): void {
+  val x: int? = maybe()
+  val flag: bool = true
+
+  if (flag) {
+    if val y = x {
+      val z: int = y
+      globalCount = globalCount + 1
+    }
+  }
+}
+
+// ============================================================
+// TEST 8 — REGULAR if INSIDE if val (NO CONFLICT)
+// ============================================================
+func testRegularIfInsideIfVal(): void {
+  val x: int? = maybe()
+
+  if val y = x {
+    if (y > 0) {
+      globalCount = globalCount + 1
+    }
+  }
+}
+
+// ============================================================
+// TEST 9 — NESTED if val DEEP
+// ============================================================
+func testNestedIfVal(): void {
+  val a: int? = maybe()
+  val b: int? = maybe()
+
+  if val x = a {
+    if val y = b {
+      val sum: int = x + y
+      globalCount = globalCount + 1
+    }
+  }
+}
+
+// ============================================================
+// TEST 10 — if val WITH OPTIONAL FUNCTION TYPE
+// ============================================================
+func testOptionalFunction(): void {
+  val fn: (() => int)? = (): int => 42
+  if val f = fn {
+    val result: int = f()
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 11 — if val INSIDE FOR LOOP
+// ============================================================
+func testIfValInLoop(): void {
+  for (var i: int = 0; i < 3; i = i + 1) {
+    val x: int? = maybe()
+    if val y = x {
+      globalCount = globalCount + y
+    }
+  }
+}
+
+// ============================================================
+// TEST 12 — if val NULL CASE (else runs)
+// ============================================================
+func testNullCase(): void {
+  val x: int? = null
+  if val y = x {
+    // not reached
+  } else {
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 13 — COMPLEX EXPRESSION AS INITIALIZER
+// ============================================================
+func testComplexExpr(): void {
+  func box(): int? { return maybe() }
+  if val x = box() {
+    val y: int = x * 2
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 14 — if val WITH GENERIC INFERRED TYPE
+// ============================================================
+func testGenericIfVal(): void {
+  val x = maybe()  // inferred as int?
+  if val y = x {
+    val z: int = y
+    globalCount = globalCount + 1
+  }
+}
+
+// ============================================================
+// TEST 15 — MULTIPLE OPTIONALS IN EXPRESSIONS
+// ============================================================
+func testMultiOptionalExpr(): void {
+  val a: int? = maybe()
+  val b: int? = maybe()
+  if val x = a {
+    if val y = b {
+      val sum: int = x + y
+      globalCount = globalCount + sum
+    }
+  }
+}
+
+
+// ============================================================
+// RUN ALL
+// ============================================================
+testBasicUnwrap()
+testParenSyntax()
+testVarBinding()
+testChainedBindings()
+testWithElse()
+testMixedChain()
+testIfValInsideRegularIf()
+testRegularIfInsideIfVal()
+testNestedIfVal()
+testOptionalFunction()
+testIfValInLoop()
+testNullCase()
+testComplexExpr()
+testGenericIfVal()
+testMultiOptionalExpr()

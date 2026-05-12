@@ -1,5 +1,522 @@
-func log<T>(...value: T) {
-    
+// ============================================================
+// ULTIMATE-GENERIC.MED
+// FINAL INFERENCE + GENERIC TORTURE SUITE
+// ============================================================
+
+// ============================================================
+// TEST 1 — GENERIC CHAIN PROPAGATION
+// ============================================================
+
+func id<T>(x: T): T {
+  return x
 }
 
-log('', 1)
+func wrap<T>(x: T): T[] {
+  return [x]
+}
+
+func unwrap<T>(x: T[]): T {
+  return x[0]
+}
+
+val a1: int = unwrap(wrap(id(42)))
+val a2: string = unwrap(wrap(id("hello")))
+
+
+
+// ============================================================
+// TEST 2 — BIDIRECTIONAL INFERENCE THROUGH NESTED CALLS
+// ============================================================
+
+func make<T>(): T {
+  return make<T>()
+}
+
+func consume(x: int): int {
+  return x
+}
+
+val b1 = consume(make())
+
+
+
+// ============================================================
+// TEST 3 — GENERIC FUNCTION RETURNING FUNCTION
+// ============================================================
+
+func factory<T>(x: T): () => T {
+  return (): T => x
+}
+
+val c1: () => int = factory(42)
+val c2: int = c1()
+
+val c3: () => string = factory("hello")
+val c4: string = c3()
+
+
+
+// ============================================================
+// TEST 4 — FUNCTION PARAMETER CONTRAINT STYLE MATCH
+// ============================================================
+
+func apply<T>(fn: (T) => T, value: T): T {
+  return fn(value)
+}
+
+val d1 = apply(
+  (x: int): int => x + 1,
+  10
+)
+
+// EXPECTED: TYPE_MISMATCH
+// val d2 = apply(
+//   (x: string): string => x,
+//   10
+// )
+
+
+
+// ============================================================
+// TEST 5 — MULTI LEVEL GENERIC ARRAYS
+// ============================================================
+
+func deep<T>(x: T[][][][][]): T {
+  return x[0][0][0][0][0]
+}
+
+val e1: int = deep([
+  [
+    [
+      [
+        [1]
+      ]
+    ]
+  ]
+])
+
+
+
+// ============================================================
+// TEST 6 — GENERIC + NULLABLE + ARRAY + FUNCTION
+// ============================================================
+
+func nullableCall<T>(fn: (() => T)?): T? {
+  if val f = fn {
+    return f()
+  }
+  return null
+}
+
+val f1: int? = nullableCall((): int => 42)
+val f2: string? = nullableCall((): string => "ok")
+val f3: int? = nullableCall(null)
+
+
+
+// ============================================================
+// TEST 7 — GENERIC CALLBACK PROPAGATION
+// ============================================================
+
+func map<T, U>(x: T, fn: (T) => U): U {
+  return fn(x)
+}
+
+val g1: string = map(42, (n: int): string => "num")
+val g2: int = map("hello", (s: string): int => 1)
+
+
+
+// ============================================================
+// TEST 8 — GENERIC INSIDE GENERIC INSIDE GENERIC
+// ============================================================
+
+func outer<T>(x: T): T {
+
+  func middle<U>(y: U): U {
+
+    func inner<V>(z: V): V {
+      return z
+    }
+
+    return inner(y)
+  }
+
+  return middle(x)
+}
+
+val h1: int = outer(42)
+val h2: string = outer("hello")
+
+
+
+// ============================================================
+// TEST 9 — GENERIC SHADOWING HELL
+// ============================================================
+
+func x<T>(a: T): T {
+
+  func y<T>(b: T): T {
+
+    func z<T>(c: T): T {
+      return c
+    }
+
+    return z(b)
+  }
+
+  return y(a)
+}
+
+val i1: int = x(42)
+
+
+
+// ============================================================
+// TEST 10 — GENERIC FUNCTION ARRAY RETURN
+// ============================================================
+
+func funcs<T>(x: T): (() => T)[] {
+  return [
+    (): T => x,
+    (): T => x
+  ]
+}
+
+val j1: (() => int)[] = funcs(42)
+val j2: int = j1[0]()
+
+
+
+// ============================================================
+// TEST 11 — RECURSIVE GENERIC TYPE FLOW
+// ============================================================
+
+func recurse<T>(x: T): T {
+  return recurse(recurse(x))
+}
+
+val k1: int = recurse(42)
+
+
+
+// ============================================================
+// TEST 12 — GENERIC WITH UNION EXPLICIT
+// ============================================================
+
+func choose<T>(a: T, b: T): T {
+  return a
+}
+
+val l1: int | string = choose<int | string>(1, "hello")
+
+
+
+// ============================================================
+// TEST 13 — GENERIC FUNCTION PASSED AS ARGUMENT
+// ============================================================
+
+func run<T>(fn: () => T): T {
+  return fn()
+}
+
+val m1: int = run(
+  (): int => id(42)
+)
+
+
+
+// ============================================================
+// TEST 14 — GENERIC WITH EMPTY ARRAY RETURN
+// ============================================================
+
+func empty<T>(): T[] {
+  return []
+}
+
+val n1: int[] = empty()
+val n2: string[] = empty()
+
+// EXPECTED: GENERIC_INFERENCE_FAILED
+// val n3 = empty()
+
+
+
+// ============================================================
+// TEST 15 — GENERIC + MULTIPLE BIDIRECTIONAL FLOWS
+// ============================================================
+
+func creator<T>(): T {
+  return creator<T>()
+}
+
+func consumeInt(x: int): int {
+  return x
+}
+
+func consumeString(x: string): string {
+  return x
+}
+
+val o1 = consumeInt(creator())
+val o2 = consumeString(creator())
+
+
+
+// ============================================================
+// TEST 16 — FUNCTION TYPE STRUCTURAL MATCH
+// ============================================================
+
+func call<T>(fn: (T) => T, x: T): T {
+  return fn(x)
+}
+
+val p1 = call(
+  (n: int): int => n,
+  42
+)
+
+// EXPECTED: TYPE_MISMATCH
+// val p2 = call(
+//   (n: int): string => "x",
+//   42
+// )
+
+
+
+// ============================================================
+// TEST 17 — GENERIC ARRAY INFERENCE CASCADE
+// ============================================================
+
+func first<T>(arr: T[]): T {
+  return arr[0]
+}
+
+func box<T>(x: T): T[] {
+  return [x]
+}
+
+val q1: int = first(box(42))
+val q2: string = first(box("hello"))
+
+
+
+// ============================================================
+// TEST 18 — CALLBACK RETURN TYPE CONFLICT
+// ============================================================
+
+func process<T>(fn: () => T): T {
+  return fn()
+}
+
+// EXPECTED: TYPE_MISMATCH
+// val r1: int = process((): string => "hello")
+
+
+
+// ============================================================
+// TEST 19 — GENERIC + NESTED NULLABLE
+// ============================================================
+
+func nullable<T>(x: T?): T? {
+  return x
+}
+
+val s1: int? = nullable<int?>(null)
+
+
+
+// ============================================================
+// TEST 20 — HIGHER ORDER GENERIC CASCADE
+// ============================================================
+
+func compose<A, B, C>(
+  f: (B) => C,
+  g: (A) => B,
+  x: A
+): C {
+  return f(g(x))
+}
+
+func toInt(s: string): int {
+  return 42
+}
+
+func plus(n: int): int {
+  return n + 1
+}
+
+val t1: int = compose(
+  plus,
+  toInt,
+  "hello"
+)
+
+
+
+// ============================================================
+// TEST 21 — GENERIC FUNCTION RETURNING GENERIC FUNCTION
+// ============================================================
+
+func curry<T>(x: T): (T) => T {
+  return (y: T): T => y
+}
+
+val u1 = curry(42)
+val u2: int = u1(10)
+
+
+
+// ============================================================
+// TEST 22 — GENERIC RECURSION DEPTH
+// ============================================================
+
+func loop<T>(x: T): T {
+  return loop(loop(loop(x)))
+}
+
+val v1: int = loop(42)
+
+
+
+// ============================================================
+// TEST 23 — TYPE PARAM REUSE IN DIFFERENT SCOPES
+// ============================================================
+
+func alpha<T>(x: T): T {
+
+  func beta<U>(y: U): U {
+
+    func gamma<T>(z: T): T {
+      return z
+    }
+
+    return gamma(y)
+  }
+
+  return beta(x)
+}
+
+val w1: int = alpha(42)
+
+
+
+// ============================================================
+// TEST 24 — GENERIC + FUNCTION ARRAY + CALLBACK
+// ============================================================
+
+func execute<T>(fns: (() => T)[]): T {
+  return fns[0]()
+}
+
+val x1: int = execute([
+  (): int => 1,
+  (): int => 2,
+  (): int => 3
+])
+
+
+
+// ============================================================
+// TEST 25 — THE INFERENCE ABYSS
+// ============================================================
+
+func infer<T>(x: T): T {
+  return x
+}
+
+func infer2<T>(x: T): T {
+  return infer(x)
+}
+
+func infer3<T>(x: T): T {
+  return infer2(x)
+}
+
+func infer4<T>(x: T): T {
+  return infer3(x)
+}
+
+val y1: int = infer4(42)
+val y2: string = infer4("hello")
+
+
+
+// ============================================================
+// TEST 26 — EXPLICIT TYPE OVERRIDE
+// ============================================================
+
+val z1 = id<int>(42)
+
+// EXPECTED: TYPE_MISMATCH
+// val z2 = identity<string>(42)
+
+
+
+// ============================================================
+// TEST 27 — GENERIC CALLBACK GENERIC PROPAGATION
+// ============================================================
+
+func transform<T, U>(x: T, fn: (T) => U): U {
+  return fn(x)
+}
+
+func stringify(x: int): string {
+  return "n"
+}
+
+val aa1: string = transform(42, stringify)
+
+
+
+// ============================================================
+// TEST 28 — ARRAY FUNCTION CASCADE
+// ============================================================
+
+func generate<T>(x: T): T[] {
+  return [x]
+}
+
+func pick<T>(x: T[]): T {
+  return x[0]
+}
+
+val ab1: int = pick(generate(42))
+val ab2: string = pick(generate("hello"))
+
+
+
+// ============================================================
+// TEST 29 — GENERIC + INLINE CALLBACK
+// ============================================================
+
+val ac1 = map(
+  42,
+  (x: int): string => "ok"
+)
+
+
+
+// ============================================================
+// TEST 30 — THE FINAL JUDGE
+// ============================================================
+
+func final<T>(x: T, fn: (T) => T): T {
+  return fn(x)
+}
+
+val ad1: int = final(
+  42,
+  (n: int): int => n + 1
+)
+
+val ad2: string = final(
+  "hello",
+  (s: string): string => s + "!"
+)
+
+// EXPECTED: TYPE_MISMATCH
+// val ad3 = final(
+//   42,
+//   (s: string): string => s
+// )
