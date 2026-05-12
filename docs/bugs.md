@@ -231,24 +231,30 @@ func apply<T>(x: T, fn: (T) => T): T { return fn(x) }
 apply(10, <T>(x: T): T => x)  // ✅ T da arrow inferido como int via mapeamento posicional
 ```
 
-### Por que `apply` funciona mas `swap` não
-
-`inferArrowTypeParamsFromContext` faz **mapeamento posicional simples**: olha para o tipo contextual (ex: `(int) => int`) e casa com as anotações da arrow por posição do parâmetro. Isso funciona quando há 1 type param e ele aparece na mesma posição em params e contexto.
-
-Em `swap`, existem **dois** type params (`A, B`), a arrow tem múltiplos parâmetros, e o contexto ainda não foi resolvido (os `A, B` de `swap` ainda são símbolos, não `int, string`). O mapeamento precisaria:
-1. Perceber que o parâmetro `pair` espera `(A, B) => B` (símbolos não resolvidos)
-2. Unificar os `A, B` da arrow com os `A, B` de `swap`
-3. Propagar essa unificação para os outros argumentos (`a: A` recebe `1` como int)
-
 ### Root Cause
 
-O sistema de tipos atual faz **inferência linear por substituição**: primeiro inferimos os type params da chamada externa a partir dos argumentos, depois verificamos a compatibilidade dos argumentos individuais. A arrow genérica interna tem seus próprios type params que são verificados contra o tipo do parâmetro — mas nesse ponto o tipo do parâmetro `pair` ainda contém símbolos não resolvidos (os type params de `swap`).
+`tryInferTypeArgs` → `unify` processa params em ordem. Quando unifica `(A, B) => B` da arrow contra o parâmetro `pair: (A, B) => B`:
 
-### Solução Potencial (Backlog)
+1. `unify(A_swap, A_arrow)` → `mapping["A"] = A_arrow` (NamedType)
+2. `unify(B_swap, B_arrow)` → `mapping["B"] = B_arrow` (NamedType)
+3. `unify(A_swap, int)` (do arg `1`) → mapping["A"] já existe, **first-binding-wins** → `int` descartado!
 
-Implementar **unificação bidirecional entre escopos**: quando uma arrow genérica é passada como argumento para uma função genérica, os type params da arrow devem ser unificados com os type params correspondentes da função envelope. Isso se aproxima de um algoritmo Hindley-Milner com polimorfismo let-bound.
+**Problema**: o "first-binding-wins" impedia que tipos concretos (`int`, `string`) sobrescrevessem mappings NamedType criados pela unificação de FunctionType.
 
-Também seria possível usar a mesma `tryInferTypeArgs` que já existe para chamadas de função, aplicada ao parâmetro `pair` contra o tipo da arrow.
+### Solução Implementada
+
+Em `tryInferTypeArgs` → `unify`, quando o binding existente é `NamedType` (type param de outro escopo), permitir que um tipo mais concreto o substitua:
+
+```typescript
+if (existing.kind === "NamedType") {
+  mapping.set(name, argType); // sobrescreve com tipo concreto
+}
+```
+
+Isso preserva:
+- **swap case**: `A_arrow` → substituído por `int` do arg `1` ✅
+- **shadowing (outer<T>/inner<T>)**: `T_outer` → mantido (não chega tipo mais concreto) ✅  
+- **apply case**: `T = int` (concreto) → FunctionType matching não sobrescreve (existing não é NamedType) ✅
 
 ---
 
@@ -266,7 +272,7 @@ Também seria possível usar a mesma `tryInferTypeArgs` que já existe para cham
 | #2 — Spread union types | 🟡 Medium | Array spread inference | Backlog |
 | #3 — Empty array inference | 🟢 Low | UX improvement | Backlog |
 | #4 — Multi-dimensional array validation | 🟢 Low | Edge case | Backlog |
-| #11 — Type param scope collision (arrow in generic call) | 🟡 Medium | Generic arrow as argument with multi type params | Backlog |
+| #11 — Type param scope collision (arrow in generic call) | 🟡 Medium | Generic arrow as argument with multi type params | ✅ **Fixed** |
 
 ---
 

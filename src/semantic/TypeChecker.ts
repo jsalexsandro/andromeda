@@ -151,7 +151,13 @@ export class TypeChecker {
         if (typeParamNames.has(name)) {
           const existing = mapping.get(name);
           if (existing) {
-            // Conflito: primeiro binding vence, arg checking pega depois
+            // Se o binding atual é NamedType (type param de outro escopo, ex:
+            // arrow genérica <A,B>(...) dentro de swap<A,B>(...)), permite que
+            // tipos concretos (int, string) sobrescrevam. Isso resolve Bug #11
+            // sem quebrar shadowing de type params (ex: inner<T>(x) dentro de outer<T>).
+            if (existing.kind === "NamedType") {
+              mapping.set(name, argType);
+            }
             return true;
           }
           mapping.set(name, argType);

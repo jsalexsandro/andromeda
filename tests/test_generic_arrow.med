@@ -15,5 +15,14 @@ val f4 = apply(10, <T>(x: T): T => x)
 val f5 = <T>(arr: T[]): T => arr[0]
 val f6 = f5<int>([1, 2, 3])
 
+// ── Bug #11: Generic arrow inside generic call ───────────────
+// Antes: inference mapeava A→A_arrow (NamedType) em vez de A→int,
+// causando TYPE_MISMATCH nos args seguintes (1: int, "hello": string).
+func swap<A, B>(pair: (A, B) => B, a: A, b: B): B { return pair(a, b) }
+val swap1 = swap(<A, B>(a: A, b: B): B => b, 1, "hello")
+
+// ── Regression: apply(10, <T>(x: T): T => x) ─────────────────
+val apply1 = apply(10, <T>(x: T): T => x)
+
 // ── Arrow genérica com retorno contextual ────────────────────
 val f7: int = <T>(x: T): T => x
