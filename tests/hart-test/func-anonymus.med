@@ -1,0 +1,115 @@
+// Arrow function return type annotation tests
+// ── helpers ────────────────────────────────────────────────
+func id<T>(x: T): T { return x }
+func apply<T, U>(x: T, fn: (T) => U): U { return fn(x) }
+// ============================================================
+// TEST 1 — Block body com return type annotation
+// ============================================================
+func testBlockBodyAnnotated(): void {
+  val fn = (): int => {
+    return 42
+  }
+  val x: int = fn()
+}
+// ============================================================
+// TEST 2 — Block body com function type como return
+// ============================================================
+func testReturnsFunction(): void {
+  val fn = (): (() => int) => {
+    return (): int => 42
+  }
+  val inner: () => int = fn()
+  val x: int = inner()
+}
+// ============================================================
+// TEST 3 — Block body com função duplamente aninhada
+// ============================================================
+func testDeepNested(): void {
+  val fn = (): (() => (() => int)) => {
+    return (): (() => int) => {
+      return (): int => 42
+    }
+  }
+  val x: int = fn()()()
+}
+// ============================================================
+// TEST 4 — Arrow dentro de função genérica
+// ============================================================
+func testGenericHigherOrder(): void {
+  val result: int = apply(
+    10,
+    (x: int): int => x + 1
+  )
+}
+// ============================================================
+// TEST 5 — Arrow com tipo complexo como return
+// ============================================================
+func testComplexReturn(): void {
+  func makeAdder(x: int): (int) => int {
+    return (y: int): int => x + y
+  }
+  val add5 = makeAdder(5)
+  val result: int = add5(10)
+}
+// ============================================================
+// TEST 6 — Generic arrow com return type annotation + block
+// ============================================================
+func testGenericArrowBlock(): void {
+  val fn = <T>(x: T): T => {
+    return x
+  }
+  val r1: int = fn<int>(42)
+  val r2: string = fn<string>("hello")
+}
+// ============================================================
+// TEST 7 — Original bug: nestedCall com arrow de função
+// ============================================================
+func nestedCall<T>(fn: (() => (() => T))?): T? {
+  if val outer = fn {
+    val inner = outer()
+    return inner()
+  }
+  return null
+}
+func testNestedCall(): void {
+  val aa1: int? = nestedCall(
+    (): (() => int) => {
+      return (): int => 42
+    }
+  )
+}
+// ============================================================
+// TEST 8 — Arrow expression body com return type
+// ============================================================
+func testExprBodyAnnotated(): void {
+  val fn = (x: int): int => x * 2
+  val result: int = fn(5)
+}
+// ============================================================
+// TEST 9 — Void arrow com block body
+// ============================================================
+func testVoidArrow(): void {
+  var counter: int = 0
+  val fn = (): void => {
+    counter = counter + 1
+  }
+  fn()
+}
+// ============================================================
+// TEST 10 — Anotação errada (TYPE_MISMATCH esperado)
+// ============================================================
+// val fn = (): string => {
+//   return 42
+// }
+// ============================================================
+// RUN ALL
+// ============================================================
+testBlockBodyAnnotated()
+testReturnsFunction()
+testDeepNested()
+testGenericHigherOrder()
+testComplexReturn()
+testGenericArrowBlock()
+testNestedCall()
+testExprBodyAnnotated()
+testVoidArrow()

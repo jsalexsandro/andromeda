@@ -550,6 +550,7 @@ export class Parser {
           kind: "ArrowFunction",
           params,
           body,
+          returnType,
           typeParameters,
         };
       }
@@ -2426,19 +2427,25 @@ export class Parser {
   private looksLikeFunctionTypeAnnotation(): boolean {
     const saved = this.current;
     let depth = 1;
+    let foundArrowInside = false;
 
     // Acha o ')' correspondente
     while (!this.isAtEnd() && depth > 0) {
       const t = this.peek();
       if (t.type === TokenType.LPAREN) depth++;
       if (t.type === TokenType.RPAREN) depth--;
+      if (t.type === TokenType.ARROW && depth === 1) {
+        // '=>' ao nível actual → já há uma função tipo interna
+        // Este (...) é um grouping, não um FunctionType
+        foundArrowInside = true;
+      }
       this.advance();
     }
 
     // Após ')', tem '=>'?
     const hasArrow = this.check(TokenType.ARROW);
     this.current = saved; // restaura — lookahead puro
-    return hasArrow;
+    return hasArrow && !foundArrowInside;
   }
 
   // ========================================

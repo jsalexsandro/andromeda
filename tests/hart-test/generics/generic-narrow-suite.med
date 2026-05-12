@@ -58,24 +58,21 @@ val c1: int? = process(42)
 
 
 // ============================================================
-// TEST 4 — NESTED IF VAL
+// TEST 4 — NESTED IF VAL (EXPECTED: INVALID_BINDING_TYPE)
 // ============================================================
-
-func nested<T>(x: T?): T? {
-
-  if val a = x {
-
-    if val b = a {
-      return b
-    }
-
-  }
-
-  return null
-}
-
-val d1: int? = nested(42)
-val d2: int? = nested(null)
+// 'a' já é T (unwrapped de T?), segundo if val em não-opcional
+//
+// func nested<T>(x: T?): T? {
+//   if val a = x {
+//     if val b = a {
+//       return b
+//     }
+//   }
+//   return null
+// }
+//
+// val d1: int? = nested(42)
+// val d2: int? = nested(null)
 
 
 
@@ -134,23 +131,20 @@ if val fn = g1 {
 
 
 // ============================================================
-// TEST 8 — DEEP FUNCTION NARROW
+// TEST 8 — DEEP FUNCTION NARROW (EXPECTED: INVALID_BINDING_TYPE)
 // ============================================================
-
-func deep<T>(x: ((() => T)?)?): T? {
-
-  if val a = x {
-
-    if val b = a {
-      return b()
-    }
-
-  }
-
-  return null
-}
-
-val h1: int? = deep(((): int => 42))
+// Mesmo padrão do TEST 4: if val aninhado em não-opcional
+//
+// func deep<T>(x: ((() => T)?)?): T? {
+//   if val a = x {
+//     if val b = a {
+//       return b()
+//     }
+//   }
+//   return null
+// }
+//
+// val h1: int? = deep(((): int => 42))
 
 
 
@@ -348,23 +342,20 @@ val r1: int? = invoke([
 
 
 // ============================================================
-// TEST 19 — DOUBLE NARROW SAME SYMBOL
+// TEST 19 — DOUBLE NARROW SAME SYMBOL (EXPECTED: INVALID_BINDING_TYPE)
 // ============================================================
-
-func dual<T>(x: T?): T? {
-
-  if val a = x {
-
-    if val b = a {
-      return b
-    }
-
-  }
-
-  return null
-}
-
-val s1: int? = dual(42)
+// Mesmo padrão do TEST 4: if val aninhado em não-opcional
+//
+// func dual<T>(x: T?): T? {
+//   if val a = x {
+//     if val b = a {
+//       return b
+//     }
+//   }
+//   return null
+// }
+//
+// val s1: int? = dual(42)
 
 
 

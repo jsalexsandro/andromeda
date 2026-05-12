@@ -153,6 +153,7 @@
 - [ ] Verificar que todos os caminhos retornam valor compatível com `returnType`
 - [ ] Detectar parâmetro `rest` (`...args`) fora do último lugar → erro
 - [ ] Checar recursão (a função pode se referenciar no body)
+- [ ] Detectar funções anomimas, se fizer sentido com o paremetro esperado permtir.
 
 ### ReturnStatement
 - [ ] Verificar que está dentro de uma função

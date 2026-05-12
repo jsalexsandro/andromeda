@@ -453,6 +453,16 @@ val name: (int) => int = (x) => {
   return x * 2
 }
 
+// Block body with return type annotation
+val name = (x: int): int => {
+  return x * 2
+}
+
+// Higher-order arrow returning function type (block body)
+val factory = (): (() => int) => {
+  return (): int => 42
+}
+
 // Generic arrow function (type parameters before params)
 val name = <T>(x: T): T => x
 
@@ -592,6 +602,13 @@ if val y = x {
 **Error:** binding a non-optional type:
 ```
 [INVALID_BINDING_TYPE] 'y' must be bound to an optional type in if binding
+```
+
+**Type annotation:** `if val y: Tipo = expr` é suportado — o tipo anotado é validado contra o tipo unwrapped:
+```typescript
+val x: int? = 42
+if val y: int = x { }     // ✅ OK
+// if val y: string = x { }  // ❌ TYPE_MISMATCH: Cannot bind 'y' with type 'string' to value of type 'int'
 ```
 
 ### While Loop
