@@ -483,7 +483,21 @@ func apply<T>(x: T, fn: (T) => T): T { return fn(x) }
 val result = apply(10, <T>(x: T): T => x)  // ✅
 ```
 
-**Limitation:** Type parameters of a generic arrow are in a separate scope from the enclosing function's type parameters. Inference currently works for simple cases (single type param matching by position) but may fail for complex scenarios with multiple type params across nested scopes. See `docs/bugs.md` Bug #11 for details.
+#### Multi-Type-Parameter Inference (Bug #11 Fixed)
+
+Generic arrows with multiple type params inside generic calls are now fully supported:
+
+```typescript
+func swap<A, B>(pair: (A, B) => B, a: A, b: B): B { return pair(a, b) }
+
+// Arrow's A,B are unified with swap's A,B, then inferred from args 1 and "hello"
+val r = swap(<A, B>(a: A, b: B): B => b, 1, "hello")  // ✅ A → int, B → string
+```
+
+The compiler correctly:
+1. Unifies the arrow's signature with the parameter type `(A, B) => B`
+2. Infers `A=int` from argument `1` and `B=string` from argument `"hello"`
+3. Applies the mapping to both `swap`'s and the arrow's type params
 
 ---
 
@@ -785,6 +799,7 @@ val result: int = double(5)
 - [x] **Nullish Coalescing** - `??` operator
 - [x] **Generic Functions** - `func foo<T>(x: T): T`
 - [x] **Generic Arrow Functions** - `<T>(x: T): T => x` with explicit type args and contextual inference
+- [x] **Multi-Type-Param Arrow Inference** - `swap(<A,B>(...)=>..., 1, "hello")` infers A→int, B→string
 - [x] **Bidirectional Type Inference** - contextual type participates in generic inference
 
 
@@ -824,4 +839,4 @@ bun src/main.ts version
 ---
 
 **Documentation Version:** 1.0.2  
-**Last Updated:** May 2026
+**Last Updated:** May 12, 2026
