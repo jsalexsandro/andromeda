@@ -428,10 +428,6 @@ export class TypeChecker {
     const name = stmt.name.value as string;
     const existing = this.currentEnv.lookupLocal(name);
 
-    if (existing?.kind === "builtin") {
-      this.errors.push(Errors.cannotRedefineBuiltin(name, stmt.name));
-      return;
-    }
     if (existing) {
       this.errors.push(Errors.alreadyDeclared(name, stmt.name));
       return;
@@ -508,12 +504,12 @@ export class TypeChecker {
 
     // Verificar redeclaração no escopo local
     const existing = this.currentEnv.lookupLocal(name);
-    if (existing?.kind === "builtin") {
-      this.errors.push(Errors.cannotRedefineBuiltin(name, stmt.name));
+    if (existing && existing.kind !== "builtin") {
+      this.errors.push(Errors.alreadyDeclared(name, stmt.name));
       return;
     }
-    if (existing) {
-      this.errors.push(Errors.alreadyDeclared(name, stmt.name));
+    if (existing?.kind === "builtin" && TypeChecker.PROTECTED_BUILTINS.has(name)) {
+      this.errors.push(Errors.cannotRedefineBuiltin(name, stmt.name));
       return;
     }
 
@@ -949,10 +945,6 @@ export class TypeChecker {
     const name = stmt.name.value as string;
     const existing = this.currentEnv.lookupLocal(name);
 
-    if (existing?.kind === "builtin") {
-      this.errors.push(Errors.cannotRedefineBuiltin(name, stmt.name));
-      return;
-    }
     if (existing) {
       this.errors.push(Errors.alreadyDeclared(name, stmt.name));
       return;
