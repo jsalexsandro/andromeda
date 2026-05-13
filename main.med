@@ -1,2 +1,4 @@
-typealias Nullable<T> = T?
-
+const a: A<int>  = []
+// o compiler ainda não reconhe esse generic acima como não definido
+// teremos que criar apis (bultins) internos parra 'Array' e o Optional
+// Array e Optional passa para o compilador, pois o compilador no AST usa essas referências internas no generic. 

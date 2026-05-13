@@ -1,11 +1,12 @@
 import { Symbol } from "./types";
-import { Token } from "../lexer/types";
+import { Token, TokenType } from "../lexer/types";
 import {
   PrimitiveTypeNode,
   NamedTypeNode,
   GenericTypeNode,
   FunctionTypeNode,
   ArrayTypeNode,
+  TypeParameterNode,
 } from "../ast";
 import type { PrimitiveTypes } from "../types";
 
@@ -121,10 +122,44 @@ export class Environment {
       mutable: false,
       initialized: true,
     });
+
+    const typeTParam: TypeParameterNode = {
+      kind: "TypeParameter",
+      name: { type: TokenType.IDENTIFIER, value: "T", line: 0, column: 0 },
+    };
+
+    // Built-in generic: Array<T>
+    this.symbols.set("Array", {
+      name: "Array",
+      type: {
+        kind: "GenericType",
+        name: { type: TokenType.IDENTIFIER, value: "Array", line: 0, column: 0 },
+        args: [],
+      } as GenericTypeNode,
+      kind: "builtin",
+      mutable: false,
+      initialized: true,
+      typeParameters: [typeTParam],
+    });
+
+    // Built-in generic: Optional<T>
+    this.symbols.set("Optional", {
+      name: "Optional",
+      type: {
+        kind: "GenericType",
+        name: { type: TokenType.IDENTIFIER, value: "Optional", line: 0, column: 0 },
+        args: [],
+      } as GenericTypeNode,
+      kind: "builtin",
+      mutable: false,
+      initialized: true,
+      typeParameters: [typeTParam],
+    });
   }
 
   public define(name: string, symbol: Symbol): void {
-    if (this.symbols.has(name)) {
+    const existing = this.symbols.get(name);
+    if (existing && existing.kind !== "builtin") {
       return;
     }
     this.symbols.set(name, symbol);

@@ -1,7 +1,7 @@
 import { Token } from "../lexer/types";
 import { TypeNode, TypeParameterNode } from "../ast";
 
-export type SymbolKind = "variable" | "function" | "type" | "struct" | "enum" | "protocol" | "parameter" | "typeParam";
+export type SymbolKind = "variable" | "function" | "type" | "struct" | "enum" | "protocol" | "parameter" | "typeParam" | "builtin";
 
 export interface Symbol {
   name: string;

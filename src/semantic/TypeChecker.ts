@@ -490,9 +490,9 @@ export class TypeChecker {
   private checkTypeAliasStmt(stmt: Extract<Stmt, { kind: "TypeAliasStmt" }>): void {
     const name = stmt.name.value as string;
 
-    // Verificar redeclaração no escopo local
+    // Verificar redeclaração no escopo local (exceto built-ins)
     const existing = this.currentEnv.lookupLocal(name);
-    if (existing) {
+    if (existing && existing.kind !== "builtin") {
       this.errors.push(Errors.alreadyDeclared(name, stmt.name));
       return;
     }
@@ -632,7 +632,7 @@ export class TypeChecker {
 
       // Verifica no escopo corrente (inclui type params genéricos)
       const existing = this.currentEnv.lookup(typeName);
-      if (existing && (existing.kind === "type" || existing.kind === "struct" || existing.kind === "typeParam")) {
+      if (existing && (existing.kind === "type" || existing.kind === "struct" || existing.kind === "typeParam" || existing.kind === "builtin")) {
         return null;
       }
 
@@ -642,12 +642,10 @@ export class TypeChecker {
     if (type.kind === "GenericType") {
       const typeName = type.name.value as string;
       const validGenerics: Record<string, number> = {
-        "Array": 1,
         "List": 1,
         "Map": 2,
         "Set": 1,
         "Promise": 1,
-        "Optional": 1,
       };
       if (typeName in validGenerics) {
         const expectedArgs = validGenerics[typeName];
@@ -655,12 +653,19 @@ export class TypeChecker {
           return Errors.typeMismatch(`Generic '${typeName}' expects ${expectedArgs} parameter(s), got ${type.args.length}`, token);
         }
       } else {
-        // Check user-defined generic type alias
+        // Check user-defined generic type alias or built-in generic
         const existing = this.globalEnv.lookup(typeName);
         if (existing?.kind === "type" && existing.typeParameters) {
           if (type.args.length !== existing.typeParameters.length) {
             return Errors.typeMismatch(`Generic type alias '${typeName}' expects ${existing.typeParameters.length} parameter(s), got ${type.args.length}`, token);
           }
+        } else if (existing?.kind === "builtin" && existing.typeParameters) {
+          // Built-in generic: Array<T>, Optional<T>
+          if (type.args.length !== existing.typeParameters.length) {
+            return Errors.typeMismatch(`Built-in generic '${typeName}' expects ${existing.typeParameters.length} parameter(s), got ${type.args.length}`, token);
+          }
+        } else if (!existing) {
+          return Errors.undefinedType(typeName, token);
         }
       }
       for (const arg of type.args) {

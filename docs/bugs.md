@@ -1,6 +1,6 @@
 # Bug Report: Type Inference Issues
 
-**Dates:** April 29, 2026 — May 9, 2026  
+**Dates:** April 29, 2026 — May 12, 2026  
 **Version:** 1.0.2  
 **Status:** Open  
 
@@ -258,6 +258,164 @@ Isso preserva:
 
 ---
 
+## Bug #12: `normalizeType` — UnionType with `null` Not Treated as Optional
+
+**File:** `src/semantic/TypeChecker.ts:58` — `normalizeType()`  
+**Severity:** 🔴 High  
+**Status:** Open  
+
+### Description
+
+`normalizeType` only recognizes `Optional<T>` (GenericType with name `"Optional"`) as an optional type. When a generic type alias resolves to `T | null` (UnionType), `if val` binding detection fails.
+
+### Reproduction
+
+```typescript
+typealias Optional<T> = T | null
+
+func unwrap<T>(x: Optional<T>): Optional<T> {
+  if val value = x {    // ❌ INVALID_BINDING_TYPE
+    return value
+  }
+  return null
+}
+```
+
+### Root Cause
+
+The `if val` check in `_checkIfVariableBinding` (line 1132):
+
+```
+resolveAlias(initType) → expande Optional<T> → T | null  (UnionType)
+normalizeType(...)     → UnionType: só normaliza membros, NÃO detecta null
+normalized.kind === "NullableType"? → FALSE
+→ INVALID_BINDING_TYPE 💥
+```
+
+`normalizeType` handles `UnionType` at line 75–79 but only recurses into its members — it never checks if one member is `null` to convert to `NullableType`.
+
+### Contrast: `Nullable<T> = T?` works
+
+| Alias | resolve p/ | normalizeType | Resultado |
+|-------|-----------|---------------|-----------|
+| `Nullable<T> = T?` | `Optional<T>` (GenericType) | `isOptional()` → true | `NullableType(T)` ✅ |
+| `Optional<T> = T \| null` | `T \| null` (UnionType) | `isOptional()` → false | UnionType ❌ |
+
+### Fix
+
+In `normalizeType`, detect UnionType containing `null`:
+
+```typescript
+if (type.kind === "UnionType") {
+  const nullMember = type.types.find(
+    t => t.kind === "PrimitiveType" && t.name === "null"
+  );
+  if (nullMember && type.types.length === 2) {
+    const other = type.types.find(t => t !== nullMember)!;
+    return { kind: "NullableType", type: this.normalizeType(other) };
+  }
+  // ...existing union normalization
+}
+```
+
+---
+
+## Bug #13: `checkSpreadExpr` — `resolveAlias` Not Called Before Array Check
+
+**File:** `src/semantic/TypeChecker.ts:2384` — `checkSpreadExpr()`  
+**Severity:** 🟡 Medium  
+**Status:** Open  
+
+### Description
+
+When spreading a variable whose type is a generic type alias for an array, the spread check fails because `resolveAlias` is not called before checking if the type is an array.
+
+### Reproduction
+
+```typescript
+typealias ArrayBox<T> = T[]
+
+func clone<T>(arr: ArrayBox<T>): ArrayBox<T> {
+  return [...arr]    // ❌ INVALID_SPREAD: cannot spread non-array/non-object type
+}
+```
+
+### Root Cause
+
+`checkSpreadExpr` at line 2387:
+
+```typescript
+if (!this.isArray(argType) && argType.kind !== "ArrayType" && argType.kind !== "Object") {
+  this.errors.push(Errors.invalidSpread(token));
+}
+```
+
+`argType` is `ArrayBox<T>` (GenericType). `isArray()` checks `type.name.value === "Array"` — `"ArrayBox" !== "Array"` → false. `argType.kind` is `"GenericType"`, not `"ArrayType"` → false. **INVALID_SPREAD**.
+
+### Fix
+
+Call `resolveAlias` before the array kind checks:
+
+```typescript
+private checkSpreadExpr(expr: Extract<Expr, { kind: "Spread" }>): TypeNode {
+  const argType = this.resolveAlias(this.checkExpression(expr.argument));
+  // agora argType pode ser T[], não ArrayBox<T>
+  if (!this.isArray(argType) && argType.kind !== "ArrayType" && argType.kind !== "Object") {
+    this.errors.push(Errors.invalidSpread(token));
+  }
+  return argType;
+}
+```
+
+---
+
+## Bug #14: Generic Arrow Function — Nullable Parameter Types Not Preserved in Body
+
+**File:** `src/semantic/TypeChecker.ts` / `src/parser/parser.ts`  
+**Severity:** 🔴 High  
+**Status:** Open — requires investigation  
+
+### Description
+
+In generic arrow functions, parameter types annotated with `T?` lose their `Optional<T>` wrapper inside the function body. As a result, `if val` binding fails because the variable is not recognized as optional.
+
+### Reproduction
+
+```typescript
+val final = <T>(
+  value: T?,
+  transform: ((T) => T)?,
+  fallback: (() => T)?
+): MaybeBox<T> => {
+  if val v = value {        // ❌ INVALID_BINDING_TYPE
+    if val fn = transform {  // ❌ INVALID_BINDING_TYPE
+      return fn(v)           // ❌ INVALID_CALL: non-function
+    }
+  }
+  if val fb = fallback {    // ❌ INVALID_BINDING_TYPE
+    return fb()             // ❌ INVALID_CALL: non-function
+  }
+  return null
+}
+```
+
+### Root Cause (hypothesis)
+
+When the arrow function environment is created, parameter types are registered. For `value: T?`:
+- The parser should produce `Optional<T>` (GenericType) from `T?`
+- But the type stored in the symbol table may be `NamedType("T")` instead of `GenericType("Optional", [NamedType("T")])`
+
+This could happen if:
+1. `parseArrowFunction` handles `T?` differently from `parseFunctionDeclarator`
+2. The type annotation is lost during environment creation in `checkArrowFunctionExpr`
+3. The nullable normalization (`T?` → `Optional<T>`) doesn't apply in arrow parameter context
+
+### Verification Needed
+
+Compare the stored parameter type for `func normal<T>(x: T?)` vs `val arrow = <T>(x: T?) => ...` by inspecting the symbol table entry for `x` inside each function body.
+
+---
+
 ## Priority Matrix
 
 | Bug | Severity | Impact | Status |
@@ -273,12 +431,15 @@ Isso preserva:
 | #3 — Empty array inference | 🟢 Low | UX improvement | Backlog |
 | #4 — Multi-dimensional array validation | 🟢 Low | Edge case | Backlog |
 | #11 — Type param scope collision (arrow in generic call) | 🟡 Medium | Generic arrow as argument with multi type params | ✅ **Fixed** |
+| #12 — normalizeType Union null detection | 🔴 High | if val with T \| null aliases | **Open** |
+| #13 — checkSpreadExpr resolveAlias | 🟡 Medium | Spread with typealiased arrays | **Open** |
+| #14 — Arrow generic nullable params | 🔴 High | if val in generic arrows with T? | **Open** |
 
 ---
 
 ## Pattern Analysis
 
-**9 of 10 bugs** follow the same root pattern: **`resolveAlias` not called before checking `.kind` on a type that could be a `NamedType` alias**. This is a systemic gap in the type checker, not an isolated mistake.
+**11 of 14 bugs** follow the same root pattern: **`resolveAlias` not called before checking `.kind` on a type that could be a `NamedType` or `GenericType` alias**. This is a systemic gap in the type checker, not an isolated mistake.
 
 ### Already Fixed (9 occurrences)
 1. `checkCallExpr` — calleeType before kind check
@@ -291,7 +452,10 @@ Isso preserva:
 8. `checkUnaryExpr` — operandType before primitive check
 9. `inferLiteralType` — contextualType before float coercion check
 
-### Still Unfixed (0 occurrences — all resolveAlias gaps closed)
+### Still Unfixed (3 occurrences)
+1. **Bug #12** — `normalizeType`: needs Union-with-null → NullableType conversion
+2. **Bug #13** — `checkSpreadExpr`: needs `resolveAlias` before isArray/kind check
+3. **Bug #14** — Arrow generic nullable params (different pattern — environment registration issue)
 
 ---
 
