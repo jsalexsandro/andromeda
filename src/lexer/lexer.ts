@@ -1043,7 +1043,7 @@ readNumber(): Token {
       type = TYPE_KEYWORDS[ident]
     }
 
-    if (type === TokenType.KEYWORD && ident === 'func') {
+    if (type === TokenType.KEYWORD && (ident === 'func' || ident === 'typealias')) {
       this.expectingGenericParams = true
     }
 

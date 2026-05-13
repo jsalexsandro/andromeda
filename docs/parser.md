@@ -109,12 +109,23 @@ Fase 6.3 GenericSystem
 
   - Criar a função ParseGeneric, para reutilizar em outras estruturas
 
+Fase 6.3.1 TypeAliasGeneric
+  TypeAliasGeneric Decl:
+    typealias Nullable<T> =  T? 
+
+  Call: 
+    val s: Nullable<int> = 1
+
+  Conflito com Lexer:
+  * Verificar se o lexer não confude isso com uma tag Androx
+
 // desempacotadores de opicionais
 Fase 6.4 IfBindingExpr
 -  IfValExpr
 -  IfVarExpr
 -  IfContExpr
 -  Reutilizar as apis internas de declaração de variaveis do parser
+-  Permtir multiplas declarações [talvez, futuro]
 
 no Ast IfVariableStmt
 

@@ -1,0 +1,22 @@
+// Test 1: Multiplos parametros typealias com tupla
+typealias Pair<T, U> = [T, U]
+
+val p1: Pair<int, string> = [1, "um"]
+val p2: Pair<string, bool> = ["sim", true]
+
+func makePair<T, U>(x: T, y: U): Pair<T, U> {
+  return [x, y]
+}
+
+val p3: Pair<int, string> = makePair(2, "dois")
+
+// Test 2: typealias com 3 parametros
+typealias Triple<A, B, C> = [A, B, C]
+
+val t1: Triple<int, string, bool> = [1, "a", false]
+
+// Test 3: typealias com 1 parametro mas nomes diferentes
+typealias Box<T> = T?
+
+val box1: Box<int> = 42
+val box2: Box<string> = null

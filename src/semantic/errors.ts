@@ -32,7 +32,8 @@ export type ErrorCode =
   | "SPREAD_IN_TUPLE"
   | "GENERIC_ARG_COUNT"
   | "NOT_GENERIC"
-  | "GENERIC_INFERENCE_FAILED";
+  | "GENERIC_INFERENCE_FAILED"
+  | "CIRCULAR_TYPE_ALIAS";
 
 export class SemanticError {
   constructor(
@@ -164,5 +165,10 @@ export const Errors = {
   genericInferenceFailed: (param: string, token: Token) =>
     createError("GENERIC_INFERENCE_FAILED",
       `Could not infer type for '${param}'`,
+      token, "typecheck"),
+
+  circularTypeAlias: (name: string, token: Token) =>
+    createError("CIRCULAR_TYPE_ALIAS",
+      `Type alias '${name}' contains a circular reference`,
       token, "typecheck"),
 };

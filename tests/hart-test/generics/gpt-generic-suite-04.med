@@ -1,0 +1,482 @@
+// ============================================================
+// THE FINAL — ABSOLUTE GENERIC + NARROW VALIDATION
+// If this passes, your generic + inference + narrowing system
+// is already in "real language" territory.
+// ============================================================
+
+
+
+// ============================================================
+// SECTION 1 — FOUNDATIONS
+// ============================================================
+
+func id<T>(x: T): T {
+  return x
+}
+
+func maybe<T>(x: T?): T? {
+  return x
+}
+
+func wrap<T>(x: T): T[] {
+  return [x]
+}
+
+func first<T>(x: T[]): T {
+  return x[0]
+}
+
+
+
+// ============================================================
+// SECTION 2 — DEEP PROPAGATION
+// ============================================================
+
+val a1: int = first(wrap(id(42)))
+val a2: string = first(wrap(id("hello")))
+
+
+
+// ============================================================
+// SECTION 3 — BIDIRECTIONAL INFERENCE
+// ============================================================
+
+func make<T>(): T {
+  return make<T>()
+}
+
+val b1: int = make()
+val b2: string = make()
+
+
+
+// ============================================================
+// SECTION 4 — NULLABLE FLOW
+// ============================================================
+
+func nullableFlow<T>(x: T?): T? {
+
+  if val value = x {
+    return value
+  }
+
+  return null
+}
+
+val c1: int? = nullableFlow(42)
+val c2: string? = nullableFlow("hello")
+val c3: int? = nullableFlow(null)
+
+
+
+// ============================================================
+// SECTION 5 — FUNCTION FLOW
+// ============================================================
+
+func call<T>(fn: (() => T)?): T? {
+
+  if val f = fn {
+    return f()
+  }
+
+  return null
+}
+
+val d1: int? = call((): int => 42)
+val d2: string? = call((): string => "ok")
+val d3: int? = call(null)
+
+
+
+// ============================================================
+// SECTION 6 — HIGHER ORDER GENERICS
+// ============================================================
+
+func map<T, U>(
+  x: T,
+  fn: (T) => U
+): U {
+  return fn(x)
+}
+
+val e1: string = map(
+  42,
+  (n: int): string => "num"
+)
+
+val e2: int = map(
+  "hello",
+  (s: string): int => 1
+)
+
+
+
+// ============================================================
+// SECTION 7 — GENERIC CALLBACK PROPAGATION
+// ============================================================
+
+func apply<T>(
+  value: T?,
+  fn: ((T) => T)?
+): T? {
+
+  if val v = value {
+
+    if val f = fn {
+      return f(v)
+    }
+
+  }
+
+  return null
+}
+
+val f1: int? = apply(
+  10,
+  (n: int): int => n + 1
+)
+
+val f2: string? = apply(
+  "a",
+  (s: string): string => s + "b"
+)
+
+
+
+// ============================================================
+// SECTION 8 — FUNCTION RETURNING FUNCTION
+// ============================================================
+
+func factory<T>(x: T): (() => T)? {
+
+  return (): T => x
+}
+
+val g1 = factory(42)
+
+if val fn = g1 {
+
+  val g2: int = fn()
+
+}
+
+
+
+// ============================================================
+// SECTION 9 — DEEP NESTED NULLABLES
+// ============================================================
+
+func deep<T>(x: T?): T? {
+  if val a = x {
+   return null
+  }
+
+}
+
+val h1: int? = deep(42)
+val h2: int? = deep(null)
+
+
+
+// ============================================================
+// SECTION 10 — MULTI DIMENSION GENERICS
+// ============================================================
+
+func matrix<T>(x: T[][]?): T? {
+
+  if val m = x {
+    return m[0][0]
+  }
+
+  return null
+}
+
+val i1: int? = matrix([
+  [1, 2],
+  [3, 4]
+])
+
+
+
+// ============================================================
+// SECTION 11 — FUNCTION ARRAY GENERICS
+// ============================================================
+
+func execute<T>(x: (() => T)[]?): T? {
+
+  if val arr = x {
+    return arr[0]()
+  }
+
+  return null
+}
+
+val j1: int? = execute([
+  (): int => 1,
+  (): int => 2
+])
+
+
+
+// ============================================================
+// SECTION 12 — GENERIC SHADOWING
+// ============================================================
+
+func outer<T>(x: T): T {
+
+  func inner<T>(y: T): T {
+    return y
+  }
+
+  return inner(x)
+}
+
+val k1: int = outer(42)
+val k2: string = outer("hello")
+
+
+
+// ============================================================
+// SECTION 13 — INLINE GENERIC CASCADE
+// ============================================================
+
+func cascade<T>(x: T?): T? {
+
+  if val v = x {
+
+    val y = id(v)
+
+    val z = wrap(y)
+
+    return first(z)
+  }
+
+  return null
+}
+
+val l1: int? = cascade(42)
+
+
+
+// ============================================================
+// SECTION 14 — RECURSIVE GENERIC FLOW
+// ============================================================
+
+func recurse<T>(x: T): T {
+  return recurse(x)
+}
+
+val m1: int = recurse(42)
+
+
+
+// ============================================================
+// SECTION 15 — GENERIC FUNCTION RETURNING GENERIC CALLBACK
+// ============================================================
+
+func generator<T>(x: T): (() => T) {
+
+  return (): T => x
+}
+
+val n1 = generator(42)
+val n2: int = n1()
+
+
+
+// ============================================================
+// SECTION 16 — MULTI GENERIC PROPAGATION
+// ============================================================
+
+func pair<A, B>(a: A, b: B): B {
+  return b
+}
+
+val o1: string = pair(1, "hello")
+val o2: bool = pair("x", true)
+
+
+
+// ============================================================
+// SECTION 17 — NULLABLE ARRAY PROPAGATION
+// ============================================================
+
+func clone<T>(x: T[]?): T[]? {
+
+  if val arr = x {
+    return [...arr]
+  }
+
+  return null
+}
+
+val p1: int[]? = clone([1, 2, 3])
+
+
+
+// ============================================================
+// SECTION 18 — GENERIC CALLBACK RETURN CASCADE
+// ============================================================
+
+func nested<T>(
+  fn: (() => (() => T))?
+): T? {
+
+  if val outer = fn {
+
+    val inner = outer()
+
+    return inner()
+  }
+
+  return null
+}
+
+val q1: int? = nested(
+  (): (() => int) => {
+    return (): int => 42
+  }
+)
+
+
+
+// ============================================================
+// SECTION 19 — STRUCTURAL FUNCTION MATCH
+// ============================================================
+
+func invoke<T>(
+  fn: (T) => T,
+  value: T
+): T {
+
+  return fn(value)
+}
+
+val r1: int = invoke(
+  (n: int): int => n + 1,
+  10
+)
+
+
+
+// ============================================================
+// SECTION 20 — THE ABSOLUTE FINAL BOSS
+// ============================================================
+
+func final<T>(
+  value: T?,
+  transform: ((T) => T)?,
+  fallback: (() => T)?
+): T? {
+
+  if val v = value {
+
+    if val fn = transform {
+
+      val transformed = fn(v)
+
+      val boxed = wrap(transformed)
+
+      return first(boxed)
+    }
+
+  }
+
+  if val fb = fallback {
+    return fb()
+  }
+
+  return null
+}
+
+val s1: int? = final(
+  10,
+  (n: int): int => n + 1,
+  (): int => 0
+)
+
+val s2: string? = final(
+  null,
+  (s: string): string => s + "!",
+  (): string => "fallback"
+)
+
+
+
+// ============================================================
+// FAILURE VALIDATION SECTION
+// These MUST fail.
+// ============================================================
+
+
+
+// EXPECTED: TYPE_MISMATCH
+/*
+val fail1 = invoke(
+  (s: string): string => s,
+  42
+)
+*/
+
+
+
+// EXPECTED: GENERIC_INFERENCE_FAILED
+/*
+val fail2 = maybe(null)
+*/
+
+
+
+// EXPECTED: TYPE_MISMATCH
+/*
+val fail3: int = id("hello")
+*/
+
+
+
+// EXPECTED: NOT_GENERIC
+/*
+func normal(x: int): int {
+  return x
+}
+
+val fail4 = normal<int>(42)
+*/
+
+
+
+// EXPECTED: GENERIC_ARG_COUNT
+/*
+val fail5 = id<int, string>(42)
+*/
+
+
+
+// EXPECTED: TYPE_MISMATCH
+/*
+val fail6 = pair(1, "hello")
+*/
+
+
+
+// EXPECTED: NOT_CALLABLE
+/*
+func fail7<T>(x: T?): T? {
+
+  if val value = x {
+    return value()
+  }
+
+  return null
+}
+*/
+
+
+
+// EXPECTED: TYPE_MISMATCH
+/*
+val fail8 = apply(
+  10,
+  (s: string): string => s
+)
+*/

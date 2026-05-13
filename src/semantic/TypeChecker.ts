@@ -497,12 +497,40 @@ export class TypeChecker {
       return;
     }
 
-    // Validar o tipo que está sendo aliasado
+    // Register type params in a temporary scope so the body can reference them
+    const prevEnv = this.currentEnv;
+    if (stmt.typeParameters) {
+      const tmpEnv = new Environment(this.currentEnv, false);
+      for (const tp of stmt.typeParameters) {
+        const tpName = tp.name.value as string;
+        tmpEnv.define(tpName, {
+          name: tpName,
+          type: { kind: "NamedType", name: tp.name },
+          kind: "typeParam",
+          mutable: false,
+          initialized: true,
+          declarationToken: tp.name,
+        });
+      }
+      this.currentEnv = tmpEnv;
+    }
+
+    // Detect self-referencing aliases
+    const selfRefErr = this.checkAliasSelfReference(stmt.type, name, stmt.name);
+    if (selfRefErr) {
+      this.errors.push(selfRefErr);
+      if (stmt.typeParameters) this.currentEnv = prevEnv;
+      return;
+    }
+
     const err = this.validateTypeNode(stmt.type, stmt.name);
     if (err) {
       this.errors.push(err);
+      if (stmt.typeParameters) this.currentEnv = prevEnv;
       return;
     }
+
+    if (stmt.typeParameters) this.currentEnv = prevEnv;
 
     // Registrar no ambiente global como kind: "type"
     const symbol = {
@@ -512,9 +540,71 @@ export class TypeChecker {
       mutable: false,
       initialized: true,
       declarationToken: stmt.name,
+      typeParameters: stmt.typeParameters,
     };
 
     this.globalEnv.define(name, symbol);
+  }
+
+  private checkAliasSelfReference(type: TypeNode, aliasName: string, token: Token): SemanticError | null {
+    if (type.kind === "NamedType" && type.name.value === aliasName) {
+      return Errors.circularTypeAlias(aliasName, token);
+    }
+    if (type.kind === "GenericType" && type.name.value === aliasName) {
+      return Errors.circularTypeAlias(aliasName, token);
+    }
+    for (const child of this.walkTypeNodes(type)) {
+      if (child.kind === "NamedType" && child.name.value === aliasName) {
+        return Errors.circularTypeAlias(aliasName, token);
+      }
+      if (child.kind === "GenericType" && child.name.value === aliasName) {
+        return Errors.circularTypeAlias(aliasName, token);
+      }
+    }
+    return null;
+  }
+
+  private *walkTypeNodes(type: TypeNode): Generator<TypeNode, void, void> {
+    switch (type.kind) {
+      case "GenericType":
+        for (const arg of type.args) {
+          yield arg;
+          yield* this.walkTypeNodes(arg);
+        }
+        break;
+      case "FunctionType":
+        for (const p of type.params) {
+          yield p;
+          yield* this.walkTypeNodes(p);
+        }
+        yield type.returnType;
+        yield* this.walkTypeNodes(type.returnType);
+        break;
+      case "UnionType":
+        for (const t of type.types) {
+          yield t;
+          yield* this.walkTypeNodes(t);
+        }
+        break;
+      case "NullableType":
+        yield type.type;
+        yield* this.walkTypeNodes(type.type);
+        break;
+      case "TupleType":
+        for (const e of type.elements) {
+          yield e;
+          yield* this.walkTypeNodes(e);
+        }
+        break;
+      case "ArrayType":
+        yield type.elementType;
+        yield* this.walkTypeNodes(type.elementType);
+        break;
+      case "GroupingType":
+        yield type.type;
+        yield* this.walkTypeNodes(type.type);
+        break;
+    }
   }
 
   private validateTypeNode(type: TypeNode, token: Token): SemanticError | null {
@@ -564,6 +654,14 @@ export class TypeChecker {
         if (type.args.length !== expectedArgs) {
           return Errors.typeMismatch(`Generic '${typeName}' expects ${expectedArgs} parameter(s), got ${type.args.length}`, token);
         }
+      } else {
+        // Check user-defined generic type alias
+        const existing = this.globalEnv.lookup(typeName);
+        if (existing?.kind === "type" && existing.typeParameters) {
+          if (type.args.length !== existing.typeParameters.length) {
+            return Errors.typeMismatch(`Generic type alias '${typeName}' expects ${existing.typeParameters.length} parameter(s), got ${type.args.length}`, token);
+          }
+        }
       }
       for (const arg of type.args) {
         const argError = this.validateTypeNode(arg, token);
@@ -603,7 +701,27 @@ export class TypeChecker {
     return null;
   }
 
-  private resolveAlias(type: TypeNode): TypeNode {
+  private resolveAlias(type: TypeNode, visited?: Map<string, TypeNode>): TypeNode {
+    if (type.kind === "GenericType") {
+      const name = type.name.value as string;
+      const symbol = this.globalEnv.lookup(name);
+      if (symbol?.kind === "type" && symbol.typeParameters && symbol.typeParameters.length > 0) {
+        visited = visited ?? new Map();
+        const key = `${name}<${JSON.stringify(type.args)}>`;
+        const entry = visited.get(key);
+        if (entry) return entry;
+        visited.set(key, type);
+        const mapping = new Map<string, TypeNode>();
+        for (let i = 0; i < symbol.typeParameters.length; i++) {
+          const tpName = symbol.typeParameters[i].name.value as string;
+          const arg = type.args[i] ?? { kind: "NamedType", name: { type: 0 as any, value: tpName, line: 0, column: 0 } };
+          mapping.set(tpName, arg);
+        }
+        return this.resolveAlias(this.substitute(symbol.type, mapping), visited);
+      }
+      return type;
+    }
+
     // Só resolve se for NamedType
     if (type.kind !== "NamedType") return type;
 
@@ -612,7 +730,15 @@ export class TypeChecker {
 
     // Só expande se for alias (kind: "type") — structs/enums não expandem
     if (symbol?.kind === "type") {
-      return this.resolveAlias(symbol.type);  // recursivo para aliases de aliases
+      if (symbol.typeParameters && symbol.typeParameters.length > 0) {
+        // Generic alias used without type args — use defaults or leave as-is
+        return type;
+      }
+      visited = visited ?? new Map();
+      const key = name;
+      if (visited.has(key)) return type;
+      visited.set(key, type);
+      return this.resolveAlias(symbol.type, visited);
     }
 
     return type;
@@ -1008,7 +1134,8 @@ export class TypeChecker {
     const env = sharedEnv ?? new Environment(this.currentEnv, false);
 
     const initType = this.checkExpression(stmt.initializer);
-    const normalized = this.normalizeType(initType);
+    const resolved = this.resolveAlias(initType);
+    const normalized = this.normalizeType(resolved);
 
     let unwrapped: TypeNode | null =
       normalized.kind === "NullableType" ? normalized.type : null;

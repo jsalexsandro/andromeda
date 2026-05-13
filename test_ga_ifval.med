@@ -1,0 +1,87 @@
+// Test: Generic alias com if val (edge cases)
+typealias Nullable<T> = T?
+
+// Caso 1: if val basico com generic alias
+func test1(x: Nullable<int>): int {
+  if val v = x {
+    return v
+  }
+  return -1
+}
+
+// Caso 2: if val com else
+func test2(x: Nullable<string>): string {
+  if val v = x {
+    return v
+  } else {
+    return "vazio"
+  }
+}
+
+// Caso 3: if val com encadeamento
+func test3(a: Nullable<int>, b: Nullable<string>): string {
+  if val x = a, val y = b {
+    return y
+  }
+  return "nada"
+}
+
+// Caso 4: if val dentro de if val aninhado
+func test4(x: Nullable<int>, y: Nullable<int>): int {
+  if val a = x {
+    if val b = y {
+      return a + b
+    }
+    return a
+  }
+  return 0
+}
+
+// Caso 5: if val com else if
+func test5(x: Nullable<int>): int {
+  if val v = x {
+    return v
+  } else if true {
+    return 0
+  }
+  return -1
+}
+
+// Caso 6: Nullable<Nullable<T>>
+func test6(x: Nullable<Nullable<int>>): int {
+  if val a = x {
+    if val b = a {
+      return b
+    }
+    return 0
+  }
+  return -1
+}
+
+// Caso 7: funcao retornando generic alias
+func getOrElse<T>(x: Nullable<T>, fallback: T): T {
+  if val v = x {
+    return v
+  }
+  return fallback
+}
+
+val r1: int = getOrElse(null, 42)
+val r2: string = getOrElse("oi", "tchau")
+
+// Caso 8: Nullable de funcao (arrow)
+func testFn(x: Nullable<() => int>): int {
+  if val f = x {
+    return f()
+  }
+  return 0
+}
+
+// Caso 9: if var com generic alias
+func testVar(x: Nullable<int>): int {
+  if var v = x {
+    v = v + 1
+    return v
+  }
+  return 0
+}

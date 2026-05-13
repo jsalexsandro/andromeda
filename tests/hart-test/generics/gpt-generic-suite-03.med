@@ -1,0 +1,428 @@
+// ============================================================
+// THE FINAL ASCENSION
+// GENERIC ARROW FUNCTION ABSOLUTE TEST SUITE
+// ============================================================
+
+
+
+// ============================================================
+// TEST 1 — BASIC GENERIC ARROW
+// ============================================================
+
+val id = <T>(x: T): T => x
+
+val a1: int = id<int>(42)
+val a2: string = id<string>("hello")
+
+// inference
+val a3: int = id(10)
+val a4: string = id("ok")
+
+
+
+// ============================================================
+// TEST 2 — GENERIC ARROW RETURNING ARRAY
+// ============================================================
+
+val wrap = <T>(x: T): T[] => [x]
+
+val b1: int[] = wrap<int>(42)
+val b2: string[] = wrap<string>("hello")
+
+val b3: int[] = wrap(1)
+
+
+
+// ============================================================
+// TEST 3 — GENERIC ARROW TAKING ARRAY
+// ============================================================
+
+val first = <T>(arr: T[]): T => arr[0]
+
+val c1: int = first<int>([1, 2, 3])
+val c2: string = first<string>(["a", "b"])
+
+val c3: int = first([10, 20])
+
+
+
+// ============================================================
+// TEST 4 — GENERIC ARROW + NULLABLE
+// ============================================================
+
+val nullable = <T>(x: T?): T? => x
+
+val d1: int? = nullable<int>(42)
+val d2: int? = nullable<int>(null)
+
+val d3: string? = nullable("hello")
+
+
+
+// ============================================================
+// TEST 5 — GENERIC ARROW + IF VAL NARROW
+// ============================================================
+
+val unwrap = <T>(x: T?): T? => {
+
+  if val value = x {
+    return value
+  }
+
+  return null
+}
+
+val e1: int? = unwrap(42)
+val e2: string? = unwrap("hello")
+
+
+
+// ============================================================
+// TEST 6 — GENERIC ARROW RETURNING GENERIC CALLBACK
+// ============================================================
+
+val factory = <T>(x: T): (() => T) => {
+  return (): T => x
+}
+
+val f1 = factory(42)
+val f2: int = f1()
+
+val f3 = factory("hello")
+val f4: string = f3()
+
+
+
+// ============================================================
+// TEST 7 — GENERIC ARROW AS FUNCTION ARGUMENT
+// ============================================================
+
+func apply<T>(
+  value: T,
+  fn: (T) => T
+): T {
+  return fn(value)
+}
+
+val g1: int = apply(
+  10,
+  <T>(x: T): T => x
+)
+
+val g2: string = apply(
+  "hello",
+  <T>(x: T): T => x
+)
+
+
+
+// ============================================================
+// TEST 8 — MULTI TYPE PARAM GENERIC ARROW
+// ============================================================
+
+val second = <A, B>(a: A, b: B): B => b
+
+val h1: string = second<int, string>(1, "hello")
+val h2: bool = second<float, bool>(3.14, true)
+
+val h3: string = second(1, "ok")
+
+
+
+// ============================================================
+// TEST 9 — GENERIC ARROW + CALLBACK
+// ============================================================
+
+val map = <T, U>(
+  x: T,
+  fn: (T) => U
+): U => {
+  return fn(x)
+}
+
+val i1: string = map(
+  42,
+  (n: int): string => "num"
+)
+
+val i2: int = map(
+  "hello",
+  (s: string): int => 1
+)
+
+
+
+// ============================================================
+// TEST 10 — GENERIC ARROW RETURNING GENERIC ARROW
+// ============================================================
+
+val curry = <T>(x: T): (T) => T => {
+  return (y: T): T => y
+}
+
+val j1 = curry(42)
+val j2: int = j1(10)
+
+
+
+// ============================================================
+// TEST 11 — INLINE GENERIC ARROW CALL
+// ============================================================
+
+val k1: int = (<T>(x: T): T => x)(42)
+
+val k2: string = (<T>(x: T): T => x)("hello")
+
+
+
+// ============================================================
+// TEST 12 — GENERIC ARROW + MULTIDIM ARRAY
+// ============================================================
+
+val matrix = <T>(x: T[][]): T => x[0][0]
+
+val l1: int = matrix([
+  [1, 2],
+  [3, 4]
+])
+
+
+
+// ============================================================
+// TEST 13 — GENERIC ARROW + FUNCTION ARRAY
+// ============================================================
+
+val execute = <T>(x: (() => T)[]): T => {
+  return x[0]()
+}
+
+val m1: int = execute([
+  (): int => 1,
+  (): int => 2
+])
+
+
+
+// ============================================================
+// TEST 14 — GENERIC ARROW + NESTED GENERIC FLOW
+// ============================================================
+
+val cascade = <T>(x: T): T => {
+
+  val a = id(x)
+
+  val b = wrap(a)
+
+  return first(b)
+}
+
+val n1: int = cascade(42)
+val n2: string = cascade("hello")
+
+
+
+// ============================================================
+// TEST 15 — GENERIC ARROW + IF VAR
+// ============================================================
+
+val mutate = <T>(x: T?): T? => {
+
+  if var value = x {
+
+    value = value
+
+    return value
+  }
+
+  return null
+}
+
+val o1: int? = mutate(42)
+
+
+
+// ============================================================
+// TEST 16 — GENERIC ARROW + SHADOWING
+// ============================================================
+
+val outer = <T>(x: T): T => {
+
+  val inner = <T>(y: T): T => y
+
+  return inner(x)
+}
+
+val p1: int = outer(42)
+val p2: string = outer("hello")
+
+
+
+// ============================================================
+// TEST 17 — HIGHER ORDER GENERIC ARROWS
+// ============================================================
+
+val compose = <A, B, C>(
+  f: (B) => C,
+  g: (A) => B,
+  x: A
+): C => {
+  return f(g(x))
+}
+
+val q1: int = compose(
+  (n: int): int => n + 1,
+  (s: string): int => 42,
+  "hello"
+)
+
+
+
+// ============================================================
+// TEST 18 — GENERIC ARROW + DEEP NULLABLE
+// ============================================================
+
+val deep = <T>(x: T?): T? => {
+
+  if val a = x {
+
+  return null
+   
+
+  }
+
+}
+
+val r1: int? = deep(42)
+
+
+
+// ============================================================
+// TEST 19 — GENERIC ARROW + CALLBACK RETURN CASCADE
+// ============================================================
+
+val nested = <T>(
+  fn: (() => (() => T))?
+): T? => {
+
+  if val outer = fn {
+
+    val inner = outer()
+
+    return inner()
+  }
+
+  return null
+}
+
+val s1: int? = nested(
+  (): (() => int) => {
+    return (): int => 42
+  }
+)
+
+
+
+// ============================================================
+// TEST 20 — THE FINAL GOD TEST
+// ============================================================
+
+val final = <T>(
+  value: T?,
+  transform: ((T) => T)?,
+  fallback: (() => T)?
+): T? => {
+
+  if val v = value {
+
+    if val fn = transform {
+
+      val transformed = fn(v)
+
+      val boxed = wrap(transformed)
+
+      return first(boxed)
+    }
+
+  }
+
+  if val fb = fallback {
+    return fb()
+  }
+
+  return null
+}
+
+val t1: int? = final(
+  10,
+  (n: int): int => n + 1,
+  (): int => 0
+)
+
+val t2: string? = final(
+  null,
+  (s: string): string => s + "!",
+  (): string => "fallback"
+)
+
+
+
+// ============================================================
+// FAILURE SECTION
+// THESE MUST FAIL
+// ============================================================
+
+
+
+// EXPECTED: TYPE_MISMATCH
+/*
+val fail1: int = id("hello")
+*/
+
+
+
+// EXPECTED: TYPE_MISMATCH
+/*
+val fail2 = apply(
+  10,
+  <T>(x: T): T => "hello"
+)
+*/
+
+
+
+// EXPECTED: GENERIC_ARG_COUNT
+/*
+val fail3 = id<int, string>(42)
+*/
+
+
+
+// EXPECTED: TYPE_MISMATCH
+/*
+val fail4 = second(1, "hello")
+*/
+
+
+
+// EXPECTED: GENERIC_INFERENCE_FAILED
+/*
+val fail5 = nullable(null)
+*/
+
+
+
+// EXPECTED: NOT_CALLABLE
+/*
+val fail6 = id(42)()
+*/
+
+
+
+// EXPECTED: TYPE_MISMATCH
+/*
+val fail7 = compose(
+  (n: int): string => "x",
+  (s: string): int => 42,
+  "hello"
+)
+*/

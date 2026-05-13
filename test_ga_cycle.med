@@ -1,0 +1,23 @@
+// Test: Cycle detection - erros esperados
+
+// FALHA: Direto generico (detectado em checkTypeAliasStmt)
+typealias A<T> = A<T>
+
+// FALHA: Direto nao-generico (detectado em checkTypeAliasStmt)
+typealias B = B
+
+// FALHA: Self-ref dentro de union (detectado em checkTypeAliasStmt)
+typealias E<T> = T | E<T>
+
+// FALHA: Self-ref dentro de nullable (detectado em checkTypeAliasStmt)
+typealias F<T> = F<T>?
+
+// FALHA: Indireto (detectado em resolveAlias apenas no uso)
+typealias C<T> = D<T>
+typealias D<T> = C<T>
+val ciclo: C<int> = 42
+
+// OK - sem ciclo
+typealias G<T> = T?
+typealias Ok<T> = G<T>
+val x: Ok<int> = 42

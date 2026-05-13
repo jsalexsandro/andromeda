@@ -2611,8 +2611,9 @@ export class Parser {
 
   // [typealias] - Tipos nomeados (nominal type aliases)
   // Syntax: typealias Name = type
+  //         typealias Name<T, U> = type  (generic type alias)
   // Ex: typealias Callable = (int) => int
-  //     typealias User = { name: string, age: int }
+  //     typealias Nullable<T> = T?
   private parseTypeAliasStatement(): Stmt {
     this.advance(); // consume 'typealias'
 
@@ -2620,6 +2621,12 @@ export class Parser {
     if (nameToken.type !== TokenType.IDENTIFIER) {
       this.error("Expected typealias name after 'typealias'", nameToken);
       return { kind: "BlockStmt", statements: [] };
+    }
+
+    // Generic type alias: typealias Nullable<T> = T?
+    let typeParameters: TypeParameterNode[] | undefined;
+    if (this.check(TokenType.LESS_THAN)) {
+      typeParameters = this.parseGenericTypeParameters();
     }
 
     // Expect '='
@@ -2646,11 +2653,17 @@ export class Parser {
       return { kind: "BlockStmt", statements: [] };
     }
 
-    console.log(`DEBUG - [typealias] ${nameToken.value} = ${this.getTypeNodeName(typealiasType)}`);
+    if (typeParameters) {
+      const paramsStr = typeParameters.map(tp => tp.name.value).join(", ");
+      console.log(`DEBUG - [typealias] ${nameToken.value}<${paramsStr}> = ${this.getTypeNodeName(typealiasType)}`);
+    } else {
+      console.log(`DEBUG - [typealias] ${nameToken.value} = ${this.getTypeNodeName(typealiasType)}`);
+    }
 
     return {
       kind: "TypeAliasStmt",
       name: nameToken,
+      typeParameters,
       type: typealiasType,
     };
   }
