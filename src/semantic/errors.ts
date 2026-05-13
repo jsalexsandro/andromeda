@@ -33,7 +33,8 @@ export type ErrorCode =
   | "GENERIC_ARG_COUNT"
   | "NOT_GENERIC"
   | "GENERIC_INFERENCE_FAILED"
-  | "CIRCULAR_TYPE_ALIAS";
+  | "CIRCULAR_TYPE_ALIAS"
+  | "CANNOT_REDEFINE_BUILTIN";
 
 export class SemanticError {
   constructor(
@@ -171,4 +172,9 @@ export const Errors = {
     createError("CIRCULAR_TYPE_ALIAS",
       `Type alias '${name}' contains a circular reference`,
       token, "typecheck"),
+
+  cannotRedefineBuiltin: (name: string, token: Token) =>
+    createError("CANNOT_REDEFINE_BUILTIN",
+      `Cannot redefine built-in type '${name}'`,
+      token, "scope"),
 };

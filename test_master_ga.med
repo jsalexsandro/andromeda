@@ -120,10 +120,8 @@ val i1: int = first<Numbers>([
 
 
 // ============================================================
-// SECTION 10 — GENERIC ALIAS + NULLABLE FLOW
+// SECTION 10 — GENERIC NULLABLE FLOW (built-in Optional)
 // ============================================================
-
-typealias Optional<T> = T | null
 
 func unwrap<T>(x: Optional<T>): Optional<T> {
 

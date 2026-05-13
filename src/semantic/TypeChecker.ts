@@ -5,6 +5,11 @@ import { SemanticError, Errors } from "./errors";
 import { Environment } from "./Environment";
 
 export class TypeChecker {
+  private static readonly PROTECTED_BUILTINS = new Set([
+    "Array",
+    "Optional",
+  ]);
+
   private errors: SemanticError[] = [];
   private globalEnv: Environment;
   private currentEnv: Enviroanment;
@@ -497,10 +502,14 @@ export class TypeChecker {
   private checkTypeAliasStmt(stmt: Extract<Stmt, { kind: "TypeAliasStmt" }>): void {
     const name = stmt.name.value as string;
 
-    // Verificar redeclaração no escopo local (exceto built-ins)
+    // Verificar redeclaração no escopo local
     const existing = this.currentEnv.lookupLocal(name);
     if (existing && existing.kind !== "builtin") {
       this.errors.push(Errors.alreadyDeclared(name, stmt.name));
+      return;
+    }
+    if (existing?.kind === "builtin" && TypeChecker.PROTECTED_BUILTINS.has(name)) {
+      this.errors.push(Errors.cannotRedefineBuiltin(name, stmt.name));
       return;
     }
 
