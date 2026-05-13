@@ -86,7 +86,7 @@ export class Environment {
     this.symbols.set("print", {
       name: "print",
       type: printFnType,
-      kind: "function",
+      kind: "builtin",
       mutable: false,
       initialized: true,
     });
@@ -94,7 +94,7 @@ export class Environment {
     this.symbols.set("println", {
       name: "println",
       type: printlnFnType,
-      kind: "function",
+      kind: "builtin",
       mutable: false,
       initialized: true,
     });
@@ -102,7 +102,7 @@ export class Environment {
     this.symbols.set("toString", {
       name: "toString",
       type: toStringFnType,
-      kind: "function",
+      kind: "builtin",
       mutable: false,
       initialized: true,
     });
@@ -110,7 +110,7 @@ export class Environment {
     this.symbols.set("len", {
       name: "len",
       type: lenFnType,
-      kind: "function",
+      kind: "builtin",
       mutable: false,
       initialized: true,
     });
@@ -118,7 +118,7 @@ export class Environment {
     this.symbols.set("readLine", {
       name: "readLine",
       type: readLineFnType,
-      kind: "function",
+      kind: "builtin",
       mutable: false,
       initialized: true,
     });
