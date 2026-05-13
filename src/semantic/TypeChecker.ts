@@ -74,6 +74,13 @@ export class TypeChecker {
     }
     if (type.kind === "UnionType") {
       const newTypes = type.types.map(t => this.normalizeType(t));
+      if (newTypes.length === 2) {
+        const nullIdx = newTypes.findIndex(t => t.kind === "PrimitiveType" && t.name === "null");
+        if (nullIdx !== -1) {
+          const other = newTypes[nullIdx === 0 ? 1 : 0];
+          return { kind: "NullableType", type: other };
+        }
+      }
       if (newTypes.every((t, i) => t === type.types[i])) return type;
       return { kind: "UnionType", types: newTypes };
     }

@@ -258,11 +258,11 @@ Isso preserva:
 
 ---
 
-## Bug #12: `normalizeType` — UnionType with `null` Not Treated as Optional
+## Bug #12: `normalizeType` — UnionType with `null` Not Treated as Optional **[FIXED]**
 
 **File:** `src/semantic/TypeChecker.ts:58` — `normalizeType()`  
 **Severity:** 🔴 High  
-**Status:** Open  
+**Status:** ✅ **Fixed** — May 12, 2026  
 
 ### Description
 
@@ -431,7 +431,7 @@ Compare the stored parameter type for `func normal<T>(x: T?)` vs `val arrow = <T
 | #3 — Empty array inference | 🟢 Low | UX improvement | Backlog |
 | #4 — Multi-dimensional array validation | 🟢 Low | Edge case | Backlog |
 | #11 — Type param scope collision (arrow in generic call) | 🟡 Medium | Generic arrow as argument with multi type params | ✅ **Fixed** |
-| #12 — normalizeType Union null detection | 🔴 High | if val with T \| null aliases | **Open** |
+| #12 — normalizeType Union null detection | 🔴 High | if val with T \| null aliases | ✅ **Fixed** |
 | #13 — checkSpreadExpr resolveAlias | 🟡 Medium | Spread with typealiased arrays | **Open** |
 | #14 — Arrow generic nullable params | 🔴 High | if val in generic arrows with T? | **Open** |
 
@@ -452,10 +452,9 @@ Compare the stored parameter type for `func normal<T>(x: T?)` vs `val arrow = <T
 8. `checkUnaryExpr` — operandType before primitive check
 9. `inferLiteralType` — contextualType before float coercion check
 
-### Still Unfixed (3 occurrences)
-1. **Bug #12** — `normalizeType`: needs Union-with-null → NullableType conversion
-2. **Bug #13** — `checkSpreadExpr`: needs `resolveAlias` before isArray/kind check
-3. **Bug #14** — Arrow generic nullable params (different pattern — environment registration issue)
+### Still Unfixed (2 occurrences)
+1. **Bug #13** — `checkSpreadExpr`: needs `resolveAlias` before isArray/kind check
+2. **Bug #14** — Arrow generic nullable params (different pattern — environment registration issue)
 
 ---
 
