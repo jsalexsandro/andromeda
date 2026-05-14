@@ -11,3 +11,8 @@
 5. Testar Arrow Funcs, com Generics e funções anomimas profundamente
 
 hoje, implementei if val, correções de anotação de tipo em funções anominas, e por fim testei generic with funcs ands calls, fazer o ultimo teste e ir para o typealias com generics. 
+
+6. Implementei o generic em Alias, e o Cicular error, agora é testar muito.
+- Resolver os bugs daquele suite
+
+7. Print é StdLib, então não pode ser rescrito.
