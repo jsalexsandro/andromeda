@@ -1,0 +1,198 @@
+// ============================================================
+// VARIANCE TEST SUITE
+// ============================================================
+// Regras de variância implementadas:
+// - any é TOP type apenas (não bottom)
+// - Array<T> é INVARIANTE (mutable → checa ambos os lados)
+// - Function params são CONTRAVARIANTES
+// - Function return é COVARIANTE
+// ============================================================
+
+
+// ============================================================
+// PARTE 1 — ANY COMO TOP TYPE (Fase 1)
+// ============================================================
+// any aceita qualquer valor (top type)
+// mas NINGUÉM aceita any (não é bottom)
+
+// OK — any pode receber int
+val top1: any = 42
+
+// OK — any pode receber string
+val top2: any = "hello"
+
+// OK — any pode receber null
+val top3: any = null
+
+// OK — any pode receber array
+val top4: any = [1, 2, 3]
+
+// OK — any pode receber arrow
+val top5: any = (x: int): int => x
+
+// ERRO — int NÃO recebe any (any não é bottom)
+// val bottom1: int = top1
+
+// ERRO — string NÃO recebe any
+// val bottom2: string = top2
+
+// ERRO — função não recebe any
+// val bottom3: (int) => int = top5
+
+
+// ============================================================
+// PARTE 2 — ARRAY INVARIANTE (Fase 2)
+// ============================================================
+
+// OK — mesmo tipo
+val arr1: int[] = [1, 2, 3]
+val arr2: any[] = [1, "mix"]
+
+// ERRO — int[] não é any[] (invariante)
+// val arrBad1: any[] = arr1
+
+// ERRO — any[] não é int[] (invariante)
+// val arrBad2: int[] = arr2
+
+// OK — via GenericType explícito
+val arr3: Array<int> = [1, 2, 3]
+
+// ERRO — Array<int> não é Array<any>
+// val arrBad3: Array<any> = arr3
+
+// ERRO — Array<any> não é Array<int>
+// val arrBad4: Array<int> = arr2
+
+
+// ============================================================
+// PARTE 3 — FUNCTION PARAMS CONTRAVARIANTES (Fase 3)
+// ============================================================
+
+// --- Params ---
+
+// OK — param da arrow é mais AMPLO que o esperado
+// (int | string) aceita tudo que int aceita
+typealias Num = int | string
+val fnOk1: (int) => int = (x: Num): int => 0
+
+// OK — unknown no param aceita qualquer coisa
+val fnOk2: (int) => int = (x: unknown): int => 0
+
+// ERRO — param da arrow é mais ESTRITO que o esperado
+// int não aceita string, mas o contrato exige int | string
+// val fnBad1: (int | string) => int = (x: int): int => 0
+
+// OK — param exatamente igual
+val fnOk3: (int) => int = (x: int): int => 0
+
+// --- Return (covariante) ---
+
+// OK — retorno mais ESTRITO que o esperado (int <: int | string)
+val fnRetOk1: (int) => (int | string) = (x: int): int => 0
+
+// ERRO — retorno mais AMPLO que o esperado
+// int | string não é int
+// val fnRetBad1: (int) => int = (x: int): Num => 0
+
+
+// ============================================================
+// PARTE 4 — GENERIC ALIASES COM FUNCTIONS
+// ============================================================
+
+// Mapper segue variância dos params + return
+typealias Mapper<T, U> = (T) => U
+
+// OK — mapper com param específico
+val map1: Mapper<int, string> = (x: int): string => "ok"
+
+// OK — param mais amplo ACEITO (contravariante)
+val map2: Mapper<int, string> = (x: Num): string => "ok"
+
+// ERRO — param mais estreito REJEITADO (contravariante pede amplo)
+// val map3: Mapper<Num, string> = (x: int): string => "ok"
+
+// Callback = () => T — sem param, só retorno
+typealias Callback<T> = () => T
+
+// OK — retorno mais estrito ACEITO
+val cb1: Callback<Num> = (): int => 42
+
+// ERRO — retorno mais amplo REJEITADO
+// val cb2: Callback<int> = (): Num => 42
+
+
+// ============================================================
+// PARTE 5 — UNION DE FUNCTION TYPES
+// ============================================================
+
+// OK — arrow sem contexto encontra membro compatível via contravariância
+val unionFn1: ((int) => int) | ((string) => int) = (s) => 0
+
+// ERRO — arrow que retorna string não é (int) => int nem (string) => int
+// val unionFnBad1: ((int) => int) | ((string) => int) = (s) => "nope"
+
+// OK — param amplo aceito em union
+val unionFn2: ((int) => int) | ((string) => int) = (x: unknown): int => 0
+
+
+// ============================================================
+// PARTE 6 — NULLABLE FUNCTION TYPES
+// ============================================================
+
+// OK — nullable function aceita null
+val nullableFn1: ((int) => int)? = null
+
+// OK — mesma função ok
+val nullableFn2: ((int) => int)? = (x: int): int => x
+
+// ERRO — int não é função
+// val nullableFnBad1: ((int) => int)? = 42
+
+
+// ============================================================
+// PARTE 7 — ARROW EM ARRAY
+// ============================================================
+
+// OK — array de funções com param contravariantemente ok
+val arrFn1: ((int) => int)[] = [(x: Num): int => 0]
+
+// ERRO — retorno amplo demais
+// val arrFnBad1: ((int) => int)[] = [(x: int): Num => 0]
+
+
+// ============================================================
+// PARTE 8 — CALLBACKS EM HOFs
+// ============================================================
+
+func map(arr: int[], fn: (int) => int): int[] {
+  return arr
+}
+
+// OK — callback com param mais amplo aceito
+val mapped = map([1, 2, 3], (x: Num): int => 0)
+
+// OK — callback exata
+val mapped2 = map([1, 2, 3], (x: int): int => x + 1)
+
+// ERRO — callback com retorno amplo REJEITADO
+// val mappedBad = map([1, 2, 3], (x: int): Num => 0)
+
+
+// ============================================================
+// PARTE 9 — HOF RETURN CONTEXT
+// ============================================================
+
+func identity(x: int): int {
+  return x
+}
+
+// OK — retorno de HOF com arrow cujo param contravariantemente ok
+// A arrow tem contexto de retorno (int) => int
+// int | string é mais amplo que int, e int suporta +
+func makeAdder(n: int): (int) => int {
+  return (x: int | string): int => n
+}
+
+// ============================================================
+// FIM
+// ============================================================

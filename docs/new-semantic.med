@@ -253,8 +253,6 @@ Type Inference em GenericCall (bônus)
       → se conflito → erro: "não foi possível inferir T"
 ---
 
--> [SUPORTAR constraint]
-
 IfVariableExpr (if val x = y {})
 - [ ] checkExpression(initializer) — resolve o tipo da expressão à direita do =
 - [ ] normalizeType() converte Optional<T> → NullableType<T>
@@ -266,13 +264,17 @@ IfVariableExpr (if val x = y {})
 - [ ] Then-branch corre num novo Environment filho (apenas o root binding cria o escopo)
 - [ ] Else-branch corre no ambiente original (sem as variáveis bound)
 
+
 ## Fase 6.5 — Tipos nominais (declarações)
 
 ### TypeAliasStmt
 - [ ] Registrar `name` no escopo de tipos
 - [ ] Validar o tipo do lado direito
 - [ ] Suporte a `TypeParameterNode` (generics no alias)
+   >  Suporte ao
 - [ ] Detectar alias circular (ex: `typealias A = A`) → erro
+
+[feito até aqui]
 
 ### StructStmt
 - [ ] Registrar `name` no escopo de tipos

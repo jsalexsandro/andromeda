@@ -373,46 +373,30 @@ private checkSpreadExpr(expr: Extract<Expr, { kind: "Spread" }>): TypeNode {
 
 **File:** `src/semantic/TypeChecker.ts` / `src/parser/parser.ts`  
 **Severity:** 🔴 High  
-**Status:** Open — requires investigation  
+**Status:** ✅ **Not a bug** — confirmed May 24, 2026  
 
 ### Description
 
-In generic arrow functions, parameter types annotated with `T?` lose their `Optional<T>` wrapper inside the function body. As a result, `if val` binding fails because the variable is not recognized as optional.
+Initially reported as: generic arrow params with `T?` lose `Optional<T>` wrapper.
 
-### Reproduction
+### Resolution
 
-```typescript
-val final = <T>(
-  value: T?,
-  transform: ((T) => T)?,
-  fallback: (() => T)?
-): MaybeBox<T> => {
-  if val v = value {        // ❌ INVALID_BINDING_TYPE
-    if val fn = transform {  // ❌ INVALID_BINDING_TYPE
-      return fn(v)           // ❌ INVALID_CALL: non-function
-    }
-  }
-  if val fb = fallback {    // ❌ INVALID_BINDING_TYPE
-    return fb()             // ❌ INVALID_CALL: non-function
-  }
-  return null
-}
-```
+Tested with 10 stress scenarios covering:
+- `T?` → `if val` → return in generic arrows
+- Nested arrows with `T?`
+- Triple `T?` params with triple `if val`
+- `Optional<T>` explicit vs `T?` syntax
+- `((T) => T)?` callback narrowing
+- `T?` with multi type params `<A, B>`
+- God Test (Section 27 of `typealias-generic-01.med`)
 
-### Root Cause (hypothesis)
+All pass. The normalization pipeline `T?` → `Optional<T>` → `NullableType` → `if val` works correctly because:
+1. Parser normalizes `T?` to `GenericType<Optional<T>>` (commit `1854179`)
+2. Checker normalizes `Optional<T>` → `NullableType` (commit `3407c06`)
+3. IfValBinding implemented (commit `f9e5df5`)
+4. `normalizeType` handles `T | null` → `NullableType` (Bug #12 fix, commit `166ef91`)
 
-When the arrow function environment is created, parameter types are registered. For `value: T?`:
-- The parser should produce `Optional<T>` (GenericType) from `T?`
-- But the type stored in the symbol table may be `NamedType("T")` instead of `GenericType("Optional", [NamedType("T")])`
-
-This could happen if:
-1. `parseArrowFunction` handles `T?` differently from `parseFunctionDeclarator`
-2. The type annotation is lost during environment creation in `checkArrowFunctionExpr`
-3. The nullable normalization (`T?` → `Optional<T>`) doesn't apply in arrow parameter context
-
-### Verification Needed
-
-Compare the stored parameter type for `func normal<T>(x: T?)` vs `val arrow = <T>(x: T?) => ...` by inspecting the symbol table entry for `x` inside each function body.
+Bug #14 is **not reproducible** under any tested scenario.
 
 ---
 
@@ -433,7 +417,7 @@ Compare the stored parameter type for `func normal<T>(x: T?)` vs `val arrow = <T
 | #11 — Type param scope collision (arrow in generic call) | 🟡 Medium | Generic arrow as argument with multi type params | ✅ **Fixed** |
 | #12 — normalizeType Union null detection | 🔴 High | if val with T \| null aliases | ✅ **Fixed** |
 | #13 — checkSpreadExpr resolveAlias | 🟡 Medium | Spread with typealiased arrays | ✅ **Fixed** |
-| #14 — Arrow generic nullable params | 🔴 High | if val in generic arrows with T? | **Open** |
+| #14 — Arrow generic nullable params | 🔴 High | if val in generic arrows with T? | ✅ **Not a bug** |
 
 ---
 
@@ -452,8 +436,7 @@ Compare the stored parameter type for `func normal<T>(x: T?)` vs `val arrow = <T
 8. `checkUnaryExpr` — operandType before primitive check
 9. `inferLiteralType` — contextualType before float coercion check
 
-### Still Unfixed (1 occurrence)
-1. **Bug #14** — Arrow generic nullable params (different pattern — environment registration issue)
+### All 14 bugs resolved ✅
 
 ---
 

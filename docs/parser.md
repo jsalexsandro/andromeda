@@ -128,10 +128,6 @@ Fase 6.4 IfBindingExpr
 -  Permtir multiplas declarações [talvez, futuro]
 
 no Ast IfVariableStmt
-
-Fase 6.45 Narrowing automatico
-
-
 [ate aqui feito]
   
 
