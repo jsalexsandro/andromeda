@@ -344,7 +344,6 @@ export type TypeNode =
   | TupleTypeNode
   | FunctionTypeNode
   | UnionTypeNode
-  | LiteralTypeNode
   | GroupingTypeNode
 
 // int, float, string, bool, void, null, any, unknown
@@ -370,12 +369,6 @@ export interface GenericTypeNode {
   /** true para tipos builtin como Array, Optional — o type checker pode usar
    *  para tratamento especial (ex: Array tem suporte a indexação) */
   isBuiltin?: boolean
-}
-
-// 3.14, "active", 200, true — literal types
-export interface LiteralTypeNode {
-  kind: "LiteralType"
-  value: string | number | boolean
 }
 
 // ========================================

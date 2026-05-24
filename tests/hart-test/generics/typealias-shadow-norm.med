@@ -1,0 +1,233 @@
+// ============================================================
+// FEATURE: Generic Typealias — Shadowing + Deep Normalization
+// AXIS: Type param shadowing between alias and function;
+//       deep chain canonicalization and type equality.
+// ============================================================
+
+
+// ============================================================
+// GROUP 1 — SHADOWING: alias param same AS func param name
+// typealias Box<T> = T e func foo<T>(x: Box<T>): T
+// O T do alias deve resolver para o T da função.
+// ============================================================
+
+typealias Box<T> = T
+
+func g1_id<T>(x: Box<T>): T {
+  return x
+}
+
+val g1_r1: int = g1_id<int>(42)
+val g1_r2: string = g1_id<string>("hello")
+val g1_r3: bool = g1_id<bool>(true)
+
+// Inference também deve funcionar
+val g1_r4: int = g1_id(10)
+val g1_r5: string = g1_id("world")
+
+// Shadowing com multi type params
+typealias Pair<A, B> = B
+
+func g1_second<A, B>(a: A, b: Pair<A, B>): B {
+  return b
+}
+
+val g1_r6: string = g1_second<int, string>(1, "ok")
+val g1_r7: bool = g1_second<float, bool>(3.14, true)
+
+
+// ============================================================
+// GROUP 2 — SHADOWING: nested functions with alias
+// Alias param reused in nested generic function scopes.
+// ============================================================
+
+typealias Wrapper<T> = T[]
+
+func g2_outer<T>(x: T): Wrapper<T> {
+  func g2_inner<U>(y: U): Wrapper<U> {
+    return [y]
+  }
+  return g2_inner(x)
+}
+
+val g2_r1: int[] = g2_outer(42)
+val g2_r2: string[] = g2_outer("hello")
+
+// Shadowing profundo: T redeclarado em scope aninhado
+func g2_deep<T>(a: T): T {
+  func g2_mid<U>(b: U): U {
+    func g2_inner<T>(c: T): T {
+      return c
+    }
+    return g2_inner(b)
+  }
+  return g2_mid(a)
+}
+
+val g2_r3: int = g2_deep(42)
+val g2_r4: string = g2_deep("hello")
+
+
+// ============================================================
+// GROUP 3 — SHADOWING: alias param + TYPE_MISMATCH
+// Quando o binding está errado, deve falhar.
+// ============================================================
+
+typealias Container<T> = T[]
+
+func g3_takes_ints(x: Container<int>): int {
+  return x[0]
+}
+
+val g3_r1: int = g3_takes_ints([1, 2, 3])
+
+// EXPECTED: TYPE_MISMATCH — Container<int> ≠ Container<string>
+// val g3_bad: Container<int> = ["a", "b"]
+
+// EXPECTED: TYPE_MISMATCH
+// val g3_bad2: int = g3_takes_ints(["a", "b"])
+
+
+// ============================================================
+// GROUP 4 — DEEP NORMALIZATION: alias chain resolution
+// A<T> = T[], B<T> = A<T>, C<T> = B<T>
+// C<int> deve resolver para int[] transparentemente.
+// ============================================================
+
+typealias A<T> = T[]
+typealias B<T> = A<T>
+typealias C<T> = B<T>
+
+// C<int> deve aceitar int[] diretamente
+val g4_arr: C<int> = [1, 2, 3]
+val g4_strs: C<string> = ["a", "b", "c"]
+val g4_bools: C<bool> = [true, false]
+
+// C<int> deve ser compatível com int[] em funções
+func g4_first<T>(arr: T[]): T {
+  return arr[0]
+}
+
+val g4_r1: int = g4_first<int>(g4_arr)
+val g4_r2: string = g4_first<string>(g4_strs)
+
+// C<int> como argumento de função que espera int[]
+func g4_sum(arr: int[]): int {
+  return arr[0]
+}
+
+val g4_r3: int = g4_sum(g4_arr)
+
+// EXPECTED: TYPE_MISMATCH — C<string> ≠ int[]
+// val g4_bad: int = g4_sum(g4_strs)
+
+// Deep alias em função genérica com inference
+func g4_wrap<T>(x: T): C<T> {
+  return [x]
+}
+
+val g4_r5: C<int> = g4_wrap(10)
+val g4_r6: C<string> = g4_wrap("deep")
+
+
+// ============================================================
+// GROUP 5 — DEEP NORMALIZATION: cross-chain compatibility
+// Diferentes chains de alias que resolvem para o mesmo tipo
+// devem ser compatíveis entre si.
+// ============================================================
+
+typealias X<T> = T[]
+typealias Y<T> = X<T>
+typealias Z<T> = Y<T>
+
+// X<int>, Y<int>, Z<int> todos resolvem para int[]
+// Devem ser atribuíveis entre si
+
+val g5_x: X<int> = [1, 2]
+var g5_y: Y<int> = g5_x
+val g5_z: Z<int> = g5_y
+
+val g5_r1: int = g5_z[0]
+
+// Função que aceita X<int> e recebe Z<int>
+func g5_process(xs: X<int>): int {
+  return xs[0]
+}
+
+val g5_r2: int = g5_process(g5_z)
+
+// Deep alias com Optional
+typealias OptA<T> = T?
+typealias OptB<T> = OptA<T>
+typealias OptC<T> = OptB<T>
+
+val g5_none: OptC<int> = null
+val g5_some: OptC<string> = "hello"
+
+func g5_unwrap<T>(x: OptC<T>, fallback: T): T {
+  if val v = x {
+    return v
+  }
+  return fallback
+}
+
+val g5_r3: int = g5_unwrap<int>(null, -1)
+val g5_r4: string = g5_unwrap<string>("hi", "default")
+
+
+// ============================================================
+// GROUP 6 — DEEP NORMALIZATION: function params with deep chains
+// Alias de alias de função type mantém compatibilidade.
+// ============================================================
+
+typealias FnA<T, U> = (T) => U
+typealias FnB<T, U> = FnA<T, U>
+typealias FnC<T, U> = FnB<T, U>
+
+val g6_fn: FnC<int, string> = (n: int): string => "ok"
+
+func g6_apply<T, U>(x: T, fn: FnC<T, U>): U {
+  return fn(x)
+}
+
+val g6_r1: string = g6_apply<int, string>(42, (n: int): string => "ok")
+val g6_r2: bool = g6_apply<string, bool>("x", (s: string): bool => true)
+
+// Deep chain com nullable: FnC<int, string>? via alias
+typealias MaybeFnC<T, U> = FnC<T, U>?
+
+var g6_maybe_fn: MaybeFnC<int, string> = (n: int): string => "ok"
+var g6_maybe_none: MaybeFnC<int, string> = null
+
+func g6_call_safe<T, U>(fn: MaybeFnC<T, U>, x: T, fallback: U): U {
+  if val f = fn {
+    return f(x)
+  }
+  return fallback
+}
+
+val g6_r3: string = g6_call_safe<int, string>(g6_maybe_fn, 10, "fallback")
+val g6_r4: string = g6_call_safe<int, string>(null, 10, "fallback")
+
+
+// ============================================================
+// GROUP 7 — DEEP NORMALIZATION: TYPE_MISMATCH on chains
+// Chains diferentes que resolvem para tipos diferentes.
+// ============================================================
+
+typealias IntChain<T> = T[]
+typealias StrChain<T> = T[]
+
+// EXPECTED: TYPE_MISMATCH — IntChain<string> ≠ StrChain<int>
+// val g7_bad: IntChain<string> = [1, 2, 3]
+
+// Deep chains com resolução diferente
+typealias NumAlias<T> = T
+typealias StrAlias<T> = T[]
+
+// EXPECTED: TYPE_MISMATCH
+// val g7_bad2: NumAlias<int[]> = "hello"
+
+// EXPECTED: TYPE_MISMATCH
+// func g7_takes_int_arr(x: int[]): int { return x[0] }
+// val g7_bad3 = g7_takes_int_arr("hello")

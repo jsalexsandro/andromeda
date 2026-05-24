@@ -910,8 +910,6 @@ export class TypeChecker {
         return type.name;
       case "NamedType":
         return type.name.value as string;
-      case "LiteralType":
-        return String(type.value);
       case "ArrayType":
         const elemStr = this.typeToString(type.elementType);
         const needsParens = type.elementType.kind === "UnionType" || type.elementType.kind === "FunctionType";

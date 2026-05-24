@@ -1,0 +1,1 @@
+See docs/syntax.md in root file of project

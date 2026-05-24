@@ -131,9 +131,21 @@ no Ast IfVariableStmt
 [ate aqui feito]
   
 
-FASE 6.5 - CONTROLS TYPES
-1. ProtocolStatement
-    Func aceita em protocols
+FASE 6.5 — CONTROL TYPES
+│
+├── StructStatement
+│
+├── 1. Parser base do struct
+│      1.1 Reconhecer keyword `struct`
+│      1.2 Parser do nome do struct
+│      1.3 Parser do corpo `{ ... }`
+│      1.4 Criar AST StructStatement
+│      1.5 Registrar struct na symbol table
+│      1.6 Detectar structs duplicados
+│      1.7 Permitir struct vazio
+│
+
+
 
 FASE 7 — CLASSES
 │

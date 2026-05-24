@@ -1,0 +1,376 @@
+// ============================================================
+// TYPEALIAS GENERICS 03 — VARIANCE + INFERENCE + COMBINATIONS
+// Lacunas: variance through alias, canonicalização em
+// inferência, null coalescing, bidirectional, stress.
+// ============================================================
+
+
+// ============================================================
+// GROUP 1 — VARIANCE: any TOP-ONLY THROUGH ALIAS
+// any é top type: aceita tudo, mas não é subtipo de nada.
+// Isso deve valer mesmo quando any passa por um typealias.
+// ============================================================
+
+typealias Box<T> = T
+
+// any como top — pode receber qualquer coisa
+val g1_any_top: Box<any> = 42
+val g1_any_top2: Box<any> = "hello"
+val g1_any_top3: Box<any> = null
+val g1_any_top4: Box<any> = [1, 2, 3]
+
+// any NÃO é bottom — não pode ser atribuído a tipos concretos
+// EXPECTED: TYPE_MISMATCH
+// val g1_any_bottom: Box<int> = (something: any)
+
+// EXPECTED: TYPE_MISMATCH
+// val g1_any_bottom2: Box<string> = (s: any)
+
+
+// ============================================================
+// GROUP 2 — VARIANCE: ARRAY INVARIANT THROUGH ALIAS
+// Array<T> é invariante: Array<int> ≠ Array<any>
+// Isso deve valer mesmo via alias List<T> = T[]
+// ============================================================
+
+typealias List<T> = T[]
+
+val g2_ints: List<int> = [1, 2, 3]
+val g2_strs: List<string> = ["a", "b"]
+
+// List<int> não aceita List<any> e vice-versa
+// EXPECTED: TYPE_MISMATCH
+// val g2_invar1: List<any> = g2_ints
+
+// EXPECTED: TYPE_MISMATCH
+// var g2_invar2: List<int> = g2_ints
+// g2_invar2 = (arr: any[])
+
+// List<any> não pode ser usado onde List<concreto> é esperado
+// EXPECTED: TYPE_MISMATCH
+// func g2_takes_ints(xs: List<int>): int { return xs[0] }
+// val g2_bad = g2_takes_ints((arr: any))
+
+
+// ============================================================
+// GROUP 3 — VARIANCE: FUNCTION PARAMS CONTRAVARIANT
+// (T) => U: params são contravariant, return é covariant.
+// Deve valer mesmo via alias Fn<T, U> = (T) => U
+// ============================================================
+
+typealias Fn<T, U> = (T) => U
+
+// (any) => string é assignable a (int) => string (params contravariant)
+val g3_fn1: Fn<int, string> = (n: any): string => "ok"
+val g3_fn2: Fn<string, int> = (s: any): int => 0
+
+// (int) => string NÃO é assignable a (any) => string
+// EXPECTED: TYPE_MISMATCH
+// val g3_bad1: Fn<any, string> = (n: int): string => "ok"
+
+// Função genérica com Fn alias e contravariance
+func g3_apply<T, U>(x: T, fn: Fn<T, U>): U {
+  return fn(x)
+}
+
+val g3_r1: string = g3_apply<int, string>(10, (n: int): string => "ok")
+val g3_r2: string = g3_apply<any, string>("hello", (n: any): string => "ok")
+
+
+// ============================================================
+// GROUP 4 — CANONICALIZAÇÃO PROFUNDA EM INFERÊNCIA
+// Alias de alias com 3+ níveis: o checker deve resolver
+// tudo até o tipo base antes de inferir.
+// ============================================================
+
+typealias A1<T> = T[]
+typealias A2<T> = A1<T>
+typealias A3<T> = A2<T>
+typealias A4<T> = A3<T>
+
+func g4_first<T>(arr: T[]): T {
+  return arr[0]
+}
+
+func g4_wrap<T>(x: T): T[] {
+  return [x]
+}
+
+// A4<int> = A3<int> = A2<int> = A1<int> = int[]
+val g4_deep: A4<int> = [1, 2, 3]
+val g4_r1: int = g4_first<int>(g4_deep)
+
+// Deep alias com multidimensional: A4<int[]> = int[][]
+val g4_deep2: A4<int[]> = [[1, 2], [3, 4]]
+val g4_r1b: int[] = g4_first<int[]>(g4_deep2)
+
+// Alias de 3 níveis em call inference
+typealias Container<T> = T[]
+typealias Boxed<T> = Container<T>
+typealias Wrapped<T> = Boxed<T>
+
+func g4_process<T>(xs: Wrapped<T>): T {
+  return xs[0]
+}
+
+val g4_r2: int = g4_process<int>([10, 20])
+val g4_r3: string = g4_process<string>(["a", "b"])
+
+// Alias de alias de função
+typealias RawFn2<T, U> = (T) => U
+typealias AliasFn<T, U> = RawFn2<T, U>
+
+func g4_map<T, U>(x: T, fn: AliasFn<T, U>): U {
+  return fn(x)
+}
+
+val g4_r4: string = g4_map<int, string>(42, (n: int): string => "ok")
+val g4_r5: bool = g4_map<string, bool>("x", (s: string): bool => true)
+
+
+// ============================================================
+// GROUP 5 — NULL COALESCING WITH ALIAS
+// ?? entre alias que resolvem para Optional<T> ou T | null
+// ============================================================
+
+typealias Maybe<T> = T?
+
+func g5_pick<T>(a: Maybe<T>, b: Maybe<T>, fallback: T): T {
+  if val x = a {
+    return x
+  }
+  if val y = b {
+    return y
+  }
+  return fallback
+}
+
+val g5_r1: int = g5_pick<int>(42, null, -1)
+val g5_r2: int = g5_pick<int>(null, 99, -1)
+val g5_r3: string = g5_pick<string>("hello", null, "fallback")
+
+// Null coalescing com alias diretamente
+typealias OptVal<T> = T?
+
+val g5_a: OptVal<int> = 42
+val g5_b: OptVal<int> = null
+val g5_c: int = g5_a ?? g5_b ?? -1
+
+
+// ============================================================
+// GROUP 6 — BIDIRECTIONAL INFERENCE THROUGH ALIAS
+// Contexto de anotação flui para dentro do alias e
+// resolve type params não inferíveis dos argumentos.
+// ============================================================
+
+typealias AResult<T> = T?
+
+func g6_make<T>(): AResult<T> {
+  return g6_make<T>()
+}
+
+// Anotação na variável deve inferir T = int
+val g6_r1: AResult<int> = g6_make()
+val g6_r2: AResult<string> = g6_make()
+val g6_r3: AResult<bool> = g6_make()
+
+// Bidirectional com alias em function param
+typealias Producer<T> = () => T
+
+func g6_produce<T>(producer: Producer<T>): T {
+  return producer()
+}
+
+// T inferido do contexto de retorno
+val g6_r4: int = g6_produce((): int => 42)
+val g6_r5: string = g6_produce((): string => "hi")
+
+// Bidirectional: função retorna alias, variável anotada
+typealias Wrap2<T> = T[]
+
+func g6_make_wrap<T>(x: T): Wrap2<T> {
+  return [x]
+}
+
+val g6_r6: Wrap2<int> = g6_make_wrap(10)
+val g6_r7: Wrap2<string> = g6_make_wrap("hello")
+
+
+// ============================================================
+// GROUP 7 — NULL LITERAL INFERENCE GAP (KNOWN LIMITATION)
+// null literal é ambíguo para inferência de type param.
+// Com tipos concretos funciona; com inferência falha.
+// ============================================================
+
+// null com tipo explícito funciona
+val g7_n1: int? = null
+val g7_n2: string? = null
+
+// null em função com tipo concreto funciona
+func g7_takes_nullable(x: int?): int? {
+  return x
+}
+val g7_r1: int? = g7_takes_nullable(null)
+
+// null em função genérica — PRECISA de tipo explícito
+func g7_identity<T>(x: T?): T? {
+  return x
+}
+
+val g7_r2: int? = g7_identity<int>(null)   // OK: explícito
+val g7_r3: string? = g7_identity<string>(null)  // OK: explícito
+
+// EXPECTED: GENERIC_INFERENCE_FAILED
+// val g7_fail = g7_identity(null)  // null é ambíguo
+
+// Mesmo padrão com alias
+typealias OptBox<T> = T?
+
+val g7_r4: OptBox<int> = g7_identity<int>(null)     // OK
+val g7_r5: OptBox<string> = g7_identity<string>(null)  // OK
+
+// null com pair<A, B> — documented limitation
+func g7_pair<A, B>(a: A, b: B): B {
+  return b
+}
+
+val g7_r6: string = g7_pair<int, string>(1, "hello")   // OK
+
+// null com tipo explícito em função com param A (não A?) falha
+// EXPECTED: TYPE_MISMATCH
+// val g7_bad = g7_pair<int, string>(null, "hi")
+
+// EXPECTED: GENERIC_INFERENCE_FAILED
+// val g7_fail2 = g7_pair(null, true)  // null ambíguo
+
+
+// ============================================================
+// GROUP 8 — STRESS: VARIANCE + CANONICALIZATION + HOF + ALIAS
+// Combinação máxima de todos os padrões anteriores.
+// ============================================================
+
+typealias Scored = int
+typealias MaybeScore = Scored?
+typealias ScoreList = Scored[]
+typealias Reducer = (ScoreList) => MaybeScore
+typealias OptionalReducer = Reducer?
+
+// Função que recebe alias + variance + HOF + if val + nullable (line 140+)
+func g8_process(
+  scores: ScoreList?,
+  transform: OptionalReducer,
+  fallback: MaybeScore
+): MaybeScore {
+  if val xs = scores {
+    if val fn = transform {
+      return fn(xs)
+    }
+  }
+  return fallback
+}
+
+val g8_r1: MaybeScore = g8_process(
+  [10, 20, 30],
+  (arr: Scored[]): MaybeScore => arr[0],
+  null
+)
+
+val g8_r2: MaybeScore = g8_process(
+  null,
+  (arr: Scored[]): MaybeScore => arr[0],
+  0
+)
+
+val g8_r3: MaybeScore = g8_process(
+  [1, 2, 3],
+  null,
+  -1
+)
+
+// Multi-alias chain com HOF
+typealias TransformFn<T, U> = (T) => U
+typealias ApplyFn<T, U> = TransformFn<T, U>
+
+func g8_transform<T, U>(x: T, fn: ApplyFn<T, U>): U {
+  return fn(x)
+}
+
+val g8_r4: string = g8_transform<int, string>(100, (n: int): string => "ok")
+val g8_r5: bool = g8_transform<string, bool>("x", (s: string): bool => true)
+
+// Array invariant through alias + generic function
+typealias ArrBox<T> = T[]
+
+func g8_first<T>(xs: ArrBox<T>): T {
+  return xs[0]
+}
+
+val g8_r6: int = g8_first<int>([1, 2, 3])
+val g8_r7: string = g8_first<string>(["a", "b"])
+
+// Mix: ArrBox<MaybeScore> = Scored?[] = int?[]
+typealias MaybeScoreList = ArrBox<MaybeScore>
+
+val g8_mixed: MaybeScoreList = [10, null, 30, null, 50]
+val g8_r8: int? = g8_first<MaybeScore>(g8_mixed)
+
+if val v = g8_r8 {
+  val g8_unwrapped: Scored = v
+}
+
+
+// ============================================================
+// GROUP 9 — ALIAS + IF VAL CHAIN WITH MULTIPLE ALIASES
+// Diferentes aliases no mesmo if val chain.
+// ============================================================
+
+typealias FirstOpt<T> = T?
+typealias SecondOpt<T> = T?
+
+val g9_a: FirstOpt<int> = 10
+val g9_b: SecondOpt<string> = "hello"
+
+if val x = g9_a {
+  if val y = g9_b {
+    val g9_sum: int = x
+    val g9_str: string = y
+  }
+}
+
+// if val com mesmo alias, tipos diferentes
+typealias Slot<T> = T?
+
+val g9_c: Slot<int> = 42
+val g9_d: Slot<string> = "world"
+
+if val m = g9_c {
+  if val n = g9_d {
+    val g9_int: int = m
+    val g9_msg: string = n
+  }
+}
+
+
+// ============================================================
+// GROUP 10 — STRESS: alias 3 param + function + variance
+// ============================================================
+
+typealias TriFn<A, B, C> = (A, B) => C
+
+func g10_zip<A, B, C>(a: A, b: B, fn: TriFn<A, B, C>): C {
+  return fn(a, b)
+}
+
+val g10_r1: string = g10_zip<int, string, string>(1, "hi", (a: int, b: string): string => b)
+val g10_r2: int = g10_zip<bool, string, int>(true, "x", (a: bool, b: string): int => 0)
+
+// TriFn com variance: params contravariant
+// (any, any) => string é assignable a (int, string) => string
+// porque int <: any e string <: any (params contravariant)
+typealias StrictTriFn<A, B, C> = TriFn<A, B, C>
+val g10_loose: StrictTriFn<int, string, string> = (a: any, b: any): string => "ok"
+
+// Caso inverso: (int, string) => string NÃO é assignable a (any, any) => string
+// EXPECTED: TYPE_MISMATCH
+// typealias LooseTriFn<C> = TriFn<any, any, C>
+// val g10_bad: LooseTriFn<string> = (a: int, b: string): string => "ok"
