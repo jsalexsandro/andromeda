@@ -1,3 +1,0 @@
-typealias C<T> = D<T>
-typealias D<T> = C<T>
-val x: C<int> = 42

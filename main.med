@@ -1,1 +1,7 @@
-typealias Optional<T> = T?
+// fazer muitos testes para o typealias generic
+// resolver aquilo que esta no terminial do opencode
+// estudar variance
+// testar o main.med
+// ver como a lang deve se comportar com any e unknown
+
+// opencode -s ses_1e278993bffeAneyQuERw456Mk'

@@ -260,7 +260,7 @@ export class TypeChecker {
     };
 
     for (let i = 0; i < fnParamTypes.length && i < argTypes.length; i++) {
-      if (!unify(fnParamTypes[i], argTypes[i])) return null;
+      if (!unify(this.resolveAlias(fnParamTypes[i]), argTypes[i])) return null;
     }
 
     return mapping;
@@ -783,9 +783,8 @@ export class TypeChecker {
       return this.areTypesCompatible(resolvedExpected, resolvedActual);
     }
 
-    // any é compatível com tudo (incluindo NamedType como type params)
+    // any é top type: aceita qualquer coisa onde any é esperado, mas não o contrário
     if (resolvedExpected.kind === "PrimitiveType" && resolvedExpected.name === "any") return true;
-    if (resolvedActual.kind === "PrimitiveType" && resolvedActual.name === "any") return true;
 
     if (resolvedExpected.kind === "PrimitiveType" && resolvedActual.kind === "PrimitiveType") {
       // unknown no expected aceita qualquer actual
@@ -807,6 +806,13 @@ export class TypeChecker {
     if (expected.kind === "GenericType" && actual.kind === "GenericType") {
       if ((expected.name.value as string) !== (actual.name.value as string)) return false;
       if (expected.args.length !== actual.args.length) return false;
+      // Array<T> é mutável → invariante (checa ambos os lados)
+      if ((expected.name.value as string) === "Array") {
+        return expected.args.every((arg, i) =>
+          this.areTypesCompatible(arg, actual.args[i]) &&
+          this.areTypesCompatible(actual.args[i], arg)
+        );
+      }
       return expected.args.every((arg, i) => this.areTypesCompatible(arg, actual.args[i]));
     }
 
@@ -1857,8 +1863,9 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         const spreadType = this.checkExpression(
           (arg as Extract<Expr, { kind: "Spread" }>).argument
         );
+        const resolvedSpread = this.resolveAlias(spreadType);
         
-        if (!this.isArray(spreadType) && spreadType.kind !== "ArrayType") {
+        if (!this.isArray(resolvedSpread) && resolvedSpread.kind !== "ArrayType") {
           this.errors.push(Errors.invalidSpread(
             { line: 0, column: 0, type: 0, value: "" } as Token
           ));
@@ -2405,7 +2412,9 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
   private checkSpreadExpr(expr: Extract<Expr, { kind: "Spread" }>): TypeNode {
     const argType = this.checkExpression(expr.argument);
 
-    if (!this.isArray(argType) && argType.kind !== "ArrayType" && argType.kind !== "Object") {
+    const resolved = this.resolveAlias(argType);
+
+    if (!this.isArray(resolved) && resolved.kind !== "ArrayType" && resolved.kind !== "Object") {
       const token: Token = {
         line: expr.line ?? 0,
         column: expr.column ?? 0,
@@ -2415,7 +2424,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       this.errors.push(Errors.invalidSpread(token));
     }
 
-    return argType;
+    return resolved;
   }
 
   public getErrors(): SemanticError[] {

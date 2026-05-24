@@ -1,0 +1,239 @@
+// ============================================================
+// UNION EXPLOSION STRESS TEST
+// Objetivo:
+// - normalização de unions
+// - flatten
+// - deduplicação
+// - aliases profundos
+// - nullable unions
+// - arrays de unions
+// - funções com unions
+// - compatibilidade estrutural
+// ============================================================
+
+
+// ============================================================
+// BLOCO A — CADEIA LINEAR DE UNIONS
+// ============================================================
+
+typealias U1  = int | string
+typealias U2  = U1 | bool
+typealias U3  = U2 | float
+typealias U4  = U3 | null
+typealias U5  = U4 | int[]
+typealias U6  = U5 | string[]
+typealias U7  = U6 | bool[]
+typealias U8  = U7 | float[]
+typealias U9  = U8 | (int) => int
+typealias U10 = U9 | (string) => string
+
+// [PASS]
+val a1: U10 = 42
+val a2: U10 = "hello"
+val a3: U10 = true
+val a4: U10 = 3.14
+val a5: U10 = null
+val a6: U10 = [1, 2, 3]
+val a7: U10 = ["a", "b"]
+val a8: U10 = (x: int): int => x
+
+// [ERROR ZONE]
+// val ae1: U10 = {}          // [ERROR]
+// val ae2: U10 = [true]      // talvez PASS dependendo da flatten
+
+
+
+// ============================================================
+// BLOCO B — FLATTEN PROFUNDO
+// ============================================================
+
+typealias B1 = int | string
+typealias B2 = B1 | bool
+typealias B3 = B2 | float
+typealias B4 = B3 | null
+typealias B5 = B4 | B1
+typealias B6 = B5 | B2
+typealias B7 = B6 | B3
+typealias B8 = B7 | B4
+
+// Esperado:
+// int | string | bool | float | null
+
+val b1: B8 = 1
+val b2: B8 = "x"
+val b3: B8 = true
+val b4: B8 = 1.5
+val b5: B8 = null
+
+
+
+// ============================================================
+// BLOCO C — DEDUPLICAÇÃO
+// ============================================================
+
+typealias C1 = int | int
+typealias C2 = string | string | string
+typealias C3 = int | string | int | string
+typealias C4 = C3 | bool | bool
+
+// Esperado:
+// C1 => int
+// C2 => string
+// C3 => int | string
+// C4 => int | string | bool
+
+val c1: C1 = 1
+val c2: C2 = "ok"
+val c3: C3 = 42
+val c4: C3 = "hello"
+val c5: C4 = true
+
+
+
+// ============================================================
+// BLOCO D — NULLABLE NORMALIZATION
+// ============================================================
+
+typealias D1 = int | null
+typealias D2 = D1 | null
+typealias D3 = D2 | int
+typealias D4 = D3 | string
+
+// Esperado:
+// D4 => int | string | null
+
+val d1: D4 = 1
+val d2: D4 = "hello"
+val d3: D4 = null
+
+
+
+// ============================================================
+// BLOCO E — ARRAYS DE UNIONS
+// ============================================================
+
+typealias E1 = int | string
+
+val e1: E1[] = [1, "a", 2, "b"]
+
+typealias E2 = E1[] | null
+
+val e2: E2 = [1, "x"]
+val e3: E2 = null
+
+typealias E3 = (int | string | bool)[][]
+
+val e4: E3 = [
+  [1, "a"],
+  [true, 2]
+]
+
+
+
+// ============================================================
+// BLOCO F — FUNÇÕES EM UNION
+// ============================================================
+
+typealias IntFn = (int) => int
+typealias StrFn = (string) => string
+
+typealias F1 = IntFn | StrFn
+
+val f1: F1 = (x: int): int => x
+val f2: F1 = (x: string): string => x
+
+// [ERROR ZONE]
+// val fe1: F1 = (x: bool): bool => x
+
+
+
+// ============================================================
+// BLOCO G — UNION GIGANTE
+// ============================================================
+
+typealias G1  = int
+typealias G2  = G1 | string
+typealias G3  = G2 | bool
+typealias G4  = G3 | float
+typealias G5  = G4 | null
+typealias G6  = G5 | int[]
+typealias G7  = G6 | string[]
+typealias G8  = G7 | bool[]
+typealias G9  = G8 | float[]
+typealias G10 = G9 | int[][]
+typealias G11 = G10 | string[][]
+typealias G12 = G11 | bool[][]
+typealias G13 = G12 | float[][]
+typealias G14 = G13 | (int) => int
+typealias G15 = G14 | (string) => string
+typealias G16 = G15 | ((int) => int)[]
+typealias G17 = G16 | ((string) => string)[]
+typealias G18 = G17 | [int, string]
+typealias G19 = G18 | [bool, float]
+typealias G20 = G19 | void
+
+val g1: G20 = 1
+val g2: G20 = "hello"
+val g3: G20 = true
+val g4: G20 = 3.14
+val g5: G20 = null
+val g6: G20 = [1, 2, 3]
+val g7: G20 = [[1], [2]]
+val g8: G20 = (x: int): int => x
+val g9: G20 = [1, "ok"]
+
+
+
+// ============================================================
+// BLOCO H — UNION RECURSIVO INDIRETO
+// (esse aqui mata compilador ruim)
+// ============================================================
+
+// descomenta depois
+
+// typealias H1 = H2 | int
+// typealias H2 = H3 | string
+// typealias H3 = H1 | bool
+
+// Esperado:
+// erro de circularidade
+
+
+
+// ============================================================
+// BLOCO I — UNION + NARROWING
+// ============================================================
+
+typealias I1 = int | string | null
+
+func i_test(x: I1): int {
+
+  if (x != null) {
+
+    // aqui deve virar int | string
+
+  }
+
+  return 0
+}
+
+
+
+// ============================================================
+// BLOCO J — EXPLOSÃO COMBINATÓRIA
+// ============================================================
+
+typealias J1 = int | string
+typealias J2 = bool | float
+
+typealias J3 = J1 | J2
+typealias J4 = J3[]
+typealias J5 = J4 | null
+typealias J6 = J5 | ((J3) => J3)
+typealias J7 = J6 | [J3, J3]
+typealias J8 = J7 | J7[]
+typealias J9 = J8 | J8[][]
+typealias J10 = J9 | null
+
+val j1: J10 = null
+val j2: J10 = [1, "a", true]
