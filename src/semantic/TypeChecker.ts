@@ -841,7 +841,7 @@ export class TypeChecker {
         return true;
       }
       if (expected.params.length !== actual.params.length) return false;
-      return expected.params.every((ep, i) => this.areTypesCompatible(ep, actual.params[i])) &&
+      return expected.params.every((ep, i) => this.areTypesCompatible(actual.params[i], ep)) &&
         this.areTypesCompatible(expected.returnType, actual.returnType);
     }
 

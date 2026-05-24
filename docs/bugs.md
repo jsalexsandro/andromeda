@@ -324,7 +324,7 @@ if (type.kind === "UnionType") {
 
 **File:** `src/semantic/TypeChecker.ts:2384` — `checkSpreadExpr()`  
 **Severity:** 🟡 Medium  
-**Status:** Open  
+**Status:** ✅ Fixed — May 24, 2026  
 
 ### Description
 
@@ -432,7 +432,7 @@ Compare the stored parameter type for `func normal<T>(x: T?)` vs `val arrow = <T
 | #4 — Multi-dimensional array validation | 🟢 Low | Edge case | Backlog |
 | #11 — Type param scope collision (arrow in generic call) | 🟡 Medium | Generic arrow as argument with multi type params | ✅ **Fixed** |
 | #12 — normalizeType Union null detection | 🔴 High | if val with T \| null aliases | ✅ **Fixed** |
-| #13 — checkSpreadExpr resolveAlias | 🟡 Medium | Spread with typealiased arrays | **Open** |
+| #13 — checkSpreadExpr resolveAlias | 🟡 Medium | Spread with typealiased arrays | ✅ **Fixed** |
 | #14 — Arrow generic nullable params | 🔴 High | if val in generic arrows with T? | **Open** |
 
 ---
@@ -452,9 +452,8 @@ Compare the stored parameter type for `func normal<T>(x: T?)` vs `val arrow = <T
 8. `checkUnaryExpr` — operandType before primitive check
 9. `inferLiteralType` — contextualType before float coercion check
 
-### Still Unfixed (2 occurrences)
-1. **Bug #13** — `checkSpreadExpr`: needs `resolveAlias` before isArray/kind check
-2. **Bug #14** — Arrow generic nullable params (different pattern — environment registration issue)
+### Still Unfixed (1 occurrence)
+1. **Bug #14** — Arrow generic nullable params (different pattern — environment registration issue)
 
 ---
 

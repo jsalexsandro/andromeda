@@ -133,7 +133,7 @@ Resumindo em ordem de prioridade:
 
 **2. `Array<T>` invariante** — na comparação de `GenericType`, se o nome for `Array`, exige igualdade exata nos args, não subtipagem.
 
-**3. Function params contravariantes** — ao checar `(A) => R <: (B) => R`, inverte a comparação nos parâmetros: verifica `B <: A` (não `A <: B`).
+**3. Function params contravariantes** ✅ **FEITO** — `areTypesCompatible:844` inverteu a comparação: `actual.params[i] <: expected.params[i]`.
 
 **4. Futuramente: anotações `out`/`in`** — permite que o usuário declare variância explícita em aliases genéricos, como Swift e Kotlin fazem com `out`/`in`.
 
