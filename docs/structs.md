@@ -13,22 +13,41 @@ FASE 6.5 — CONTROL TYPES
 │
 ├── 2. Struct Fields
 │      2.1 Parser de propriedades
-│             name: string
-│             age: int
-│
-│      2.2 Reutilizar ParserTypeAnnotation
+│             mut name: string
+│             mut age: int
+│             pi: float = 3.14
+│      detectar a keyword 'mut' ela informa que aquela proprieda é mutavel!
+│      2.2 Reutilizar ParserTypeAnnotation (para anotações)
 │      2.3 Permitir arrays nos campos
 │      2.4 Permitir union types
 │      2.5 Permitir nullable fields
-│      2.6 Permitir object types
+│      2.6 Herdaremos todas as possibiliadades de anotação de ParserTypeAnnotation
 │      2.7 Detectar campos duplicados
+       2.8 propriedae com atribuição
+       mut id: string = 'abcd1fg2h123'
+       name: string = "Jonny"
 │
-├── 3. Semantic Struct Types
+
+
+# FEito até aqui!
+
+### StructStmt
+- [ ] Registrar `name` no escopo de tipos
+- [ ] Validar o tipo de cada campo
+- [ ] Verificar que todos os métodos dos protocols estão implementados
+- [ ] Detectar campos duplicados
 │      3.1 Resolver tipos dos campos
 │      3.2 Verificar tipos inexistentes
 │      3.3 Permitir self-reference indireta
 │      3.4 Detectar circularidade inválida
 │      3.5 Registrar struct como type symbol
+- [ ] Verificar a keyword 'mut' ela informa que aquela propriedade é mutavel 
+
+# Até aqui no semantic
+
+- [ ] Suporte a `TypeParameterNode`
+- [ ] Checar que `protocols` declarados existem no escopo
+
 │
 ├── 4. Struct Literal
 │      4.1 Parser de literal:
@@ -46,16 +65,13 @@ FASE 6.5 — CONTROL TYPES
 │
 ├── 5. Property Access
 │      5.1 Parser MemberExpression
-│
 │             user.name
-│
 │      5.2 Resolver tipo da propriedade
 │      5.3 Detectar propriedade inexistente
 │      5.4 Permitir chained access
-│
 │             user.address.street
-│
-│      5.5 Nullable property access futuramente
+       5.5 verificar se propriedade é 'mut' (mutável)
+│      5.6 Nullable property access futuramente
 │
 ├── 6. Struct Generic
 │      6.1 Parser generic params

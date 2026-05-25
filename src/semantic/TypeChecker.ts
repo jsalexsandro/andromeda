@@ -419,6 +419,9 @@ export class TypeChecker {
       case "IfVariableStmt":
         this.checkIfVariableStmt(stmt);
         break;
+      case "StructStmt":
+        this.checkStructStmt(stmt);
+        break;
       default:
         break;
     }
@@ -560,6 +563,34 @@ export class TypeChecker {
     };
 
     this.globalEnv.define(name, symbol);
+  }
+
+  private checkStructStmt(stmt: Extract<Stmt, { kind: "StructStmt" }>): void {
+    const name = stmt.name.value as string;
+
+    const existing = this.currentEnv.lookupLocal(name);
+    if (existing) {
+      this.errors.push(Errors.alreadyDeclared(name, stmt.name));
+      return;
+    }
+
+    // Registrar primeiro — permite self-reference nos campos
+    this.currentEnv.define(name, {
+      name,
+      type: { kind: "NamedType", name: stmt.name } as TypeNode,
+      kind: "struct",
+      mutable: false,
+      initialized: true,
+      declarationToken: stmt.name,
+    });
+
+    // Validar tipos dos campos
+    for (const field of stmt.fields) {
+      const err = this.validateTypeNode(field.type, field.name);
+      if (err) {
+        this.errors.push(err);
+      }
+    }
   }
 
   private checkAliasSelfReference(type: TypeNode, aliasName: string, token: Token): SemanticError | null {

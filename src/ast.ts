@@ -25,6 +25,7 @@ export type Expr =
   | TemplateLiteralExpr
   | AwaitExpr
   | SpreadExpr
+  | StructLiteralExpr
 
 export interface BinaryExpr {
   kind: "Binary"
@@ -328,7 +329,11 @@ export interface SpreadExpr {
   column?: number
 }
 
-
+export interface StructLiteralExpr {
+  kind: "StructLiteral"
+  structName: Token
+  fields: { key: string; value: Expr }[]
+}
 
 // ========================================
 // TypeNode - AST de Tipos Nominal

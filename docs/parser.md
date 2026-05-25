@@ -130,7 +130,6 @@ Fase 6.4 IfBindingExpr
 no Ast IfVariableStmt
 [ate aqui feito]
   
-
 FASE 6.5 — CONTROL TYPES
 │
 ├── StructStatement
@@ -144,8 +143,19 @@ FASE 6.5 — CONTROL TYPES
 │      1.6 Detectar structs duplicados
 │      1.7 Permitir struct vazio
 │
-
-
+├── 2. Struct Fields
+│      2.1 Parser de propriedades
+│             mut name: string
+│             mut age: int
+│             pi: float = 3.14
+│      detectar a keyword 'mut' ela informa que aquela proprieda é mutavel!
+│      2.2 Reutilizar ParserTypeAnnotation (para anotações)
+│      2.3 Permitir arrays nos campos
+│      2.4 Permitir union types
+│      2.5 Permitir nullable fields
+│      2.6 Herdaremos todas as possibiliadades de anotação de ParserTypeAnnotation
+│      2.7 Detectar campos duplicados
+│
 
 FASE 7 — CLASSES
 │

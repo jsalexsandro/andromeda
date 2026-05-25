@@ -1,0 +1,10 @@
+// Exemplo do usuario
+typealias UUID = string
+
+struct User {
+    name: string
+    mut id: UUID
+}
+
+// Teste: declarar var do tipo struct (sem literal, so val null)
+val u: User = null

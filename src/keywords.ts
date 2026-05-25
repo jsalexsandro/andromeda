@@ -28,6 +28,8 @@ export const KEYWORDS = [
   'continue',
   'protocol',
   'typealias',  // Tipos nomeados - nominal type aliases
+  'struct',
+  'mut',
 ]
 
 export const TYPES_NATIVE = [

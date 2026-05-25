@@ -42,6 +42,7 @@ export const TokenPrecedence: Record<string, Precedence> = {
   [TokenType.SLASH]: Precedence.PRODUCT,
   [TokenType.MODULO]: Precedence.PRODUCT,
   [TokenType.LPAREN]: Precedence.CALL,
+  [TokenType.LBRACE]: Precedence.CALL,
   [TokenType.LBRACKET]: Precedence.INDEX,
   [TokenType.DOT]: Precedence.MEMBER,
   [TokenType.INCREMENT]: Precedence.POSTFIX,

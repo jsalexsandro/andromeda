@@ -1,0 +1,6 @@
+typealias UUID = string
+
+struct User {
+    name: string
+    mut id: UUID
+}

@@ -1,0 +1,49 @@
+// Struct: todos os tipos de campo + self-ref + cross-ref + defaults
+
+// Self-referencia (arvore)
+struct Tree {
+    value: int
+    children: Tree[]
+}
+
+// Cross-referencia
+struct Outer {
+    name: string
+    inner: Inner
+}
+struct Inner {
+    label: string
+}
+
+// Todos os tipos de campo
+struct AllTypes {
+    a: int
+    b: float
+    c: string
+    d: bool
+    e: int[]
+    f: int?
+    g: int | string
+    h: Array<int>
+    i: [int, string, bool]
+    j: (int) => string
+}
+
+// Valores default
+struct Config {
+    host: string = "localhost"
+    port: int = 8080
+    debug: bool = false
+    timeout: float = 30.5
+    mut name: string = "default"
+}
+
+// Struct vazia
+struct Empty {
+}
+
+// Struct aninhando outra struct via typealias
+typealias NodeList = Tree[]
+struct Graph {
+    nodes: NodeList
+}

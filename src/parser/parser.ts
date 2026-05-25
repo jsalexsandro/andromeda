@@ -1,6 +1,6 @@
 import { Token, TokenType } from "../lexer/types";
 import { ErrorHandler } from "./error";
-import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode } from "../ast";
+import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode, StructField } from "../ast";
 import { Precedence, getPrecedence } from "./precedence";
 
 type PrefixParselet = () => Expr | null;
@@ -108,6 +108,12 @@ export class Parser {
     this.prefixParselets.set(
       TokenType.LBRACE,
       this.parseObjectLiteral.bind(this),
+    );
+
+    // Infix para struct literal: User { name: "rui", age: 18 }
+    this.infixParselets.set(
+      TokenType.LBRACE,
+      this.parseStructLiteral.bind(this),
     );
 
     // Prefixo para arrow function genérica: <T>(x: T): T => x
@@ -336,6 +342,88 @@ export class Parser {
     }
 
     return { kind: "Object", properties };
+  }
+
+  /**
+   * Parseia struct literal: User { name: "rui", age: 18 }
+   * Usado como infix parselet para LBRACE, onde left é o IdentifierExpr do struct.
+   */
+  private parseStructLiteral(left: Expr): Expr | null {
+    if (left.kind !== "Identifier") {
+      this.error("Expected struct name before '{'", this.peek());
+      return null;
+    }
+
+    const structName = left.name;
+    const brace = this.previous();
+    const fields: { key: string; value: Expr }[] = [];
+
+    if (this.check(TokenType.RBRACE)) {
+      this.advance();
+      return { kind: "StructLiteral", structName, fields };
+    }
+
+    while (!this.isAtEnd() && !this.check(TokenType.RBRACE)) {
+      let key: string | null = null;
+      let value: Expr | null = null;
+
+      if (this.check(TokenType.SPREAD)) {
+        this.error("Spread not allowed in struct literal", this.peek());
+        this.advance();
+        this.parseExpression(Precedence.LOWEST);
+      } else if (
+        this.check(TokenType.IDENTIFIER) ||
+        this.check(TokenType.KEYWORD) ||
+        this.check(TokenType.BOOLEAN) ||
+        this.check(TokenType.NULL)
+      ) {
+        key = this.advance().value as string;
+
+        if (this.check(TokenType.COLON)) {
+          this.advance();
+          value = this.parseExpression(Precedence.LOWEST);
+        } else {
+          value = {
+            kind: "Identifier",
+            name: {
+              type: TokenType.IDENTIFIER,
+              value: key,
+              line: brace.line,
+              column: brace.column,
+            },
+          };
+        }
+      } else if (this.check(TokenType.STRING)) {
+        key = this.advance().value as string;
+        if (this.check(TokenType.COLON)) {
+          this.advance();
+          value = this.parseExpression(Precedence.LOWEST);
+        }
+      } else {
+        this.error("Expected field name", this.peek());
+        break;
+      }
+
+      if (value) {
+        fields.push({ key, value });
+      }
+
+      if (this.check(TokenType.RBRACE)) break;
+
+      if (!this.check(TokenType.COMMA)) {
+        this.error("Expected ',' or '}' in struct literal", this.peek());
+        break;
+      }
+      this.advance();
+    }
+
+    if (this.check(TokenType.RBRACE)) {
+      this.advance();
+    } else {
+      this.error("Expected '}' to close struct literal", this.peek());
+    }
+
+    return { kind: "StructLiteral", structName, fields };
   }
 
   private parseArrowOrGroup(): Expr {
@@ -913,6 +1001,9 @@ export class Parser {
       // Syntax: typealias Name = type
       if (keyword === "typealias") {
         return this.parseTypeAliasStatement();
+      }
+      if (keyword === "struct") {
+        return this.parseStructStatement();
       }
     }
 
@@ -2503,6 +2594,114 @@ export class Parser {
       console.log(`DEBUG - [${this.getTypeNodeName(baseType)}]`);
       return baseType;
     }
+
+  // ========================================
+  // Struct Statement
+  // struct User { }
+  // struct Empty { }
+  // ========================================
+  private parseStructStatement(): Stmt {
+    this.advance(); // consume 'struct'
+
+    const nameToken = this.advance();
+    if (nameToken.type !== TokenType.IDENTIFIER) {
+      this.error("Expected struct name", nameToken);
+      return { kind: "BlockStmt", statements: [] };
+    }
+
+    if (this.peek().type !== TokenType.LBRACE) {
+      this.error("Expected '{' after struct name", this.peek());
+      return { kind: "BlockStmt", statements: [] };
+    }
+    this.advance(); // consume '{'
+
+    const fields: StructField[] = [];
+    const fieldNames = new Set<string>();
+
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const next = this.peek();
+
+      // Pular separadores
+      if (next.type === TokenType.SEMICOLON) {
+        this.advance();
+        continue;
+      }
+
+      // Qualquer coisa que não seja IDENTIFIER ou KEYWORD → erro + skip
+      if (next.type !== TokenType.IDENTIFIER &&
+          next.type !== TokenType.KEYWORD) {
+        this.error("Expected field name or 'mut' modifier", next);
+        this.advance();
+        continue;
+      }
+
+      // Modifier opcional: mut
+      let mutable = false;
+      if (next.type === TokenType.KEYWORD && next.value === "mut") {
+        mutable = true;
+        this.advance();
+      }
+
+      // Nome do field
+      const fieldNameToken = this.advance();
+      if (fieldNameToken.type !== TokenType.IDENTIFIER &&
+          fieldNameToken.type !== TokenType.KEYWORD) {
+        this.error("Expected field name", fieldNameToken);
+        this.skipToNextStructField();
+        continue;
+      }
+
+      // Campos duplicados
+      const fieldName = fieldNameToken.value as string;
+      if (fieldNames.has(fieldName)) {
+        this.error(`Duplicate field '${fieldName}' in struct`, fieldNameToken);
+      } else {
+        fieldNames.add(fieldName);
+      }
+
+      // ':'
+      if (!this.check(TokenType.COLON)) {
+        this.error("Expected ':' after field name", this.peek());
+        this.skipToNextStructField();
+        continue;
+      }
+      this.advance();
+
+      // Tipo via parseAnnotationType
+      const fieldType = this.parseAnnotationType();
+      if (!fieldType) {
+        this.error("Expected type for struct field", this.peek());
+        this.skipToNextStructField();
+        continue;
+      }
+
+      // Default value opcional: = <expr>
+      let defaultValue: Expr | undefined;
+      if (this.check(TokenType.ASSIGN)) {
+        this.advance();
+        defaultValue = this.parseExpression(Precedence.LOWEST);
+      }
+
+      fields.push({ name: fieldNameToken, type: fieldType, mutable, defaultValue });
+    }
+
+    if (this.check(TokenType.RBRACE)) {
+      this.advance();
+    } else {
+      this.error("Expected '}' to close struct", this.peek());
+    }
+
+    return { kind: "StructStmt", name: nameToken, fields };
+  }
+
+  // ── helper: skip até próximo field (mut ou nome) ou '}' ─────
+  private skipToNextStructField(): void {
+    while (!this.isAtEnd() && !this.check(TokenType.RBRACE)) {
+      if (this.check(TokenType.KEYWORD)) break;
+      if (this.check(TokenType.IDENTIFIER)) break;
+      this.advance();
+    }
+  }
 
   // ========================================
   // Protocol Statement
