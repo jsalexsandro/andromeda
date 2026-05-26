@@ -69,7 +69,12 @@ FASE 6.5 — CONTROL TYPES
 │      4.4 Detectar campos extras
 │      4.5 Detectar tipos incompatíveis
 │      4.6 Validar ordem semântica dos campos
-│
+│      4.7 Validar o Generic na declaração do literal
+       4.8: Member access com generic substitution ──
+// val b1: int = Box<int> { value: 5 }.value    // 5, type int
+// val b2: string = Box<string> { value: "x" }.value  // "x", type string
+
+
      # Ate aqui feito!
 
 ├── 5. Property Access

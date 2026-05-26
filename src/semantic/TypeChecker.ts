@@ -1,5 +1,5 @@
 import { Token, TokenType } from "../lexer/types";
-import { Stmt, Expr, TypeNode, GenericTypeNode, IfVariableStmt, StructLiteralExpr } from "../ast";
+import { Stmt, Expr, TypeNode, GenericTypeNode, IfVariableStmt, StructLiteralExpr, StructField } from "../ast";
 import { Symbol, createSymbol } from "./types";
 import { SemanticError, Errors } from "./errors";
 import { Environment } from "./Environment";
@@ -574,8 +574,9 @@ export class TypeChecker {
       return;
     }
 
-    // Registrar primeiro — permite self-reference nos campos
-    this.currentEnv.define(name, {
+    // Registrar struct no escopo externo primeiro (auto-referencia via env chain)
+    const prevEnv = this.currentEnv;
+    prevEnv.define(name, {
       name,
       type: { kind: "NamedType", name: stmt.name } as TypeNode,
       kind: "struct",
@@ -583,14 +584,44 @@ export class TypeChecker {
       initialized: true,
       declarationToken: stmt.name,
       fields: stmt.fields,
+      typeParameters: stmt.typeParameters,
     });
 
-    // Validar tipos dos campos
+    // Registrar type params em escopo temporário (6.2 + 6.6)
+    if (stmt.typeParameters) {
+      const tmpEnv = new Environment(prevEnv, false);
+      const seen = new Set<string>();
+      for (const tp of stmt.typeParameters) {
+        const tpName = tp.name.value as string;
+        if (seen.has(tpName)) {
+          this.errors.push(Errors.alreadyDeclared(tpName, tp.name));
+        } else {
+          seen.add(tpName);
+          tmpEnv.define(tpName, {
+            name: tpName,
+            type: { kind: "NamedType", name: tp.name } as TypeNode,
+            kind: "typeParam",
+            mutable: false,
+            initialized: true,
+            declarationToken: tp.name,
+            constraint: tp.constraint,
+          });
+        }
+      }
+      this.currentEnv = tmpEnv;
+    }
+
+    // Validar tipos dos campos (type params visiveis quando existem)
     for (const field of stmt.fields) {
       const err = this.validateTypeNode(field.type, field.name);
       if (err) {
         this.errors.push(err);
       }
+    }
+
+    // Restaurar escopo
+    if (stmt.typeParameters) {
+      this.currentEnv = prevEnv;
     }
   }
 
@@ -706,6 +737,16 @@ export class TypeChecker {
         if (existing?.kind === "type" && existing.typeParameters) {
           if (type.args.length !== existing.typeParameters.length) {
             return Errors.typeMismatch(`Generic type alias '${typeName}' expects ${existing.typeParameters.length} parameter(s), got ${type.args.length}`, token);
+          }
+        } else if (existing?.kind === "struct") {
+          if (existing.typeParameters) {
+            // Generic struct: Box<T>
+            if (type.args.length !== existing.typeParameters.length) {
+              return Errors.typeMismatch(`Generic struct '${typeName}' expects ${existing.typeParameters.length} parameter(s), got ${type.args.length}`, token);
+            }
+          } else if (type.args.length > 0) {
+            // Non-generic struct used with type args
+            return Errors.typeMismatch(`'${typeName}' is not a generic struct`, token);
           }
         } else if (existing?.kind === "builtin" && existing.typeParameters) {
           // Built-in generic: Array<T>, Optional<T>
@@ -1596,11 +1637,47 @@ export class TypeChecker {
     const structFields = symbol.fields;
     if (!structFields) return symbol.type;
 
-    const seenKeys = new Set<string>();
-    const structKeyMap = new Map<string, StructField>();
-    for (const f of structFields) {
-      structKeyMap.set(f.name.value as string, f);
+    // ── Generic struct: build substitution mapping ────────
+    let fieldTypeMap: Map<string, TypeNode>;
+    const typeParams = symbol.typeParameters;
+
+    if (typeParams && typeParams.length > 0) {
+      const typeArgs = expr.typeArgs;
+      if (!typeArgs || typeArgs.length !== typeParams.length) {
+        this.errors.push(Errors.genericArgCount(
+          name, typeParams.length, typeArgs?.length ?? 0, expr.structName
+        ));
+        return { kind: "PrimitiveType", name: "unknown" };
+      }
+      // Validate each type arg
+      for (const arg of typeArgs) {
+        const argErr = this.validateTypeNode(arg, expr.structName);
+        if (argErr) this.errors.push(argErr);
+      }
+      const mapping = new Map<string, TypeNode>();
+      for (let i = 0; i < typeParams.length; i++) {
+        mapping.set(typeParams[i].name.value as string, typeArgs[i]);
+      }
+      fieldTypeMap = new Map();
+      for (const f of structFields) {
+        fieldTypeMap.set(f.name.value as string, this.substitute(f.type, mapping));
+      }
+    } else {
+      if (expr.typeArgs && expr.typeArgs.length > 0) {
+        this.errors.push(Errors.typeMismatch(
+          `'${name}' is not a generic struct`,
+          expr.structName
+        ));
+        return { kind: "PrimitiveType", name: "unknown" };
+      }
+      fieldTypeMap = new Map();
+      for (const f of structFields) {
+        fieldTypeMap.set(f.name.value as string, f.type);
+      }
     }
+
+    // ── Validate literal fields against (substituted) field types ──
+    const seenKeys = new Set<string>();
 
     for (const field of expr.fields) {
       if (seenKeys.has(field.key)) {
@@ -1609,13 +1686,12 @@ export class TypeChecker {
       }
       seenKeys.add(field.key);
 
-      const fieldDef = structKeyMap.get(field.key);
-      if (!fieldDef) {
+      const expectedType = fieldTypeMap.get(field.key);
+      if (!expectedType) {
         this.errors.push(Errors.unknownProperty(field.key, expr.structName));
         continue;
       }
 
-      const expectedType = fieldDef.type;
       this.contextualType = expectedType;
       const actualType = this.checkExpression(field.value);
       this.contextualType = null;
@@ -1639,6 +1715,14 @@ export class TypeChecker {
       }
     }
 
+    // If generic, return GenericType so member access can do substitution
+    if (typeParams && typeParams.length > 0 && expr.typeArgs && expr.typeArgs.length === typeParams.length) {
+      return {
+        kind: "GenericType",
+        name: { type: TokenType.IDENTIFIER, value: name },
+        args: [...expr.typeArgs]
+      };
+    }
     return symbol.type;
   }
 
@@ -2093,6 +2177,38 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         propToken
       ));
       return { kind: "PrimitiveType", name: "unknown" };
+    }
+
+    if (objectType.kind === "GenericType") {
+      const typeName = objectType.name.value as string;
+      const symbol = this.currentEnv.lookup(typeName);
+      if (symbol?.kind === "struct") {
+        if (!symbol.fields) return { kind: "PrimitiveType", name: "any" };
+        const field = symbol.fields.find(f => f.name.value === propName);
+        if (!field) {
+          this.errors.push(Errors.unknownProperty(propName, propToken));
+          return { kind: "PrimitiveType", name: "any" };
+        }
+        // Substitur type params pelos type args concretos
+        if (symbol.typeParameters && symbol.typeParameters.length > 0) {
+          const mapping = new Map<string, TypeNode>();
+          for (let i = 0; i < symbol.typeParameters.length; i++) {
+            const arg = objectType.args[i] ?? { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: symbol.typeParameters[i].name.value, line: 0, column: 0 } };
+            mapping.set(symbol.typeParameters[i].name.value as string, arg);
+          }
+          return this.substitute(field.type, mapping);
+        }
+        return field.type;
+      }
+      if (!symbol) {
+        this.errors.push(Errors.undefinedType(typeName, propToken));
+        return { kind: "PrimitiveType", name: "any" };
+      }
+      this.errors.push(Errors.invalidMemberAccess(
+        `cannot access member on non-struct generic type '${typeName}'`,
+        propToken
+      ));
+      return { kind: "PrimitiveType", name: "any" };
     }
 
     if (objectType.kind !== "Object") {

@@ -1406,6 +1406,6 @@ readNumber(): Token {
     i++
     while (i < this.input.length && (this.input[i] === ' ' || this.input[i] === '\t')) i++
 
-    return this.input[i] === '('
+    return this.input[i] === '(' || this.input[i] === '{'
   }
 }

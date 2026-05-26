@@ -1,6 +1,6 @@
 import { Token, TokenType } from "../lexer/types";
 import { ErrorHandler } from "./error";
-import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode, StructField } from "../ast";
+import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode, StructField, StructLiteralExpr } from "../ast";
 import { Precedence, getPrecedence } from "./precedence";
 
 type PrefixParselet = () => Expr | null;
@@ -353,14 +353,17 @@ export class Parser {
       this.error("Expected struct name before '{'", this.peek());
       return null;
     }
+    return this.parseStructLiteralBody(left.name, undefined, this.previous());
+  }
 
-    const structName = left.name;
-    const brace = this.previous();
+  private parseStructLiteralBody(
+    structName: Token, typeArgs: TypeNode[] | undefined, brace: Token
+  ): StructLiteralExpr {
     const fields: { key: string; value: Expr }[] = [];
 
     if (this.check(TokenType.RBRACE)) {
       this.advance();
-      return { kind: "StructLiteral", structName, fields };
+      return { kind: "StructLiteral", structName, fields, typeArgs };
     }
 
     while (!this.isAtEnd() && !this.check(TokenType.RBRACE)) {
@@ -424,7 +427,7 @@ export class Parser {
       this.error("Expected '}' to close struct literal", this.peek());
     }
 
-    return { kind: "StructLiteral", structName, fields };
+    return { kind: "StructLiteral", structName, fields, typeArgs };
   }
 
   private parseArrowOrGroup(): Expr {
@@ -763,6 +766,16 @@ export class Parser {
         args,
         typeArgs
       };
+    }
+
+    // Generic struct literal: Box<int> { value: 5 }
+    if (typeArgs && this.check(TokenType.LBRACE)) {
+      if (left.kind !== "Identifier") {
+        this.error("Expected struct name before '{'", this.peek());
+        return { kind: "Literal", value: null };
+      }
+      this.advance(); // consume '{'
+      return this.parseStructLiteralBody(left.name, typeArgs, this.previous());
     }
 
     // Falhou — restaura e faz binary comparison
@@ -2610,6 +2623,12 @@ export class Parser {
       return { kind: "BlockStmt", statements: [] };
     }
 
+    // Optional generic type parameters: struct Box<T>
+    let typeParameters: TypeParameterNode[] | undefined;
+    if (this.check(TokenType.LESS_THAN)) {
+      typeParameters = this.parseGenericTypeParameters();
+    }
+
     if (this.peek().type !== TokenType.LBRACE) {
       this.error("Expected '{' after struct name", this.peek());
       return { kind: "BlockStmt", statements: [] };
@@ -2694,7 +2713,7 @@ export class Parser {
       this.error("Expected '}' to close struct", this.peek());
     }
 
-    return { kind: "StructStmt", name: nameToken, fields };
+    return { kind: "StructStmt", name: nameToken, fields, typeParameters };
   }
 
   // ── helper: skip até próximo field (mut ou nome) ou '}' ─────

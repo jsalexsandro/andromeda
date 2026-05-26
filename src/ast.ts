@@ -333,6 +333,7 @@ export interface StructLiteralExpr {
   kind: "StructLiteral"
   structName: Token
   fields: { key: string; value: Expr }[]
+  typeArgs?: TypeNode[]
 }
 
 // ========================================

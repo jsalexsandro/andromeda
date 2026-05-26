@@ -1,0 +1,26 @@
+// ============================================================
+// FEATURE: Struct Generics — Semantic Check (Items 6.2–6.6)
+// AXIS: Type param registration, substitution, arg count, duplicates, nested
+// ============================================================
+
+// ── 6.2 + 6.6: Registrar type params + detectar duplicatas ──
+struct Box<T> { value: T }
+// struct Dupe<T, T> { a: T; b: T }  // erro: duplicate type param
+
+// ── 6.5: GENERIC_ARG_COUNT ──
+// typealias IntBox = Box<int>      // ok, 1 arg
+// typealias BadBox = Box<int, string>  // erro: expects 1, got 2
+
+// ── 6.3: Substituicao em struct literal ──
+// Box<int> { value: 5 }            // ok, T → int
+// Box<string> { value: "hello" }   // ok, T → string
+// Box<int> { value: "wrong" }      // erro: expected int, got string
+
+// ── 6.4: Nested generics ──
+// struct Pair<A, B> { first: A; second: B }
+// Pair<int, string> { first: 1, second: "hi" }  // ok
+// Pair<int, Box<string>> { first: 1, second: Box<string> { value: "nested" } }
+
+// ── 6.3: Member access com generic substitution ──
+val b1: int = Box<int> { value: 5 }.value    // 5, type int
+val b2: string = Box<string> { value: "x" }.value  // "x", type string
