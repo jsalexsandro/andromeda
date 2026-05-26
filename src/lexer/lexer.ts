@@ -37,6 +37,8 @@ const TYPE_KEYWORDS: Record<string, TokenType> = {
   'unknown': TokenType.UNKNOWN_TYPE,
 }
 
+const GENERIC_KEYWORDS = new Set(['func', 'typealias', 'struct', 'class', 'interface', 'enum'])
+
 type LexerMode = 'NORMAL' | 'ANDROX_TAG' | 'ANDROX_CHILDREN' | 'ANDROX_EXPR'
 
 export class Lexer {
@@ -1043,7 +1045,7 @@ readNumber(): Token {
       type = TYPE_KEYWORDS[ident]
     }
 
-    if (type === TokenType.KEYWORD && (ident === 'func' || ident === 'typealias')) {
+    if (type === TokenType.KEYWORD && GENERIC_KEYWORDS.has(ident)) {
       this.expectingGenericParams = true
     }
 

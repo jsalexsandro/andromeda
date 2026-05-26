@@ -1,5 +1,5 @@
 import { Token, TokenType } from "../lexer/types";
-import { Stmt, Expr, TypeNode, GenericTypeNode, IfVariableStmt } from "../ast";
+import { Stmt, Expr, TypeNode, GenericTypeNode, IfVariableStmt, StructLiteralExpr } from "../ast";
 import { Symbol, createSymbol } from "./types";
 import { SemanticError, Errors } from "./errors";
 import { Environment } from "./Environment";
@@ -582,6 +582,7 @@ export class TypeChecker {
       mutable: false,
       initialized: true,
       declarationToken: stmt.name,
+      fields: stmt.fields,
     });
 
     // Validar tipos dos campos
@@ -1117,6 +1118,11 @@ export class TypeChecker {
       return;
     }
 
+    if (targetName.kind === "Member") {
+      this.checkAssignToMember(targetName, stmt.operator, stmt.value);
+      return;
+    }
+
     let name: string;
     if (targetName.kind === "Identifier") {
       name = targetName.name.value as string;
@@ -1369,6 +1375,11 @@ export class TypeChecker {
       return;
     }
 
+    if (targetName.kind === "Member") {
+      this.checkAssignToMember(targetName, expr.operator, expr.value);
+      return;
+    }
+
     let name: string;
     if (targetName.kind === "Identifier") {
       name = targetName.name.value as string;
@@ -1470,6 +1481,55 @@ export class TypeChecker {
     }
   }
 
+  private checkAssignToMember(target: Extract<Expr, { kind: "Member" }>, operator: Token | undefined, value: Expr): void {
+    const objectType = this.resolveAlias(this.checkExpression(target.object));
+    const propName = target.property.name.value as string;
+    const propToken = target.property.name;
+
+    if (objectType.kind === "NamedType") {
+      const typeName = objectType.name.value as string;
+      const symbol = this.currentEnv.lookup(typeName);
+      if (symbol?.kind === "struct" && symbol.fields) {
+        const field = symbol.fields.find(f => f.name.value === propName);
+        if (!field) {
+          this.errors.push(Errors.unknownProperty(propName, propToken));
+          return;
+        }
+        if (operator) {
+          const op = operator.value as string;
+          if (['+=', '-=', '*=', '/=', '%='].includes(op)) {
+            if (!this.isNumericType(field.type)) {
+              this.errors.push(Errors.typeMismatch(
+                `Cannot use '${op}' with non-numeric field '${propName}' of type '${this.typeToString(field.type)}'`,
+                operator
+              ));
+              return;
+            }
+          }
+        }
+        if (!field.mutable) {
+          this.errors.push(Errors.cannotAssignToField(propName, propToken));
+          return;
+        }
+        this.contextualType = field.type;
+        const valueType = this.inferType(value);
+        this.contextualType = null;
+        if (!this.areTypesCompatible(field.type, valueType)) {
+          this.errors.push(Errors.typeMismatch(
+            `Cannot assign '${this.typeToString(valueType)}' to field '${propName}' of type '${this.typeToString(field.type)}'`,
+            propToken
+          ));
+        }
+        return;
+      }
+    }
+
+    this.errors.push(Errors.invalidMemberAccess(
+      `cannot assign to member on non-struct type`,
+      propToken
+    ));
+  }
+
   private checkExpression(expr: Expr): TypeNode {
     switch (expr.kind) {
       case "Identifier": {
@@ -1509,9 +1569,77 @@ export class TypeChecker {
         return this.checkSpreadExpr(expr);
       case "Group":
         return this.checkExpression(expr.expression);
+      case "StructLiteral":
+        return this.checkStructLiteralExpr(expr);
       default:
         return { kind: "PrimitiveType", name: "unknown" };
     }
+  }
+
+  private checkStructLiteralExpr(expr: StructLiteralExpr): TypeNode {
+    const name = expr.structName.value as string;
+    const symbol = this.currentEnv.lookup(name);
+
+    if (!symbol) {
+      this.errors.push(Errors.undefinedType(name, expr.structName));
+      return { kind: "PrimitiveType", name: "unknown" };
+    }
+
+    if (symbol.kind !== "struct") {
+      this.errors.push(Errors.typeMismatch(
+        `'${name}' is not a struct type`,
+        expr.structName
+      ));
+      return { kind: "PrimitiveType", name: "unknown" };
+    }
+
+    const structFields = symbol.fields;
+    if (!structFields) return symbol.type;
+
+    const seenKeys = new Set<string>();
+    const structKeyMap = new Map<string, StructField>();
+    for (const f of structFields) {
+      structKeyMap.set(f.name.value as string, f);
+    }
+
+    for (const field of expr.fields) {
+      if (seenKeys.has(field.key)) {
+        this.errors.push(Errors.alreadyDeclared(field.key, expr.structName));
+        continue;
+      }
+      seenKeys.add(field.key);
+
+      const fieldDef = structKeyMap.get(field.key);
+      if (!fieldDef) {
+        this.errors.push(Errors.unknownProperty(field.key, expr.structName));
+        continue;
+      }
+
+      const expectedType = fieldDef.type;
+      this.contextualType = expectedType;
+      const actualType = this.checkExpression(field.value);
+      this.contextualType = null;
+
+      if (!this.areTypesCompatible(expectedType, actualType)) {
+        const valueToken = this.getExprToken(field.value) ?? expr.structName;
+        this.errors.push(Errors.typeMismatch(
+          `field '${field.key}': expected '${this.typeToString(expectedType)}', got '${this.typeToString(actualType)}'`,
+          valueToken
+        ));
+      }
+    }
+
+    for (const f of structFields) {
+      const fieldName = f.name.value as string;
+      if (!seenKeys.has(fieldName)) {
+        this.errors.push(Errors.typeMismatch(
+          `missing required field '${fieldName}' in struct literal for '${name}'`,
+          expr.structName
+        ));
+      }
+    }
+
+    return symbol.type;
   }
 
   private inferType(expr: Expr): TypeNode {
@@ -1945,14 +2073,33 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
   }
 
   private checkMemberExpr(expr: Extract<Expr, { kind: "Member" }>): TypeNode {
-    const objectType = this.checkExpression(expr.object);
+    const rawType = this.checkExpression(expr.object);
+    const objectType = this.resolveAlias(rawType);
+    const propName = expr.property.name.value as string;
+    const propToken = expr.property.name;
 
     if (objectType.kind === "NamedType") {
-      return { kind: "PrimitiveType", name: "any" };
+      const typeName = objectType.name.value as string;
+      const symbol = this.currentEnv.lookup(typeName);
+      if (symbol?.kind === "struct") {
+        if (!symbol.fields) return { kind: "PrimitiveType", name: "unknown" };
+        const field = symbol.fields.find(f => f.name.value === propName);
+        if (field) return field.type;
+        this.errors.push(Errors.unknownProperty(propName, propToken));
+        return { kind: "PrimitiveType", name: "unknown" };
+      }
+      this.errors.push(Errors.invalidMemberAccess(
+        `cannot access member on non-struct type '${typeName}'`,
+        propToken
+      ));
+      return { kind: "PrimitiveType", name: "unknown" };
     }
 
     if (objectType.kind !== "Object") {
-      this.errors.push(Errors.invalidMemberAccess("cannot access member on non-object type", { line: 0, column: 0, type: 0, value: "" } as Token));
+      this.errors.push(Errors.invalidMemberAccess(
+        "cannot access member on non-object type",
+        propToken
+      ));
     }
 
     return { kind: "PrimitiveType", name: "any" };

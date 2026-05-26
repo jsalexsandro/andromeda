@@ -1,3 +1,21 @@
+### StructStmt
+- [ ] Registrar `name` no escopo de tipos
+- [ ] Validar o tipo de cada campo
+- [ ] Verificar que todos os métodos dos protocols estão implementados
+- [ ] Detectar campos duplicados
+│      3.1 Resolver tipos dos campos
+│      3.2 Verificar tipos inexistentes
+│      3.3 Permitir self-reference indireta
+│      3.4 Detectar circularidade inválida
+│      3.5 Registrar struct como type symbol
+- [ ] Verificar a keyword 'mut' ela informa que aquela propriedade é mutavel 
+
+# Até aqui no semantic
+
+- [ ] Suporte a `TypeParameterNode`
+- [ ] Checar que `protocols` declarados existem no escopo
+
+
 FASE 6.5 — CONTROL TYPES
 │
 ├── StructStatement
@@ -26,27 +44,15 @@ FASE 6.5 — CONTROL TYPES
        2.8 propriedae com atribuição
        mut id: string = 'abcd1fg2h123'
        name: string = "Jonny"
-│
 
-
-# FEito até aqui!
-
-### StructStmt
-- [ ] Registrar `name` no escopo de tipos
-- [ ] Validar o tipo de cada campo
-- [ ] Verificar que todos os métodos dos protocols estão implementados
-- [ ] Detectar campos duplicados
-│      3.1 Resolver tipos dos campos
-│      3.2 Verificar tipos inexistentes
-│      3.3 Permitir self-reference indireta
-│      3.4 Detectar circularidade inválida
-│      3.5 Registrar struct como type symbol
-- [ ] Verificar a keyword 'mut' ela informa que aquela propriedade é mutavel 
-
-# Até aqui no semantic
-
-- [ ] Suporte a `TypeParameterNode`
-- [ ] Checar que `protocols` declarados existem no escopo
+      # Ate aqui feito!
+  
+      ---FUTURE---
+      Para o futuro modificadores de acesso para o struct
+      private 
+      public
+      protected
+      ---
 
 │
 ├── 4. Struct Literal
@@ -57,25 +63,39 @@ FASE 6.5 — CONTROL TYPES
 │               age: 18
 │             }
 │
+       > Semantic
 │      4.2 Inferir tipo do literal
 │      4.3 Validar campos obrigatórios
 │      4.4 Detectar campos extras
 │      4.5 Detectar tipos incompatíveis
 │      4.6 Validar ordem semântica dos campos
 │
+     # Ate aqui feito!
+
 ├── 5. Property Access
 │      5.1 Parser MemberExpression
 │             user.name
+
+       > Semantic
 │      5.2 Resolver tipo da propriedade
 │      5.3 Detectar propriedade inexistente
 │      5.4 Permitir chained access
 │             user.address.street
        5.5 verificar se propriedade é 'mut' (mutável)
 │      5.6 Nullable property access futuramente
+
+        # Ate aqui feito!
+
+      ---FUTURE---
+      verificar modificadores de acesso para  Property Access
+      private 
+      public
+      protected
+      ---
+        
 │
 ├── 6. Struct Generic
 │      6.1 Parser generic params
-│
 │             struct Box<T>
 │
 │      6.2 Registrar generic params
@@ -179,3 +199,16 @@ FASE 6.5 — CONTROL TYPES
        16.7 Visibility modifiers
        16.8 Static methods
        16.9 Computed properties
+
+
+      O que funciona ✅
+      - 
+      w.nick onde nick: string? — resolve pra Optional<string>
+      - 
+      a.b.val — chained access normal
+      O que NÃO funciona ❌ (5.6 — futuro)
+      - 
+      u.name onde u: User? — erro INVALID_MEMBER_ACCESS
+      - 
+      Operador ?. nem existe no lexer/parser
+      Quer que eu implemente o unwrap automático de Optional<T> no checkMemberExpr? A ideia seria: se o tipo do objeto é Optional<T>, extrair o T interno e tentar o member access nele. É simples de fazer.

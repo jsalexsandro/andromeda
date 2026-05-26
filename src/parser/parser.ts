@@ -375,7 +375,8 @@ export class Parser {
         this.check(TokenType.IDENTIFIER) ||
         this.check(TokenType.KEYWORD) ||
         this.check(TokenType.BOOLEAN) ||
-        this.check(TokenType.NULL)
+        this.check(TokenType.NULL) ||
+        this.isTypeKeywordToken(this.peek().type)
       ) {
         key = this.advance().value as string;
 
@@ -2627,9 +2628,10 @@ export class Parser {
         continue;
       }
 
-      // Qualquer coisa que não seja IDENTIFIER ou KEYWORD → erro + skip
+      // Qualquer coisa que não seja field name → erro + skip
       if (next.type !== TokenType.IDENTIFIER &&
-          next.type !== TokenType.KEYWORD) {
+          next.type !== TokenType.KEYWORD &&
+          !this.isTypeKeywordToken(next.type)) {
         this.error("Expected field name or 'mut' modifier", next);
         this.advance();
         continue;
@@ -2645,7 +2647,8 @@ export class Parser {
       // Nome do field
       const fieldNameToken = this.advance();
       if (fieldNameToken.type !== TokenType.IDENTIFIER &&
-          fieldNameToken.type !== TokenType.KEYWORD) {
+          fieldNameToken.type !== TokenType.KEYWORD &&
+          !this.isTypeKeywordToken(fieldNameToken.type)) {
         this.error("Expected field name", fieldNameToken);
         this.skipToNextStructField();
         continue;
@@ -2695,10 +2698,23 @@ export class Parser {
   }
 
   // ── helper: skip até próximo field (mut ou nome) ou '}' ─────
+  private isTypeKeywordToken(type: TokenType): boolean {
+    return type === TokenType.INT_TYPE ||
+      type === TokenType.FLOAT_TYPE ||
+      type === TokenType.STRING_TYPE ||
+      type === TokenType.BOOLEAN_TYPE ||
+      type === TokenType.UNDEFINED_TYPE ||
+      type === TokenType.VOID_TYPE ||
+      type === TokenType.ANY_TYPE ||
+      type === TokenType.UNKNOWN_TYPE ||
+      type === TokenType.OBJECT_TYPE;
+  }
+
   private skipToNextStructField(): void {
     while (!this.isAtEnd() && !this.check(TokenType.RBRACE)) {
       if (this.check(TokenType.KEYWORD)) break;
       if (this.check(TokenType.IDENTIFIER)) break;
+      if (this.isTypeKeywordToken(this.peek().type)) break;
       this.advance();
     }
   }

@@ -82,6 +82,9 @@ export const Errors = {
   cannotAssign: (name: string, token: Token) =>
     createError("CANNOT_ASSIGN", `'${name}' is immutable. Use 'var' for mutable variables.`, token, "typecheck"),
 
+  cannotAssignToField: (name: string, token: Token) =>
+    createError("CANNOT_ASSIGN", `field '${name}' is immutable. Use 'mut' for mutable fields.`, token, "typecheck"),
+
   invalidIndex: (message: string, token: Token) =>
     createError("INVALID_INDEX", message, token, "typecheck"),
 

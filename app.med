@@ -1,6 +1,7 @@
-typealias UUID = string
-
-struct User {
-    name: string
-    mut id: UUID
+// Type keywords agora aceitos como nome de campo: int, float, string, bool, void, any, unknown, undefined, object.
+struct Window {
+    mut size: string
+    unknown: string
 }
+val cfg: Config = Config { int: "x", unknown: "y" }
+

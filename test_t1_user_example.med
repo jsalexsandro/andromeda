@@ -7,4 +7,7 @@ struct User {
 }
 
 // Teste: declarar var do tipo struct (sem literal, so val null)
-val u: User = null
+val u: User = User {
+    name''
+    id: ''
+}

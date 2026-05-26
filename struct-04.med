@@ -1,0 +1,84 @@
+// ========================================
+// TEST: Property Access (Item 5)
+// ========================================
+
+// ── 5.2 + 5.4: Resolver tipo + Chained ──
+struct Address {
+    street: string
+    city: string
+    zip: string
+}
+
+struct User {
+    name: string
+    age: int
+    addr: Address
+}
+
+val addr = Address { street: "Rua A", city: "SP", zip: "01000" }
+val u = User { name: "Alice", age: 30, addr: addr }
+
+// Acesso simples
+val n: string = u.name
+val a: int = u.age
+
+// Chained access
+val s: string = u.addr.street
+val c: string = u.addr.city
+
+// Struct como field type
+struct Company {
+    name: string
+    founder: User
+}
+
+val co = Company {
+    name: "ACME",
+    founder: User { name: "Bob", age: 40, addr: addr }
+}
+
+val founderName: string = co.founder.name
+val founderCity: string = co.founder.addr.city
+
+// ── 5.3: Propriedade inexistente ──
+val bad1 = u.xyz
+val bad2 = u.addr.foo
+
+// ── 5.5: Mutabilidade ──
+struct Config {
+    mut count: int
+    name: string
+    mut items: string[]
+}
+
+val cfg = Config { count: 0, name: "test", items: [] }
+
+// Mut → OK
+cfg.count = 5
+cfg.count = cfg.count + 1
+
+// Non-mut → CANNOT_ASSIGN
+cfg.name = "new name"
+
+// Mut field with compound
+cfg.count += 10
+cfg.count -= 3
+
+// ── 5.2: Member access em expressões ──
+val nextAge = u.age + 1
+
+// ── 5.4: Struct aninhado complexo ──
+struct Team {
+    name: string
+    members: User[]
+}
+
+val team = Team {
+    name: "Devs",
+    members: [
+        User { name: "Charlie", age: 25, addr: addr },
+        User { name: "Diana", age: 28, addr: addr }
+    ]
+}
+
+val teamName: string = team.name
