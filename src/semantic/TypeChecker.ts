@@ -1232,6 +1232,7 @@ export class TypeChecker {
       kind: "FunctionType",
       params: paramTypes.map((pt, i) => ({
         ...pt,
+        paramName: stmt.params[i]?.name?.value as string,
         isRest: stmt.params[i]?.isRest || false
       })),
       returnType,
@@ -1789,6 +1790,8 @@ export class TypeChecker {
         return this.checkExpression(expr.expression);
       case "StructLiteral":
         return this.checkStructLiteralExpr(expr);
+      case "NamedArgument":
+        return this.checkExpression((expr as Extract<Expr, { kind: "NamedArgument" }>).value);
       default:
         return { kind: "PrimitiveType", name: "unknown" };
     }
@@ -2394,23 +2397,47 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const hasRest = params.length > 0 && params[params.length - 1].isRest === true;
     const restIndex = hasRest ? params.length - 1 : -1;
 
-    // ── checar aridade ─────────────────────────────────────────
-    if (hasRest) {
-      // com rest: precisa de pelo menos (restIndex) args
-      const minArgs = restIndex;
-      if (args.length < minArgs) {
-        const token = expr.callee.kind === "Identifier"
-          ? expr.callee.name
-          : { line: 0, column: 0, type: 0, value: "" } as Token;
-        this.errors.push(Errors.argumentCountMismatch(minArgs, args.length, token));
+    // ── separar args posicionais de nomeados ───────────────────
+    const positionalArgs: { index: number; arg: Expr }[] = [];
+    const namedArgs: { index: number; arg: Extract<Expr, { kind: "NamedArgument" }> }[] = [];
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i];
+      if (arg.kind === "NamedArgument") {
+        namedArgs.push({ index: i, arg });
+      } else {
+        positionalArgs.push({ index: i, arg });
       }
-    } else {
-      // sem rest: aridade exata
-      if (params.length !== args.length) {
+    }
+
+    // ── checar aridade ─────────────────────────────────────────
+    const totalPositional = positionalArgs.length;
+    const totalNamed = namedArgs.length;
+
+    if (hasRest) {
+      const minArgs = restIndex;
+      if (totalPositional < minArgs) {
         const token = expr.callee.kind === "Identifier"
           ? expr.callee.name
           : { line: 0, column: 0, type: 0, value: "" } as Token;
-        this.errors.push(Errors.argumentCountMismatch(params.length, args.length, token));
+        this.errors.push(Errors.argumentCountMismatch(minArgs, totalPositional, token));
+      }
+    } else if (totalNamed === 0) {
+      // All positional: exact arity
+      if (params.length !== totalPositional) {
+        const token = expr.callee.kind === "Identifier"
+          ? expr.callee.name
+          : { line: 0, column: 0, type: 0, value: "" } as Token;
+        this.errors.push(Errors.argumentCountMismatch(params.length, totalPositional, token));
+      }
+    }
+    // With named args: positional must not exceed params length, and all named keys must be unique and exist
+
+    // Build param name → index mapping from original callee type (paramName preserved)
+    const paramNameToIndex = new Map<string, number>();
+    for (let i = 0; i < calleeType.params.length; i++) {
+      const pName = (calleeType.params[i] as any).paramName;
+      if (typeof pName === "string") {
+        paramNameToIndex.set(pName, i);
       }
     }
 
@@ -2418,10 +2445,24 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
 
-      // tipo esperado — separa rest param de normal, e dentro do rest
-      // separa spread (Array<T>) de valor individual (T)
       let expectedType: TypeNode | null = null;
-      if (hasRest && i >= restIndex) {
+      let expectedName: string | null = null;
+
+      if (arg.kind === "NamedArgument") {
+        // Lookup by name
+        const namedArg = arg as Extract<Expr, { kind: "NamedArgument" }>;
+        const paramIndex = paramNameToIndex.get(namedArg.key);
+        if (paramIndex === undefined) {
+          this.errors.push(Errors.unknownProperty(
+            `unknown parameter '${namedArg.key}'`,
+            namedArg.keyToken ?? { line: 0, column: 0, type: 0, value: "" } as Token
+          ));
+          this.checkExpression(namedArg.value);
+          continue;
+        }
+        expectedName = namedArg.key;
+        expectedType = params[paramIndex];
+      } else if (hasRest && i >= restIndex) {
         const restParamType = params[restIndex];
         if (arg.kind === "Spread") {
           expectedType = restParamType;
@@ -2472,8 +2513,9 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         this.contextualType = null;
 
         if (!this.areTypesCompatible(resolvedExpected, actualType)) {
+          const label = expectedName ? `'${expectedName}'` : `${i + 1}`;
           this.errors.push(Errors.typeMismatch(
-            `argument ${i + 1}: expected '${this.typeToString(resolvedExpected)}', ` +
+            `argument ${label}: expected '${this.typeToString(resolvedExpected)}', ` +
             `got '${this.typeToString(actualType)}'`,
             { line: 0, column: 0, type: 0, value: "" } as Token
           ));
@@ -2486,8 +2528,9 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       const actualType = this.checkExpression(arg);
       this.contextualType = null;
       if (!this.areTypesCompatible(resolvedExpected, actualType)) {
+        const label = expectedName ? `'${expectedName}'` : `${i + 1}`;
         this.errors.push(Errors.typeMismatch(
-          `argument ${i + 1}: expected '${this.typeToString(resolvedExpected)}', ` +
+          `argument ${label}: expected '${this.typeToString(resolvedExpected)}', ` +
           `got '${this.typeToString(actualType)}'`,
           { line: 0, column: 0, type: 0, value: "" } as Token
         ));
@@ -2592,7 +2635,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     }
     const paramTypes = method.params.map(p => {
       const pt = p.type ? this.substitute(p.type, mapping) : { kind: "PrimitiveType", name: "unknown" } as TypeNode;
-      return { ...pt, isRest: p.isRest || false } as TypeNode & { isRest?: boolean };
+      return { ...pt, paramName: p.name?.value as string, isRest: p.isRest || false } as TypeNode & { paramName?: string; isRest?: boolean };
     });
     const returnType = method.returnType
       ? this.substitute(method.returnType, mapping)
@@ -3033,6 +3076,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       kind: "FunctionType",
       params: paramTypes.map((pt, i) => ({
         ...pt,
+        paramName: expr.params[i]?.name?.value as string,
         isRest: expr.params[i]?.isRest || false
       })),
       returnType: finalReturn,

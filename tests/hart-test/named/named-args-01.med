@@ -1,0 +1,84 @@
+// ════════════════════════════════════════════════════════════════
+// named-args-01.med — Named Arguments (CallNamed)
+//
+// fn(a: 1, b: 2) — argumentos nomeados em chamadas de função
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// 1. Named arguments simples
+// ───────────────────────────────────────────────────────────────
+
+func greet(name: string, age: int): string {
+  return name
+}
+
+val g1: string = greet(name: "ana", age: 30)
+val g2: string = greet(age: 25, name: "bob")
+
+
+// ───────────────────────────────────────────────────────────────
+// 2. Named arguments com tipos genéricos
+// ───────────────────────────────────────────────────────────────
+
+func identity<T>(x: T): T {
+  return x
+}
+
+val id1: int = identity<int>(x: 42)
+val id2: string = identity<string>(x: "hello")
+
+
+// ───────────────────────────────────────────────────────────────
+// 3. Mixed positional + named (posicionais primeiro)
+// ───────────────────────────────────────────────────────────────
+
+func configure(host: string, port: int, debug: bool): string {
+  return host
+}
+
+val cfg = configure("localhost", port: 8080, debug: true)
+
+
+// ───────────────────────────────────────────────────────────────
+// 4. Named com struct types
+// ───────────────────────────────────────────────────────────────
+
+struct Point {
+  x: float
+  y: float
+}
+
+func createPoint(x: float, y: float): Point {
+  return Point { x: x, y: y }
+}
+
+val p = createPoint(x: 1.0, y: 2.0)
+
+
+// ───────────────────────────────────────────────────────────────
+// 5. ❌ Unknown parameter name
+// ───────────────────────────────────────────────────────────────
+
+// val bad = greet(name: "ana", unknown: 1)
+
+
+// ───────────────────────────────────────────────────────────────
+// 6. ❌ Type mismatch in named arg
+// ───────────────────────────────────────────────────────────────
+
+// val bad2 = greet(name: "ana", age: "not-a-number")
+
+
+// ───────────────────────────────────────────────────────────────
+// 7. Named with different param order
+// ───────────────────────────────────────────────────────────────
+
+func divide(dividend: float, divisor: float): float {
+  return dividend / divisor
+}
+
+val result: float = divide(divisor: 2.0, dividend: 10.0)
+
+
+println("named args tests passed")

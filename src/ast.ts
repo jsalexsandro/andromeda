@@ -26,6 +26,7 @@ export type Expr =
   | AwaitExpr
   | SpreadExpr
   | StructLiteralExpr
+  | NamedArgumentExpr
 
 export interface BinaryExpr {
   kind: "Binary"
@@ -329,6 +330,13 @@ export interface SpreadExpr {
   column?: number
 }
 
+export interface NamedArgumentExpr {
+  kind: "NamedArgument"
+  key: string
+  value: Expr
+  keyToken?: Token
+}
+
 export interface StructLiteralExpr {
   kind: "StructLiteral"
   structName: Token
@@ -417,7 +425,7 @@ export interface TupleTypeNode {
 // (T, U) => V — function type anônimo
 export interface FunctionTypeNode {
   kind: "FunctionType"
-  params: (TypeNode & { isRest?: boolean })[]
+  params: (TypeNode & { paramName?: string; isRest?: boolean })[]
   returnType: TypeNode
   typeParameters?: TypeParameterNode[]
 }

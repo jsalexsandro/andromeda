@@ -152,12 +152,13 @@ FASE 6.5 — CONTROL TYPES
 │
 ├── 10. Struct Constructors
 │      10.1 Parser de Constructor automático
-       Caso não exiga 'init' no struct significa que ele é 'auto-init' ou seja construtor automatico
+       Caso não exista 'init' no struct significa que ele é 'auto-init' ou seja construtor automatico
        struct User {  
         mut name: string
        }
 
        const u = User(name: 'James')
+       as propriedades só devem funcionar nomeadas
 
 │      10.2 Validar argumentos
 │      10.3 Inferir generic params
@@ -165,6 +166,13 @@ FASE 6.5 — CONTROL TYPES
 │             Box { value: 10 }
 │
 │      10.4 Constructors custom futuramente
+       Caso exista 'init' significa que é um construtor não automatico (customizado)
+       struct User {  
+         mut name: string
+         init(n: string){
+            self.name = n
+         }
+       }
 │
 ├── 11. Struct Equality
 │      11.1 Definir igualdade estrutural

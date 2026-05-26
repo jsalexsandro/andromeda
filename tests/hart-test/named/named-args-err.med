@@ -1,0 +1,85 @@
+// ════════════════════════════════════════════════════════════════
+// named-args-err.med — Named Arguments: expected errors
+//
+// Cada erro está documentado com seu código esperado.
+// ════════════════════════════════════════════════════════════════
+
+
+func greet(name: string, age: int): string {
+  return name
+}
+
+func many(a: int, b: string, c: float): string {
+  return b
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// ❌ ERRO 1: unknown parameter name
+// ════════════════════════════════════════════════════════════════
+// UNKNOWN_PROPERTY: 'unknown parameter 'xyz''
+
+// val err1 = greet(name: "ana", xyz: 1)
+
+
+// ───────────────────────────────────────────────────────────────
+// ❌ ERRO 2: type mismatch in named arg
+// ════════════════════════════════════════════════════════════════
+// TYPE_MISMATCH: argument 'age': expected 'int', got 'string'
+
+// val err2 = greet(name: "ana", age: "not-a-number")
+
+
+// ───────────────────────────────────────────────────────────────
+// ❌ ERRO 3: type mismatch in positional arg (still works)
+// ════════════════════════════════════════════════════════════════
+// TYPE_MISMATCH: argument 1: expected 'string', got 'int'
+
+// val err3 = greet(42, age: 30)
+
+
+// ───────────────────────────────────────────────────────────────
+// ❌ ERRO 4: type mismatch in named arg with generics
+// ════════════════════════════════════════════════════════════════
+// TYPE_MISMATCH: argument 'value': expected 'int', got 'string'
+
+func identity2<T>(value: T): T {
+  return value
+}
+
+// val err4 = identity2<int>(value: "should-be-int")
+
+
+// ───────────────────────────────────────────────────────────────
+// ❌ ERRO 5: named arg key with wrong type (same-type params swapped)
+// ════════════════════════════════════════════════════════════════
+// TYPE_MISMATCH: argument 'a': expected 'int', got 'string'
+
+// val err5 = many(a: "wrong", b: 42, c: 1.0)
+
+
+// ───────────────────────────────────────────────────────────────
+// ❌ ERRO 6: too few positional args + named
+// ════════════════════════════════════════════════════════════════
+// ARGUMENT_COUNT_MISMATCH (if we catch this)
+
+// val err6 = many(42, c: 1.0)
+
+
+// ───────────────────────────────────────────────────────────────
+// ❌ ERRO 7: all positional with wrong count
+// ════════════════════════════════════════════════════════════════
+// ARGUMENT_COUNT_MISMATCH
+
+// val err7 = greet("ana", 30, "extra")
+
+
+// ───────────────────────────────────────────────────────────────
+// ❌ ERRO 8: all named with wrong count
+// ════════════════════════════════════════════════════════════════
+// ARGUMENT_COUNT_MISMATCH
+
+// val err8 = many(a: 1, b: "x")
+
+
+println("named args error tests framework")

@@ -821,9 +821,23 @@ export class Parser {
           args.push({ kind: "Spread", argument: arg, line: spreadToken?.line, column: spreadToken?.column });
         }
       } else {
-        const arg = this.parseExpression(Precedence.LOWEST);
-        if (arg) {
-          args.push(arg);
+        const keyToken = this.peek();
+        const isNamedArg = keyToken &&
+          this.canBeNamedArgKey(keyToken.type) &&
+          this.current + 1 < this.tokens.length &&
+          this.tokens[this.current + 1]?.type === TokenType.COLON;
+        if (isNamedArg) {
+          this.advance(); // consume key
+          this.advance(); // consume ':'
+          const value = this.parseExpression(Precedence.LOWEST);
+          if (value) {
+            args.push({ kind: "NamedArgument", key: keyToken.value as string, value, keyToken });
+          }
+        } else {
+          const arg = this.parseExpression(Precedence.LOWEST);
+          if (arg) {
+            args.push(arg);
+          }
         }
       }
 
@@ -2801,6 +2815,12 @@ export class Parser {
   }
 
   // ── helper: skip até próximo field (mut ou nome) ou '}' ─────
+  private canBeNamedArgKey(type: TokenType): boolean {
+    return type === TokenType.IDENTIFIER ||
+      type === TokenType.KEYWORD ||
+      this.isTypeKeywordToken(type);
+  }
+
   private isTypeKeywordToken(type: TokenType): boolean {
     return type === TokenType.INT_TYPE ||
       type === TokenType.FLOAT_TYPE ||

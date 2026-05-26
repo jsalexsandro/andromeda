@@ -1,0 +1,124 @@
+// ════════════════════════════════════════════════════════════════
+// named-args-03.med — Named Arguments: edge cases, partial named,
+//                     generic methods, long params, all same type
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// 1. Partial named (some positional, some named)
+// ───────────────────────────────────────────────────────────────
+
+func three(a: int, b: string, c: float): string {
+  return b
+}
+
+val p1 = three(1, b: "named", c: 3.0)
+val p2 = three(1, "two", c: 3.0)
+
+// ───────────────────────────────────────────────────────────────
+// 2. Named args with struct method
+// ───────────────────────────────────────────────────────────────
+
+struct Calculator {
+  value: int
+
+  func add(x: int): int {
+    return self.value + x
+  }
+}
+
+val calc = Calculator { value: 10 }
+val added: int = calc.add(x: 5)
+
+// ───────────────────────────────────────────────────────────────
+// 3. Many params (all named)
+// ───────────────────────────────────────────────────────────────
+
+func manyParams(a: int, b: int, c: int, d: int, e: int): int {
+  return a + b + c + d + e
+}
+
+val sum: int = manyParams(a: 1, b: 2, c: 3, d: 4, e: 5)
+
+// ───────────────────────────────────────────────────────────────
+// 4. Single named arg with multi-param function
+// ───────────────────────────────────────────────────────────────
+
+func defaults(host: string, port: int): string {
+  return host
+}
+
+val single = defaults(host: "main")
+
+// ───────────────────────────────────────────────────────────────
+// 5. All same type — verify order independence
+// ───────────────────────────────────────────────────────────────
+
+func sum3(a: int, b: int, c: int): int {
+  return a + b + c
+}
+
+val s1 = sum3(a: 1, b: 2, c: 3)
+val s2 = sum3(c: 3, a: 1, b: 2)
+val s3 = sum3(b: 2, c: 3, a: 1)
+
+// ───────────────────────────────────────────────────────────────
+// 6. Named with boolean params
+// ───────────────────────────────────────────────────────────────
+
+func toggle(active: bool, verbose: bool): bool {
+  return active
+}
+
+val t1: bool = toggle(active: true, verbose: false)
+val t2: bool = toggle(verbose: true, active: false)
+
+// ───────────────────────────────────────────────────────────────
+// 7. Named with generic function
+// ───────────────────────────────────────────────────────────────
+
+func ident<T>(value: T): T {
+  return value
+}
+
+val g1: int = ident<int>(value: 42)
+val g2: string = ident<string>(value: "named-generic")
+
+// ───────────────────────────────────────────────────────────────
+// 8. Named with struct field of same name
+// ───────────────────────────────────────────────────────────────
+
+struct Point {
+  x: float
+  y: float
+}
+
+func createPoint(x: float, y: float): Point {
+  return Point { x: x, y: y }
+}
+
+val pt = createPoint(x: 5.0, y: 10.0)
+
+// ───────────────────────────────────────────────────────────────
+// 9. Inline computation in named arg
+// ───────────────────────────────────────────────────────────────
+
+func compute(base: int, multiplier: int): int {
+  return base * multiplier
+}
+
+val res: int = compute(base: 5 + 5, multiplier: 3 * 2)
+
+// ───────────────────────────────────────────────────────────────
+// 10. Named args with string params
+// ───────────────────────────────────────────────────────────────
+
+func concat(a: string, b: string): string {
+  return a + b
+}
+
+val str: string = concat(a: "hello ", b: "world")
+val str2: string = concat(b: "world", a: "hello ")
+
+
+println("named args edge cases passed")
