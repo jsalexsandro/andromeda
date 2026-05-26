@@ -1,0 +1,460 @@
+// ════════════════════════════════════════════════════════════════
+// struct-12.med — Advanced Nominality / Semantic Hell Tests
+//
+// Se isso passar corretamente:
+// - sua nominalidade está MUITO sólida
+// - seu type resolver provavelmente está saudável
+// - seu generic substitution está consistente
+//
+// Aqui começa a zona que quebra compiladores reais.
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// 1. TRANSITIVE ALIASING
+// ───────────────────────────────────────────────────────────────
+
+struct UserId {
+  value: int
+}
+
+typealias UID = UserId
+typealias AccountId = UID
+typealias PrimaryKey = AccountId
+
+val a: UID = UserId { value: 1 }
+val b: AccountId = a
+val c: PrimaryKey = b
+val d: UserId = c
+
+// tudo deve ser o MESMO tipo
+
+
+// ───────────────────────────────────────────────────────────────
+// 2. ALIAS NÃO PODE VIRAR NOMINAL TYPE
+// ───────────────────────────────────────────────────────────────
+
+struct SessionId {
+  value: int
+}
+
+typealias SessionAlias = SessionId
+
+val s = SessionId { value: 1 }
+
+// ❌ NÃO pode criar identidade nova
+// val fail1: SessionAlias = UserId { value: 1 }
+
+
+// ───────────────────────────────────────────────────────────────
+// 3. GENERIC TYPE EQUALITY
+// ───────────────────────────────────────────────────────────────
+
+struct Box<T> {
+  value: T
+}
+
+typealias IntBox = Box<int>
+
+val b1 = Box<int> { value: 10 }
+val b2 = IntBox { value: 20 }
+
+val ok1: Box<int> = b2
+val ok2: IntBox = b1
+
+// ❌
+// val fail2: Box<string> = b1
+
+
+// ───────────────────────────────────────────────────────────────
+// 4. GENERIC PARAMETER ORDER MATTERS
+// ───────────────────────────────────────────────────────────────
+
+struct Pair<A, B> {
+  first: A
+  second: B
+}
+
+val p1 = Pair<int, string> {
+  first: 1,
+  second: "x"
+}
+
+val p2 = Pair<string, int> {
+  first: "x",
+  second: 1
+}
+
+// ❌ tipos diferentes
+// val fail3: Pair<int, string> = p2
+
+
+// ───────────────────────────────────────────────────────────────
+// 5. NESTED GENERIC SUBSTITUTION
+// ───────────────────────────────────────────────────────────────
+
+val nested1 = Box<Pair<int, string>> {
+  value: Pair<int, string> {
+    first: 1,
+    second: "a"
+  }
+}
+
+val nested2 = Box<Pair<string, int>> {
+  value: Pair<string, int> {
+    first: "a",
+    second: 1
+  }
+}
+
+// ❌
+// val fail4: Box<Pair<int, string>> = nested2
+
+
+// ───────────────────────────────────────────────────────────────
+// 6. SAME FIELD NAMES ≠ SAME TYPE
+// ───────────────────────────────────────────────────────────────
+
+struct RGB {
+  r: int
+  g: int
+  b: int
+}
+
+struct Color {
+  r: int
+  g: int
+  b: int
+}
+
+val rgb = RGB { r: 1, g: 2, b: 3 }
+
+// ❌ STRUCTURAL TYPING DETECTOR
+// val fail5: Color = rgb
+
+
+// ───────────────────────────────────────────────────────────────
+// 7. EMPTY STRUCT NOMINALITY
+// ───────────────────────────────────────────────────────────────
+
+struct A {}
+struct B {}
+
+val aa = A {}
+val bb = B {}
+
+// ❌ mesmo vazios, tipos diferentes
+// val fail6: A = bb
+
+
+// ───────────────────────────────────────────────────────────────
+// 8. FUNCTION RETURN TYPE EXACTNESS
+// ───────────────────────────────────────────────────────────────
+
+struct Cat {
+  name: string
+}
+
+struct Dog {
+  name: string
+}
+
+func makeCat(): Cat {
+  return Cat { name: "mia" }
+}
+
+val cat = makeCat()
+
+// ❌
+// val fail7: Dog = cat
+
+
+// ───────────────────────────────────────────────────────────────
+// 9. METHOD RETURN TYPE EXACTNESS
+// ───────────────────────────────────────────────────────────────
+
+struct Factory {
+  func create(): Box<int> {
+    return Box<int> { value: 1 }
+  }
+}
+
+val f = Factory {}
+val created = f.create()
+
+// ❌
+// val fail8: Box<string> = created
+
+
+// ───────────────────────────────────────────────────────────────
+// 10. SELF TYPE LOCK
+// ───────────────────────────────────────────────────────────────
+
+struct Counter {
+  mut value: int
+
+  mut func inc(): void {
+    self.value = self.value + 1
+  }
+}
+
+struct FakeCounter {
+  mut value: int
+
+  mut func inc(): void {
+    self.value = self.value + 999
+  }
+}
+
+val real = Counter { value: 0 }
+val fake = FakeCounter { value: 0 }
+
+// ❌ receiver mismatch
+// real.inc(fake)
+
+
+// ───────────────────────────────────────────────────────────────
+// 11. METHOD OVERLOAD COLLISION TEST
+// ───────────────────────────────────────────────────────────────
+
+struct Math {
+  func add(x: int): int {
+    return x
+  }
+
+  // decidir:
+  // permitido ou DUPLICATE?
+  //
+  // func add(x: string): string {
+  //   return x
+  // }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 12. METHOD GENERIC SHADOWING
+// ───────────────────────────────────────────────────────────────
+
+struct Wrapper<T> {
+  value: T
+
+  func cast<T>(x: T): T {
+    return x
+  }
+}
+
+val wrap = Wrapper<int> { value: 1 }
+
+val ok3: bool = wrap.cast<bool>(true)
+val ok4: string = wrap.cast<string>("ok")
+
+
+// ───────────────────────────────────────────────────────────────
+// 13. RECURSIVE GENERICS
+// ───────────────────────────────────────────────────────────────
+
+struct Tree<T> {
+  value: T
+  left: Tree<T>?
+  right: Tree<T>?
+}
+
+val tree = Tree<int> {
+  value: 1,
+  left: null,
+  right: null
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 14. DISTINCT GENERIC CHAINS
+// ───────────────────────────────────────────────────────────────
+
+typealias IntTree = Tree<int>
+
+val t1: Tree<int> = tree
+val t2: IntTree = tree
+
+// ❌
+// val fail9: Tree<string> = tree
+
+
+// ───────────────────────────────────────────────────────────────
+// 15. NOMINALITY THROUGH FIELDS
+// ───────────────────────────────────────────────────────────────
+
+struct Email {
+  value: string
+}
+
+struct Password {
+  value: string
+}
+
+struct LoginRequest {
+  email: Email
+  password: Password
+}
+
+val req = LoginRequest {
+  email: Email { value: "a@b.com" },
+  password: Password { value: "123" }
+}
+
+// ❌ campo nominal incompatível
+//
+// val bad = LoginRequest {
+//   email: Password { value: "123" },
+//   password: Email { value: "x@y.com" }
+// }
+
+
+// ───────────────────────────────────────────────────────────────
+// 16. GENERIC ARGUMENT POSITION MATTERS
+// ───────────────────────────────────────────────────────────────
+
+struct Result<T, E> {
+  value: T
+  error: E
+}
+
+val r1 = Result<int, string> {
+  value: 1,
+  error: "none"
+}
+
+val r2 = Result<string, int> {
+  value: "x",
+  error: 0
+}
+
+// ❌
+// val fail10: Result<int, string> = r2
+
+
+// ───────────────────────────────────────────────────────────────
+// 17. CHAINED METHOD TYPES
+// ───────────────────────────────────────────────────────────────
+
+struct Vec2 {
+  x: float
+  y: float
+
+  func normalize(): Vec2 {
+    return self
+  }
+
+  func stringify(): string {
+    return "vec2"
+  }
+}
+
+val str: string =
+  Vec2 { x: 1.0, y: 2.0 }
+    .normalize()
+    .stringify()
+
+
+// ───────────────────────────────────────────────────────────────
+// 18. INVALID METHOD CHAIN
+// ───────────────────────────────────────────────────────────────
+
+// ❌ stringify retorna string
+//
+// Vec2 { x: 1.0, y: 2.0 }
+//   .stringify()
+//   .normalize()
+
+
+// ───────────────────────────────────────────────────────────────
+// 19. DISTINCT TYPE CONSTRUCTORS
+// ───────────────────────────────────────────────────────────────
+
+struct Username {
+  value: string
+}
+
+struct EmailAddress {
+  value: string
+}
+
+// ❌
+// val fail11: Username = EmailAddress { value: "a@b.com" }
+
+
+// ───────────────────────────────────────────────────────────────
+// 19b. DISTINCT TYPE CONSTRUCTORS (reminder: Email/Password defined above in §15)
+// ───────────────────────────────────────────────────────────────
+
+// Email e Password já foram definidos na seção 15.
+// Username e EmailAddress são outros exemplos do mesmo princípio.
+
+
+// ───────────────────────────────────────────────────────────────
+// 20. GENERIC FUNCTION TYPE EXACTNESS
+// ───────────────────────────────────────────────────────────────
+
+func identity<T>(x: T): T {
+  return x
+}
+
+val id1: int = identity<int>(1)
+val id2: string = identity<string>("ok")
+
+// ❌
+// val fail12: int = identity<string>("x")
+
+
+// ───────────────────────────────────────────────────────────────
+// 21. CROSS STRUCT METHOD RETURNS
+// ───────────────────────────────────────────────────────────────
+
+struct Fahrenheit {
+  value: float
+}
+
+struct Celsius {
+  value: float
+
+  func toFahrenheit(): Fahrenheit {
+    return Fahrenheit {
+      value: (self.value * 1.8) + 32.0
+    }
+  }
+}
+
+val celsius = Celsius { value: 0.0 }
+val fahr = celsius.toFahrenheit()
+
+// ❌
+// val fail13: Celsius = fahr
+
+
+// ───────────────────────────────────────────────────────────────
+// 22. TYPE PARAM COUNT MATTERS
+// ───────────────────────────────────────────────────────────────
+
+// ❌ parser/type resolver
+//
+// Pair<int>
+// Pair<int, string, bool>
+
+
+// ───────────────────────────────────────────────────────────────
+// 23. SELF REFERENCE TYPE EXACTNESS
+// ───────────────────────────────────────────────────────────────
+
+struct Builder {
+  func chain(): Builder {
+    return self
+  }
+}
+
+val builder =
+  Builder {}
+    .chain()
+    .chain()
+    .chain()
+
+
+println("advanced nominality tests passed")

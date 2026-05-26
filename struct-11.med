@@ -1,0 +1,341 @@
+// ════════════════════════════════════════════════════════════════
+// struct-11.med — Type Identity / Nominality Stress Tests
+//
+// Objetivo:
+// testar:
+// - nominalidade
+// - aliases
+// - generics
+// - nested structs
+// - method receiver typing
+// - assignment compatibility
+// - equality of instantiated generics
+// - shadowing de nomes
+// - recursive references
+//
+// Esses testes devem QUEBRAR se a linguagem cair em structural typing.
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// 1. NOMINALITY BASICS
+// ───────────────────────────────────────────────────────────────
+
+struct UserId {
+  value: int
+}
+
+struct ProductId {
+  value: int
+}
+
+val u = UserId { value: 10 }
+val p = ProductId { value: 10 }
+
+// ❌ ERRO:
+// Mesmo shape, structs diferentes
+// val fail1: UserId = p
+
+// ❌ ERRO:
+// val fail2: ProductId = u
+
+
+// ───────────────────────────────────────────────────────────────
+// 2. TYPEALIAS NÃO CRIA NOVO TIPO
+// ───────────────────────────────────────────────────────────────
+
+typealias UID = UserId
+
+val uid: UID = UserId { value: 99 }
+
+// ✅ OK
+val uid2: UserId = uid
+
+// ✅ OK
+val uid3: UID = u
+
+
+// ───────────────────────────────────────────────────────────────
+// 3. GENERIC NOMINALITY
+// ───────────────────────────────────────────────────────────────
+
+struct Box<T> {
+  value: T
+}
+
+val bi = Box<int> { value: 1 }
+val bs = Box<string> { value: "a" }
+
+// ❌ ERRO:
+// Instanciações genéricas diferentes
+// val fail3: Box<int> = bs
+
+// ❌ ERRO:
+// val fail4: Box<string> = bi
+
+
+// ───────────────────────────────────────────────────────────────
+// 4. NOMINALITY ENTRE STRUCTS GENÉRICAS DIFERENTES
+// ───────────────────────────────────────────────────────────────
+
+struct Wrapper<T> {
+  value: T
+}
+
+// ❌ ERRO:
+// Mesmo shape interno NÃO importa
+// val fail5: Wrapper<int> = bi
+
+// ❌ ERRO:
+// val fail6: Box<int> = Wrapper<int> { value: 1 }
+
+
+// ───────────────────────────────────────────────────────────────
+// 5. NESTED GENERICS
+// ───────────────────────────────────────────────────────────────
+
+val nested1 = Box<Box<int>> {
+  value: Box<int> { value: 1 }
+}
+
+val nested2 = Box<Box<string>> {
+  value: Box<string> { value: "x" }
+}
+
+// ❌ ERRO:
+// val fail7: Box<Box<int>> = nested2
+
+
+// ───────────────────────────────────────────────────────────────
+// 6. METHOD RECEIVER TYPE CHECKING
+// ───────────────────────────────────────────────────────────────
+
+struct Counter {
+  mut value: int
+
+  mut func increment(): void {
+    self.value = self.value + 1
+  }
+}
+
+struct FakeCounter {
+  mut value: int
+
+  mut func increment(): void {
+    self.value = self.value + 999
+  }
+}
+
+val c = Counter { value: 0 }
+val f = FakeCounter { value: 0 }
+
+// ❌ ERRO:
+// Mesmo methods + fields ≠ mesmo tipo
+// val fail8: Counter = f
+
+
+// ───────────────────────────────────────────────────────────────
+// 7. GENERIC METHOD RETURN NOMINALITY
+// ───────────────────────────────────────────────────────────────
+
+struct Pair<A, B> {
+  first: A
+  second: B
+
+  func swap(): Pair<B, A> {
+    return Pair<B, A> {
+      first: self.second,
+      second: self.first
+    }
+  }
+}
+
+val pair = Pair<int, string> {
+  first: 1,
+  second: "x"
+}
+
+val swapped = pair.swap()
+
+// ✅ OK
+val ok1: Pair<string, int> = swapped
+
+// ❌ ERRO:
+// val fail9: Pair<int, string> = swapped
+
+
+// ───────────────────────────────────────────────────────────────
+// 8. TYPEALIAS EM GENERICS
+// ───────────────────────────────────────────────────────────────
+
+typealias IntBox = Box<int>
+
+val ib = IntBox { value: 7 }
+
+// ✅ OK
+val ok2: Box<int> = ib
+
+// ✅ OK
+val ok3: IntBox = bi
+
+// ❌ ERRO:
+// val fail10: Box<string> = ib
+
+
+// ───────────────────────────────────────────────────────────────
+// 9. FIELD TYPE NOMINALITY
+// ───────────────────────────────────────────────────────────────
+
+struct User {
+  id: UserId
+}
+
+struct Product {
+  id: ProductId
+}
+
+val user = User {
+  id: UserId { value: 1 }
+}
+
+val product = Product {
+  id: ProductId { value: 1 }
+}
+
+// ❌ ERRO:
+// val fail11: User = product
+
+
+// ───────────────────────────────────────────────────────────────
+// 10. SHADOW TYPE PARAMETERS
+// ───────────────────────────────────────────────────────────────
+
+struct Result<T> {
+  value: T
+
+  func map<T>(x: T): T {
+    return x
+  }
+}
+
+val r = Result<int> { value: 10 }
+
+// Aqui o T do método NÃO é o T da struct
+val mapped: string = r.map<string>("ok")
+
+
+// ───────────────────────────────────────────────────────────────
+// 11. RECURSIVE TYPE REFERENCES
+// ───────────────────────────────────────────────────────────────
+
+struct Node {
+  value: int
+  next: Node?
+}
+
+// Se tiver optional futuramente:
+// testar recursion sem infinite size
+
+
+// ───────────────────────────────────────────────────────────────
+// 12. SELF TYPE CONSISTENCY
+// ───────────────────────────────────────────────────────────────
+
+struct Vec2 {
+  x: float
+  y: float
+
+  func add(other: Vec2): Vec2 {
+    return Vec2 {
+      x: self.x + other.x,
+      y: self.y + other.y
+    }
+  }
+}
+
+struct Vec3 {
+  x: float
+  y: float
+}
+
+val v2 = Vec2 { x: 1.0, y: 2.0 }
+val v3 = Vec3 { x: 1.0, y: 2.0 }
+
+// ❌ ERRO:
+// Mesmo shape ≠ mesmo tipo
+// val fail12: Vec2 = v3
+
+// ❌ ERRO:
+// v2.add(v3)
+
+
+// ───────────────────────────────────────────────────────────────
+// 13. NOMINALITY EM ARRAYS (FUTURO)
+// ───────────────────────────────────────────────────────────────
+
+// val arr1: [UserId] = [UserId { value: 1 }]
+// val arr2: [ProductId] = arr1 // ❌
+
+
+// ───────────────────────────────────────────────────────────────
+// 14. DISTINCT TYPE CONSTRUCTORS
+// ───────────────────────────────────────────────────────────────
+
+struct Email {
+  value: string
+}
+
+struct Password {
+  value: string
+}
+
+// ❌ ERRO:
+// val fail13: Email = Password { value: "123" }
+
+// ❌ ERRO:
+// val fail14: Password = Email { value: "abc" }
+
+
+// ───────────────────────────────────────────────────────────────
+// 15. DEEP GENERIC EQUALITY
+// ───────────────────────────────────────────────────────────────
+
+typealias IntPair = Pair<int, int>
+
+val pair1 = Pair<int, int> {
+  first: 1,
+  second: 2
+}
+
+val pair2: IntPair = pair1
+
+// ✅ OK
+
+
+// ───────────────────────────────────────────────────────────────
+// 16. METHOD RETURN EXACT TYPE
+// ───────────────────────────────────────────────────────────────
+
+struct Animal {
+  name: string
+}
+
+struct Dog {
+  name: string
+}
+
+struct Shelter {
+  func adopt(): Animal {
+    return Animal { name: "a" }
+  }
+}
+
+val s = Shelter {}
+val adopted = s.adopt()
+
+// ❌ ERRO:
+// val fail15: Dog = adopted
+
+
+println("nominality tests passed")
+

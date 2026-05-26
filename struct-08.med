@@ -29,7 +29,9 @@ val w1: int = Wrapper<Box<int>> { inner: Box<int> { value: 7 } }.inner.value
 typealias IntBox = Box<int>
 typealias StrPair = Pair<string, bool>
 
-val i: IntBox = Box<int> { value: 99 }.value
+val i: int = Box<int> { value: 99 }.value            // .value on Box<int> returns int
+val alias_val: IntBox = IntBox { value: 42 }         // alias in struct literal
+val alias_access: int = IntBox { value: 77 }.value   // alias + member access → int
 val sp: bool = Pair<string, bool> { first: "a", second: true }.second
 
 // ── Structs nao-genericas continuam funcionando ─────────────
@@ -38,5 +40,3 @@ struct Point {
   mut y: float
 }
 val px: float = Point { x: 1.5, y: 2.5 }.x
-
-println("All struct generic tests pass!")

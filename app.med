@@ -5,3 +5,25 @@ struct Window {
 }
 val cfg: Config = Config { int: "x", unknown: "y" }
 
+struct Window {
+    mut width: int
+    mut height: int
+    
+    func init(w: int, h: int){ // construtor não especifico
+        self.width = w
+        self.height = h
+    }
+    
+}
+
+const w = Window(1, 2)
+
+struct Window2 {
+    mut width: int
+    mut height: int
+
+    // to dizendo ei o init é aumatico
+    auto init
+}
+
+const w2 = Window(width: 10, height: 20)

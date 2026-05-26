@@ -461,7 +461,8 @@ export interface StructStmt {
   name: Token
   typeParameters?: TypeParameterNode[]
   fields: StructField[]
-  protocols?: Token[]     // implements Printable, Comparable
+  methods?: StructMethod[]     // 7.1 — struct methods
+  protocols?: Token[]          // implements Printable, Comparable
 }
 
 export interface StructField {
@@ -469,6 +470,19 @@ export interface StructField {
   type: TypeNode
   mutable: boolean        // var vs val
   defaultValue?: Expr
+}
+
+// 7.1 — method inside a struct
+// func greet(): string { body }
+// mut func update(): void { body }
+export interface StructMethod {
+  kind: "StructMethod"
+  name: Token
+  params: FunctionStmtParam[]
+  returnType?: TypeNode
+  body: BlockStmt
+  mutable: boolean
+  typeParameters?: TypeParameterNode[]
 }
 
 // Fase 5 — enum

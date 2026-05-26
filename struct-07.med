@@ -114,9 +114,9 @@ val e_miss1 = Box<int> { }                                 // erro: missing fiel
 val e_extra1 = Box<int> { value: 5, extra: 1 }            // erro: unknown field 'extra'
 
 // ══════════════════════════════════════════════════════════════
-// ERRO 5: Struct generico sem type args
+// (OK) Inference: Box { value: 5 } infere T = int
 // ══════════════════════════════════════════════════════════════
-val e_noargs = Box { value: 5 }                            // erro: expects 1, got 0
+val e_noargs = Box { value: 5 }                            // inference: T = int
 
 // ══════════════════════════════════════════════════════════════
 // ERRO 6: Arg count errado no literal

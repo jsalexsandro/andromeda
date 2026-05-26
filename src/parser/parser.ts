@@ -1,6 +1,6 @@
 import { Token, TokenType } from "../lexer/types";
 import { ErrorHandler } from "./error";
-import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode, StructField, StructLiteralExpr } from "../ast";
+import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode, StructField, StructMethod, StructLiteralExpr } from "../ast";
 import { Precedence, getPrecedence } from "./precedence";
 
 type PrefixParselet = () => Expr | null;
@@ -2637,6 +2637,8 @@ export class Parser {
 
     const fields: StructField[] = [];
     const fieldNames = new Set<string>();
+    const methods: StructMethod[] = [];
+    const methodNames = new Set<string>();
 
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
       const next = this.peek();
@@ -2646,6 +2648,39 @@ export class Parser {
         this.advance();
         continue;
       }
+
+      // ── Struct method (7.1) ────────────────────────────
+      if (next.type === TokenType.KEYWORD && next.value === "func") {
+        const method = this.parseStructMethod(false);
+        if (methodNames.has(method.name.value as string)) {
+          this.error(`Duplicate method '${method.name.value}' in struct`, method.name);
+        } else {
+          methodNames.add(method.name.value as string);
+        }
+        methods.push(method);
+        continue;
+      }
+
+      // ── Mutable struct method (7.2) ─────────────────────
+      if (next.type === TokenType.KEYWORD && next.value === "mut") {
+        // Look ahead: is this `mut func` (method) or `mut fieldName` (field)?
+        if (this.current + 1 < this.tokens.length &&
+            this.tokens[this.current + 1].type === TokenType.KEYWORD &&
+            this.tokens[this.current + 1].value === "func") {
+          this.advance(); // consume 'mut'
+          const method = this.parseStructMethod(true);
+          if (methodNames.has(method.name.value as string)) {
+            this.error(`Duplicate method '${method.name.value}' in struct`, method.name);
+          } else {
+            methodNames.add(method.name.value as string);
+          }
+          methods.push(method);
+          continue;
+        }
+        // Otherwise fall through to field parsing (which also handles `mut`)
+      }
+
+      // ── Struct fields (existing) ─────────────────────────
 
       // Qualquer coisa que não seja field name → erro + skip
       if (next.type !== TokenType.IDENTIFIER &&
@@ -2713,7 +2748,56 @@ export class Parser {
       this.error("Expected '}' to close struct", this.peek());
     }
 
-    return { kind: "StructStmt", name: nameToken, fields, typeParameters };
+    return { kind: "StructStmt", name: nameToken, fields, methods, typeParameters };
+  }
+
+  // ── Struct method (7.1 / 7.2) ──────────────────────────
+  // func greet(): string { body }
+  // mut func update(): void { body }
+  private parseStructMethod(mutable: boolean): StructMethod {
+    this.advance(); // consume 'func' (caller already consumed 'mut' if present)
+
+    const nameToken = this.advance();
+    if (nameToken.type !== TokenType.IDENTIFIER) {
+      this.error("Expected method name after 'func'", nameToken);
+      return {
+        kind: "StructMethod",
+        name: nameToken,
+        params: [],
+        body: { kind: "BlockStmt", statements: [] },
+        mutable,
+      };
+    }
+
+    // Optional generic type parameters: func foo<T, U>()
+    let typeParameters: TypeParameterNode[] | undefined;
+    if (this.check(TokenType.LESS_THAN)) {
+      typeParameters = this.parseGenericTypeParameters();
+    }
+
+    if (!this.check(TokenType.LPAREN)) {
+      this.error("Expected '(' after method name", this.peek());
+    }
+    this.advance(); // consume '('
+    const params = this.parseFunctionParams();
+
+    // Optional return type
+    let returnType: TypeNode | undefined;
+    if (this.check(TokenType.COLON)) {
+      this.advance();
+      returnType = this.parseAnnotationType();
+    }
+
+    // Body
+    let body: any;
+    if (this.check(TokenType.LBRACE)) {
+      body = this.parseBlockStatement();
+    } else {
+      this.error("Expected '{' before method body", this.peek());
+      body = { kind: "BlockStmt", statements: [] };
+    }
+
+    return { kind: "StructMethod", name: nameToken, params, returnType, body, mutable, typeParameters };
   }
 
   // ── helper: skip até próximo field (mut ou nome) ou '}' ─────

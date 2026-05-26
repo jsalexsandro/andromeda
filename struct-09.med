@@ -1,0 +1,45 @@
+// ════════════════════════════════════════════════════════
+//  Struct Generics — Teste de Cobertura
+//  Bugs corrigidos: type alias, error messages, inference
+// ════════════════════════════════════════════════════════
+
+struct Box<T> { value: T }
+struct Pair<A, B> { first: A; second: B }
+struct Multi<T> { a: T; b: T }
+struct Empty<T> {}
+
+// ── Bug 1: Type alias em struct literal ──────────────
+typealias IntBox = Box<int>
+typealias StrPair = Pair<string, bool>
+
+val alias1: int  = IntBox { value: 10 }.value
+val alias2: bool = StrPair { first: "a", second: true }.second
+
+// ── Inference: tipos primitivos ──────────────────────
+val t1: int    = Box { value: 42 }.value
+val t2: string = Box { value: "olá" }.value
+val t3: bool   = Box { value: true }.value
+val t4: float  = Box { value: 3.14 }.value
+
+// ── Inference: dois type params ──────────────────────
+val t5: int    = Pair { first: 1, second: "x" }.first
+val t6: string = Pair { first: 1, second: "x" }.second
+
+// ── Inference: mesmo param em dois campos ────────────
+val t7: int = Multi { a: 10, b: 20 }.a
+val t8: int = Multi { a: 10, b: 20 }.b
+
+// ── Inference: acesso encadeado ──────────────────────
+val t9: int = Box { value: 7 }.value
+
+// ── Inference + type alias ───────────────────────────
+val t10: int = IntBox { value: 99 }.value
+
+// ── Erro esperado: UNKNOWN_PROPERTY (1 only, no cascade)
+val e1 = Box { value: 1, extra: 2 }
+
+// ── Erros esperados (comentados: inference falha) ────
+// val e2 = Empty {}        // GENERIC_ARG_COUNT
+// val e3 = Multi { a: 1, b: "x" }  // GENERIC_ARG_COUNT
+
+println("OK!")

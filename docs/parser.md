@@ -46,6 +46,8 @@ FASE 3 — EXPRESSÕES COMPOSTAS
         
         
 ├── 15. CallExpression          fn(a, b) 
+        CallNamed: 
+          fn(x: 1, y: 2)
 
 ├── 16. MemberExpression        obj.prop (falta o semantic)   - Requer OBJECTS
 ├── 17. IndexExpression         arr[0]  (falta o semantic) - Requer ARRAYS

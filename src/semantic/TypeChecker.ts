@@ -1,5 +1,5 @@
 import { Token, TokenType } from "../lexer/types";
-import { Stmt, Expr, TypeNode, GenericTypeNode, IfVariableStmt, StructLiteralExpr, StructField } from "../ast";
+import { Stmt, Expr, TypeNode, GenericTypeNode, FunctionTypeNode, IfVariableStmt, StructLiteralExpr, StructField, StructMethod } from "../ast";
 import { Symbol, createSymbol } from "./types";
 import { SemanticError, Errors } from "./errors";
 import { Environment } from "./Environment";
@@ -619,10 +619,152 @@ export class TypeChecker {
       }
     }
 
+    // ── 7.3–7.7 Processar struct methods ─────────────────
+    if (stmt.methods) {
+      // Guardar methods no symbol do struct
+      const structSymbol = prevEnv.lookupLocal(name);
+      if (structSymbol) {
+        structSymbol.methods = stmt.methods;
+      }
+
+      // Verificar corpos dos métodos
+      for (const method of stmt.methods) {
+        this.checkStructMethodBody(stmt, method);
+      }
+    }
+
     // Restaurar escopo
     if (stmt.typeParameters) {
       this.currentEnv = prevEnv;
     }
+  }
+
+  // ── 7.3–7.7 Check struct method body ──────────────────────
+  private checkStructMethodBody(structStmt: Extract<Stmt, { kind: "StructStmt" }>, method: StructMethod): void {
+    const methodName = method.name.value as string;
+
+    // Criar escopo da função com type params do struct
+    const fnEnv = new Environment(this.currentEnv, false);
+
+    // Registrar type params do struct no fnEnv
+    if (structStmt.typeParameters) {
+      const seen = new Set<string>();
+      for (const tp of structStmt.typeParameters) {
+        const tpName = tp.name.value as string;
+        if (!seen.has(tpName)) {
+          seen.add(tpName);
+          fnEnv.define(tpName, {
+            name: tpName,
+            type: { kind: "NamedType", name: tp.name } as TypeNode,
+            kind: "typeParam",
+            mutable: false,
+            initialized: true,
+            declarationToken: tp.name,
+            constraint: tp.constraint,
+          });
+        }
+      }
+    }
+
+    // Registrar type params do próprio método (7.5)
+    if (method.typeParameters) {
+      const seen = new Set<string>();
+      for (const tp of method.typeParameters) {
+        const tpName = tp.name.value as string;
+        if (seen.has(tpName)) {
+          this.errors.push(Errors.alreadyDeclared(tpName, tp.name));
+        } else {
+          seen.add(tpName);
+          fnEnv.define(tpName, {
+            name: tpName,
+            type: { kind: "NamedType", name: tp.name } as TypeNode,
+            kind: "typeParam",
+            mutable: false,
+            initialized: true,
+            declarationToken: tp.name,
+            constraint: tp.constraint,
+          });
+        }
+      }
+    }
+
+    // Reservar escopo da função
+    const prevEnv = this.currentEnv;
+    this.currentEnv = fnEnv;
+
+    // ── self (7.3) ────────────────────────────────────────────
+    const hasStructTypeParams = structStmt.typeParameters && structStmt.typeParameters.length > 0;
+    const selfType: TypeNode = hasStructTypeParams
+      ? {
+          kind: "GenericType",
+          name: structStmt.name,
+          args: structStmt.typeParameters!.map(tp => ({
+            kind: "NamedType",
+            name: tp.name,
+          }) as TypeNode),
+        }
+      : { kind: "NamedType", name: structStmt.name } as TypeNode;
+
+    fnEnv.define("self", {
+      name: "self",
+      type: selfType,
+      kind: "parameter",
+      mutable: method.mutable,   // 7.7: mut → self mutável
+      initialized: true,
+      declarationToken: method.name,
+    });
+
+    // Validar tipos dos params
+    const paramTypes: TypeNode[] = [];
+    for (const param of method.params) {
+      if (param.type) {
+        const err = this.validateTypeNode(param.type, param.name);
+        if (err) this.errors.push(err);
+        paramTypes.push(param.type);
+      } else {
+        paramTypes.push({ kind: "PrimitiveType", name: "unknown" });
+      }
+    }
+
+    // Validar return type (7.4)
+    if (method.returnType) {
+      const err = this.validateTypeNode(method.returnType, method.name);
+      if (err) this.errors.push(err);
+    }
+
+    const returnType = method.returnType || { kind: "PrimitiveType", name: "void" } as TypeNode;
+
+    // Registrar params no fnEnv
+    for (const param of method.params) {
+      const paramName = param.name.value as string;
+      const paramType = param.type || { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+      fnEnv.define(paramName, {
+        name: paramName,
+        type: paramType,
+        kind: "parameter",
+        mutable: false,
+        initialized: true,
+        declarationToken: param.name,
+      });
+    }
+
+    // Verificar corpo
+    this.functionDepth++;
+    this.currentFunctionReturnType = returnType;
+    this.hasReturn = false;
+    this.checkBlockStmt(method.body);
+
+    // Verificar return obrigatório
+    if (returnType.kind !== "PrimitiveType" || returnType.name !== "void") {
+      if (!this.hasReturn) {
+        this.errors.push(Errors.missingReturn(method.name));
+      }
+    }
+
+    // Restaurar escopo
+    this.currentEnv = prevEnv;
+    this.currentFunctionReturnType = null;
+    this.functionDepth--;
   }
 
   private checkAliasSelfReference(type: TypeNode, aliasName: string, token: Token): SemanticError | null {
@@ -1527,6 +1669,42 @@ export class TypeChecker {
     const propName = target.property.name.value as string;
     const propToken = target.property.name;
 
+    // Check if the object expression refers to a mutable self (mut method → write to any field)
+    let objectMutable = false;
+    if (target.object.kind === "Identifier") {
+      const objName = target.object.name.value as string;
+      const objSymbol = this.currentEnv.lookup(objName);
+      if (objSymbol) objectMutable = objSymbol.mutable;
+    }
+
+    const doAssign = (fieldType: TypeNode, fieldMutable: boolean) => {
+      if (operator) {
+        const op = operator.value as string;
+        if (['+=', '-=', '*=', '/=', '%='].includes(op)) {
+          if (!this.isNumericType(fieldType)) {
+            this.errors.push(Errors.typeMismatch(
+              `Cannot use '${op}' with non-numeric field '${propName}' of type '${this.typeToString(fieldType)}'`,
+              operator
+            ));
+            return;
+          }
+        }
+      }
+      if (!fieldMutable && !objectMutable) {
+        this.errors.push(Errors.cannotAssignToField(propName, propToken));
+        return;
+      }
+      this.contextualType = fieldType;
+      const valueType = this.inferType(value);
+      this.contextualType = null;
+      if (!this.areTypesCompatible(fieldType, valueType)) {
+        this.errors.push(Errors.typeMismatch(
+          `Cannot assign '${this.typeToString(valueType)}' to field '${propName}' of type '${this.typeToString(fieldType)}'`,
+          propToken
+        ));
+      }
+    };
+
     if (objectType.kind === "NamedType") {
       const typeName = objectType.name.value as string;
       const symbol = this.currentEnv.lookup(typeName);
@@ -1536,31 +1714,30 @@ export class TypeChecker {
           this.errors.push(Errors.unknownProperty(propName, propToken));
           return;
         }
-        if (operator) {
-          const op = operator.value as string;
-          if (['+=', '-=', '*=', '/=', '%='].includes(op)) {
-            if (!this.isNumericType(field.type)) {
-              this.errors.push(Errors.typeMismatch(
-                `Cannot use '${op}' with non-numeric field '${propName}' of type '${this.typeToString(field.type)}'`,
-                operator
-              ));
-              return;
-            }
-          }
-        }
-        if (!field.mutable) {
-          this.errors.push(Errors.cannotAssignToField(propName, propToken));
+        doAssign(field.type, field.mutable);
+        return;
+      }
+    }
+
+    if (objectType.kind === "GenericType") {
+      const typeName = objectType.name.value as string;
+      const symbol = this.currentEnv.lookup(typeName);
+      if (symbol?.kind === "struct" && symbol.fields) {
+        const field = symbol.fields.find(f => f.name.value === propName);
+        if (!field) {
+          this.errors.push(Errors.unknownProperty(propName, propToken));
           return;
         }
-        this.contextualType = field.type;
-        const valueType = this.inferType(value);
-        this.contextualType = null;
-        if (!this.areTypesCompatible(field.type, valueType)) {
-          this.errors.push(Errors.typeMismatch(
-            `Cannot assign '${this.typeToString(valueType)}' to field '${propName}' of type '${this.typeToString(field.type)}'`,
-            propToken
-          ));
+        let fieldType = field.type;
+        if (symbol.typeParameters && symbol.typeParameters.length > 0) {
+          const mapping = new Map<string, TypeNode>();
+          for (let i = 0; i < symbol.typeParameters.length; i++) {
+            const arg = objectType.args[i] ?? { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: symbol.typeParameters[i].name.value, line: 0, column: 0 } };
+            mapping.set(symbol.typeParameters[i].name.value as string, arg);
+          }
+          fieldType = this.substitute(field.type, mapping);
         }
+        doAssign(fieldType, field.mutable);
         return;
       }
     }
@@ -1619,14 +1796,49 @@ export class TypeChecker {
 
   private checkStructLiteralExpr(expr: StructLiteralExpr): TypeNode {
     const name = expr.structName.value as string;
-    const symbol = this.currentEnv.lookup(name);
+    let symbol = this.currentEnv.lookup(name);
 
     if (!symbol) {
       this.errors.push(Errors.undefinedType(name, expr.structName));
       return { kind: "PrimitiveType", name: "unknown" };
     }
 
-    if (symbol.kind !== "struct") {
+    // ── Resolve type aliases (e.g. IntBox = Box<int>) ─────
+    let resolvedTypeArgs: TypeNode[] | undefined;
+    let resolvedStructName: string | undefined;
+
+    if (symbol.kind === "type") {
+      const resolved = this.resolveAlias({ kind: "NamedType", name: expr.structName });
+      if (resolved.kind === "GenericType") {
+        const structName = resolved.name.value as string;
+        const structSymbol = this.currentEnv.lookup(structName);
+        if (!structSymbol || structSymbol.kind !== "struct") {
+          this.errors.push(Errors.typeMismatch(
+            `'${name}' does not resolve to a struct`, expr.structName
+          ));
+          return { kind: "PrimitiveType", name: "unknown" };
+        }
+        symbol = structSymbol;
+        resolvedStructName = structName;
+        resolvedTypeArgs = resolved.args;
+      } else if (resolved.kind === "NamedType") {
+        const structName = resolved.name.value as string;
+        const structSymbol = this.currentEnv.lookup(structName);
+        if (!structSymbol || structSymbol.kind !== "struct") {
+          this.errors.push(Errors.typeMismatch(
+            `'${name}' does not resolve to a struct`, expr.structName
+          ));
+          return { kind: "PrimitiveType", name: "unknown" };
+        }
+        symbol = structSymbol;
+        resolvedStructName = structName;
+      } else {
+        this.errors.push(Errors.typeMismatch(
+          `'${name}' is not a struct type`, expr.structName
+        ));
+        return { kind: "PrimitiveType", name: "unknown" };
+      }
+    } else if (symbol.kind !== "struct") {
       this.errors.push(Errors.typeMismatch(
         `'${name}' is not a struct type`,
         expr.structName
@@ -1640,12 +1852,19 @@ export class TypeChecker {
     // ── Generic struct: build substitution mapping ────────
     let fieldTypeMap: Map<string, TypeNode>;
     const typeParams = symbol.typeParameters;
+    let typeArgs: TypeNode[] | undefined = resolvedTypeArgs ?? expr.typeArgs;
 
     if (typeParams && typeParams.length > 0) {
-      const typeArgs = expr.typeArgs;
+      if (!typeArgs) {
+        // Try type inference from literal field values: Box { value: 42 } → T = int
+        const inferred = this.inferStructTypeArgs(typeParams, structFields, expr.fields);
+        if (inferred) {
+          typeArgs = inferred;
+        }
+      }
       if (!typeArgs || typeArgs.length !== typeParams.length) {
         this.errors.push(Errors.genericArgCount(
-          name, typeParams.length, typeArgs?.length ?? 0, expr.structName
+          resolvedStructName ?? name, typeParams.length, typeArgs?.length ?? 0, expr.structName, "struct"
         ));
         return { kind: "PrimitiveType", name: "unknown" };
       }
@@ -1665,7 +1884,7 @@ export class TypeChecker {
     } else {
       if (expr.typeArgs && expr.typeArgs.length > 0) {
         this.errors.push(Errors.typeMismatch(
-          `'${name}' is not a generic struct`,
+          `'${resolvedStructName ?? name}' is not a generic struct`,
           expr.structName
         ));
         return { kind: "PrimitiveType", name: "unknown" };
@@ -1709,21 +1928,143 @@ export class TypeChecker {
       const fieldName = f.name.value as string;
       if (!seenKeys.has(fieldName)) {
         this.errors.push(Errors.typeMismatch(
-          `missing required field '${fieldName}' in struct literal for '${name}'`,
+          `missing required field '${fieldName}' in struct literal for '${resolvedStructName ?? name}'`,
           expr.structName
         ));
       }
     }
 
     // If generic, return GenericType so member access can do substitution
-    if (typeParams && typeParams.length > 0 && expr.typeArgs && expr.typeArgs.length === typeParams.length) {
+    const returnName = resolvedStructName ?? name;
+    if (typeParams && typeParams.length > 0 && typeArgs && typeArgs.length === typeParams.length) {
       return {
         kind: "GenericType",
-        name: { type: TokenType.IDENTIFIER, value: name },
-        args: [...expr.typeArgs]
+        name: { type: TokenType.IDENTIFIER, value: returnName },
+        args: [...typeArgs]
       };
     }
     return symbol.type;
+  }
+
+  private inferStructTypeArgs(
+    typeParams: TypeParameterNode[],
+    structFields: StructField[],
+    literalFields: { key: string; value: Expr }[]
+  ): TypeNode[] | null {
+    if (literalFields.length === 0) return null;
+
+    const typeParamNames = new Set(typeParams.map(tp => tp.name.value as string));
+    const mapping = new Map<string, TypeNode>();
+
+    const fieldDeclaredTypes = new Map<string, TypeNode>();
+    for (const f of structFields) {
+      fieldDeclaredTypes.set(f.name.value as string, f.type);
+    }
+
+    // Suppress errors during inference — they'll be caught in normal validation
+    const savedErrorCount = this.errors.length;
+
+    const unify = (paramType: TypeNode, argType: TypeNode): boolean => {
+      if (paramType.kind === "GroupingType") return unify(paramType.type, argType);
+      if (argType.kind === "GroupingType") return unify(paramType, argType.type);
+
+      // T — type param direto
+      if (paramType.kind === "NamedType") {
+        const name = paramType.name.value as string;
+        if (typeParamNames.has(name)) {
+          const existing = mapping.get(name);
+          if (existing) {
+            // Já tem binding — verifica compatibilidade
+            return this.areTypesCompatible(existing, argType);
+          }
+          mapping.set(name, argType);
+        }
+        return true;
+      }
+
+      // T[] — ArrayType legacy
+      if (paramType.kind === "ArrayType") {
+        const elemArg = this.isArray(argType)
+          ? this.arrayElement(argType as GenericTypeNode)
+          : argType.kind === "ArrayType"
+            ? argType.elementType
+            : null;
+        if (elemArg) return unify(paramType.elementType, elemArg);
+        return true;
+      }
+
+      // Array<T> / Optional<T> etc — GenericType
+      if (paramType.kind === "GenericType") {
+        const paramName = paramType.name.value as string;
+
+        if (paramName === "Array" && paramType.args.length === 1) {
+          const elemArg = argType.kind === "ArrayType"
+            ? argType.elementType
+            : this.isArray(argType)
+              ? this.arrayElement(argType as GenericTypeNode)
+              : null;
+          if (elemArg) return unify(paramType.args[0], elemArg);
+        }
+
+        if (paramName === "Optional" && paramType.args.length === 1) {
+          const innerArg = argType.kind === "GenericType" && (argType.name.value as string) === "Optional" && argType.args.length === 1
+            ? argType.args[0]
+            : argType.kind === "NullableType"
+              ? argType.type
+              : argType.kind === "PrimitiveType" && argType.name === "null"
+                ? null
+                : argType;
+          if (innerArg) return unify(paramType.args[0], innerArg);
+          return true;
+        }
+
+        if (
+          argType.kind === "GenericType" &&
+          (argType.name.value as string) === paramName &&
+          argType.args.length === paramType.args.length
+        ) {
+          return paramType.args.every((pa, i) => unify(pa, argType.args[i]));
+        }
+        return true;
+      }
+
+      return true;
+    };
+
+    for (const field of literalFields) {
+      const declaredType = fieldDeclaredTypes.get(field.key);
+      if (!declaredType) continue;
+
+      const savedCtx = this.contextualType;
+      this.contextualType = null;
+      const valueType = this.checkExpression(field.value);
+      this.contextualType = savedCtx;
+
+      if (valueType.kind === "PrimitiveType" && valueType.name === "unknown") {
+        // Value has errors — can't infer from it
+        this.errors.length = savedErrorCount;
+        return null;
+      }
+
+      if (!unify(declaredType, valueType)) {
+        this.errors.length = savedErrorCount;
+        return null;
+      }
+    }
+
+    // Verify all type params have been resolved
+    const result: TypeNode[] = [];
+    for (const tp of typeParams) {
+      const type = mapping.get(tp.name.value as string);
+      if (!type) {
+        this.errors.length = savedErrorCount;
+        return null;
+      }
+      result.push(type);
+    }
+
+    this.errors.length = savedErrorCount;
+    return result;
   }
 
   private inferType(expr: Expr): TypeNode {
@@ -1950,7 +2291,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
             : { line: 0, column: 0, type: 0, value: "" } as Token;
           this.errors.push(Errors.genericArgCount(
             expr.callee.kind === "Identifier" ? (expr.callee.name.value as string) : "",
-            typeParams.length, typeArgs.length, token
+            typeParams.length, typeArgs.length, token, "function"
           ));
           // Fallback: unknown para todos os type params (evita cascade com raw T)
           const fallbackMapping = new Map<string, TypeNode>();
@@ -2042,7 +2383,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         : { line: 0, column: 0, type: 0, value: "" } as Token;
       this.errors.push(Errors.notGeneric(
         expr.callee.kind === "Identifier" ? (expr.callee.name.value as string) : "",
-        token
+        token, "function"
       ));
     }
 
@@ -2169,6 +2510,11 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         if (!symbol.fields) return { kind: "PrimitiveType", name: "unknown" };
         const field = symbol.fields.find(f => f.name.value === propName);
         if (field) return field.type;
+        // Try method resolution (7.3)
+        if (symbol.methods) {
+          const method = symbol.methods.find(m => m.name.value === propName);
+          if (method) return this.buildMethodType(method);
+        }
         this.errors.push(Errors.unknownProperty(propName, propToken));
         return { kind: "PrimitiveType", name: "unknown" };
       }
@@ -2185,20 +2531,34 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       if (symbol?.kind === "struct") {
         if (!symbol.fields) return { kind: "PrimitiveType", name: "any" };
         const field = symbol.fields.find(f => f.name.value === propName);
-        if (!field) {
-          this.errors.push(Errors.unknownProperty(propName, propToken));
-          return { kind: "PrimitiveType", name: "any" };
-        }
-        // Substitur type params pelos type args concretos
-        if (symbol.typeParameters && symbol.typeParameters.length > 0) {
-          const mapping = new Map<string, TypeNode>();
-          for (let i = 0; i < symbol.typeParameters.length; i++) {
-            const arg = objectType.args[i] ?? { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: symbol.typeParameters[i].name.value, line: 0, column: 0 } };
-            mapping.set(symbol.typeParameters[i].name.value as string, arg);
+        if (field) {
+          // Substitur type params pelos type args concretos
+          if (symbol.typeParameters && symbol.typeParameters.length > 0) {
+            const mapping = new Map<string, TypeNode>();
+            for (let i = 0; i < symbol.typeParameters.length; i++) {
+              const arg = objectType.args[i] ?? { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: symbol.typeParameters[i].name.value, line: 0, column: 0 } };
+              mapping.set(symbol.typeParameters[i].name.value as string, arg);
+            }
+            return this.substitute(field.type, mapping);
           }
-          return this.substitute(field.type, mapping);
+          return field.type;
         }
-        return field.type;
+        // Try method resolution with type arg substitution (7.5)
+        if (symbol.methods) {
+          const method = symbol.methods.find(m => m.name.value === propName);
+          if (method) {
+            const mapping = new Map<string, TypeNode>();
+            if (symbol.typeParameters) {
+              for (let i = 0; i < symbol.typeParameters.length; i++) {
+                const arg = objectType.args[i] ?? { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: symbol.typeParameters[i].name.value, line: 0, column: 0 } };
+                mapping.set(symbol.typeParameters[i].name.value as string, arg);
+              }
+            }
+            return this.buildMethodType(method, mapping);
+          }
+        }
+        this.errors.push(Errors.unknownProperty(propName, propToken));
+        return { kind: "PrimitiveType", name: "any" };
       }
       if (!symbol) {
         this.errors.push(Errors.undefinedType(typeName, propToken));
@@ -2219,6 +2579,30 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     }
 
     return { kind: "PrimitiveType", name: "any" };
+  }
+
+  private buildMethodType(method: StructMethod, typeArgMapping?: Map<string, TypeNode>): FunctionTypeNode {
+    // Proteger type params do método: se têm o mesmo nome que os do struct,
+    // o type param do método deve sombrear o do struct nas assinaturas.
+    const mapping = new Map(typeArgMapping ?? new Map());
+    if (method.typeParameters) {
+      for (const tp of method.typeParameters) {
+        mapping.delete(tp.name.value as string);
+      }
+    }
+    const paramTypes = method.params.map(p => {
+      const pt = p.type ? this.substitute(p.type, mapping) : { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+      return { ...pt, isRest: p.isRest || false } as TypeNode & { isRest?: boolean };
+    });
+    const returnType = method.returnType
+      ? this.substitute(method.returnType, mapping)
+      : { kind: "PrimitiveType", name: "void" } as TypeNode;
+    return {
+      kind: "FunctionType",
+      params: paramTypes,
+      returnType,
+      typeParameters: method.typeParameters,
+    };
   }
 
   private checkIndexExpr(expr: Extract<Expr, { kind: "Index" }>): TypeNode {

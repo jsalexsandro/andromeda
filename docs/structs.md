@@ -114,13 +114,16 @@ FASE 6.5 — CONTROL TYPES
 │
 ├── 7. Struct Methods
 │      7.1 Parser methods dentro do struct
-│
-│             func greet(): string {}
-│
-│      7.2 Resolver `self`
-│      7.3 Resolver tipos de retorno
-│      7.4 Resolver generics nos methods
-│      7.5 Detectar métodos duplicados
+│          func greet(): string {}
+       7.2 Mutable Funcs
+           mut func greet(): string {}
+           
+│      > Semantic
+│      7.3 Resolver `self`
+│      7.4 Resolver tipos de retorno
+│      7.5 Resolver generics nos methods
+│      7.6 Detectar métodos duplicados
+       7.7 informa para o compilador que tal função é mutável
 │
 ├── 8. Extension Methods
 │      8.1 Parser `extend`
@@ -148,7 +151,14 @@ FASE 6.5 — CONTROL TYPES
 │             int[] -> Array<int>
 │
 ├── 10. Struct Constructors
-│      10.1 Constructor automático
+│      10.1 Parser de Constructor automático
+       Caso não exiga 'init' no struct significa que ele é 'auto-init' ou seja construtor automatico
+       struct User {  
+        mut name: string
+       }
+
+       const u = User(name: 'James')
+
 │      10.2 Validar argumentos
 │      10.3 Inferir generic params
 │

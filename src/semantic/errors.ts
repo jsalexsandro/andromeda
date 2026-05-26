@@ -156,14 +156,14 @@ export const Errors = {
       "spread not allowed in fixed-size tuple",
       token, "typecheck"),
 
-  genericArgCount: (name: string, expected: number, got: number, token: Token) =>
+  genericArgCount: (name: string, expected: number, got: number, token: Token, kind: string = "type") =>
     createError("GENERIC_ARG_COUNT",
-      `Generic function '${name}' expects ${expected} type argument(s), got ${got}`,
+      `Generic ${kind} '${name}' expects ${expected} type argument(s), got ${got}`,
       token, "typecheck"),
 
-  notGeneric: (name: string, token: Token) =>
+  notGeneric: (name: string, token: Token, kind: string = "Function") =>
     createError("NOT_GENERIC",
-      `Function '${name}' is not generic`,
+      `${kind} '${name}' is not generic`,
       token, "typecheck"),
 
   genericInferenceFailed: (param: string, token: Token) =>
