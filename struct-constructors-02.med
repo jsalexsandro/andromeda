@@ -1,0 +1,26 @@
+// ════════════════════════════════════════════════════════════════
+// struct-constructors-02.med — Default values (10.3)
+// ════════════════════════════════════════════════════════════════
+
+struct Config {
+  mut host: string
+  mut port: int = 8080
+  mut timeout: int = 30
+}
+
+// Só o obrigatório
+const c1 = Config(host: "localhost")
+
+// Misturado
+const c2 = Config(host: "example.com", port: 3000)
+
+// Todos explícitos
+const c3 = Config(host: "test.io", port: 9000, timeout: 60)
+
+// Acesso
+val h1 = c1.host
+val p1 = c1.port
+val t1 = c1.timeout
+val h2 = c2.host
+
+println("defaults tests passed")

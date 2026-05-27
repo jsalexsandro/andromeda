@@ -1,0 +1,154 @@
+// =============================================
+// ANDROMEDA — Guia de Sintaxe de Structs
+// =============================================
+
+// ─── 1. DECLARAÇÃO BÁSICA ───────────────────
+// struct Nome { campo: tipo, ... }
+
+struct Vazio {}
+
+struct User {
+    name: string
+    age: int
+}
+
+// ─── 2. CAMPOS MUTÁVEIS ─────────────────────
+// mut na frente do campo
+
+struct Config {
+    mut name: string
+    mut count: int
+    label: string           // imutável (val)
+}
+
+// ─── 3. VALOR DEFAULT ───────────────────────
+// = no final do campo
+
+struct WithDefault {
+    name: string = "guest"
+    count: int = 0
+    active: bool = true
+}
+
+// ─── 4. TIPOS NOS CAMPOS ────────────────────
+// Todos os tipos funcionam
+
+struct AllTypes {
+    a: int
+    b: float
+    c: string
+    d: bool
+    e: int[]                  // array
+    f: string?                // nullable (Optional)
+    g: int | string           // union
+    h: [int, string]          // tuple
+}
+
+// ─── 5. TYPE ALIAS NOS CAMPOS ───────────────
+
+typealias UUID = string
+typealias Score = int | float
+
+struct Record {
+    id: UUID
+    score: Score
+    name: string
+}
+
+// ─── 6. TYPE KEYWORDS COMO NOME DE CAMPO ────
+
+struct Meta {
+    int: string
+    string: int
+    bool: float
+    unknown: string
+    any: int
+    void: bool
+}
+
+// ─── 7. STRUCT LITERAL ──────────────────────
+// Nome { campo: valor, ... }
+
+val vazio = Vazio {}
+
+val u = User {
+    name: "Alice",
+    age: 30
+}
+
+// ─── 8. ORDEM DIFERENTE (VÁLIDO) ────────────
+
+val reorder = User { age: 25, name: "Bob" }
+
+// ─── 9. EXPRESSÕES NOS VALORES ──────────────
+
+val expr = User {
+    name: "C" + "harlie",
+    age: 10 + 20
+}
+
+// ─── 10. SHORTHAND ──────────────────────────
+// Sem o ":" usa variável de mesmo nome
+
+val name = "Diana"
+val age = 35
+val s = User { name, age }
+
+// ─── 11. STRUCT LITERAL ANINHADO ────────────
+
+struct Point { x: float; y: float }
+struct Line { start: Point; end: Point }
+
+val line = Line {
+    start: Point { x: 0.0, y: 0.0 },
+    end: Point { x: 10.0, y: 10.0 }
+}
+
+// ─── 12. CAMPOS COM DEFAULT (EM BREVE) ─────
+// A sintaxe de declaração com = aceita default,
+// mas o type checker ainda exige todos os campos no literal.
+
+val w = WithDefault { name: "custom", count: 0, active: true }
+
+// ─── 13. ARRAYS E NULLABLE ─────────────────
+
+struct Item {
+    name: string
+    tags: string[]
+    metadata: string?
+}
+
+val item = Item {
+    name: "widget",
+    tags: ["a", "b", "c"],
+    metadata: null              // nullable aceita null
+}
+
+// ─── 14. INT → FLOAT WIDENING ──────────────
+
+val p = Point { x: 10, y: 20 }   // int vira float automaticamente
+
+// ─── 15. TYPE ALIAS NO LITERAL ─────────────
+
+val r = Record {
+    id: "abc-123",
+    score: 95,           // int | float
+    name: "test"
+}
+
+// ─── 16. ERROS COMUNS (NÃO COMPILA) ─────────
+
+// Campo obrigatório faltando:
+// val err1 = User { name: "X" }
+
+// Campo extra:
+// val err2 = User { name: "X", age: 1, extra: true }
+
+// Tipo incompatível:
+// val err3 = User { name: 123, age: "x" }
+
+// Campo duplicado:
+// val err4 = User { name: "A", name: "B", age: 1 }
+
+// Struct inexistente:
+// val err5 = NaoExiste { x: 1 }

@@ -1,6 +1,6 @@
 import { Token, TokenType } from "../lexer/types";
 import { ErrorHandler } from "./error";
-import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode, StructField, StructMethod, StructLiteralExpr } from "../ast";
+import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode, StructField, StructMethod, StructLiteralExpr, StructConstructor } from "../ast";
 import { Precedence, getPrecedence } from "./precedence";
 
 type PrefixParselet = () => Expr | null;
@@ -2653,6 +2653,7 @@ export class Parser {
     const fieldNames = new Set<string>();
     const methods: StructMethod[] = [];
     const methodNames = new Set<string>();
+    let stmtInit: StructConstructor | undefined;
 
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
       const next = this.peek();
@@ -2692,6 +2693,15 @@ export class Parser {
           continue;
         }
         // Otherwise fall through to field parsing (which also handles `mut`)
+      }
+
+      // ── Constructor init (10.0) ──────────────────────────
+      if (next.type === TokenType.KEYWORD && next.value === "init") {
+        if (stmtInit) {
+          this.error("Duplicate 'init' in struct", next);
+        }
+        stmtInit = this.parseStructConstructor();
+        continue;
       }
 
       // ── Struct fields (existing) ─────────────────────────
@@ -2762,7 +2772,7 @@ export class Parser {
       this.error("Expected '}' to close struct", this.peek());
     }
 
-    return { kind: "StructStmt", name: nameToken, fields, methods, typeParameters };
+    return { kind: "StructStmt", name: nameToken, fields, methods, typeParameters, init: stmtInit };
   }
 
   // ── Struct method (7.1 / 7.2) ──────────────────────────
@@ -2812,6 +2822,32 @@ export class Parser {
     }
 
     return { kind: "StructMethod", name: nameToken, params, returnType, body, mutable, typeParameters };
+  }
+
+  // ── Struct constructor (10.0) ────────────────────────────────
+  // init(raw: string) { self.value = raw.trim() }
+  private parseStructConstructor(): StructConstructor {
+    this.advance(); // consume 'init'
+
+    // Optional type parameters: init<T> (reservado para futuro)
+    let typeParameters: TypeParameterNode[] | undefined;
+
+    if (!this.check(TokenType.LPAREN)) {
+      this.error("Expected '(' after 'init'", this.peek());
+    }
+    this.advance(); // consume '('
+    const params = this.parseFunctionParams();
+
+    // Body
+    let body: any;
+    if (this.check(TokenType.LBRACE)) {
+      body = this.parseBlockStatement();
+    } else {
+      this.error("Expected '{' before init body", this.peek());
+      body = { kind: "BlockStmt", statements: [] };
+    }
+
+    return { kind: "StructConstructor", params, body, typeParameters };
   }
 
   // ── helper: skip até próximo field (mut ou nome) ou '}' ─────

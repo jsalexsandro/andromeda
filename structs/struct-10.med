@@ -1,0 +1,143 @@
+// ══════════════════════════════════════════════════════════════════
+// struct-10.med — Struct Methods (7.3 ~ 7.7)
+//
+// 7.3: self resolution
+// 7.4: return type checking
+// 7.5: generics on methods
+// 7.6: duplicate method detection
+// 7.7: mut method (self mutable)
+// ══════════════════════════════════════════════════════════════════
+
+// ── 7.3 + 7.4 + 7.7: self, return, mut ─────────────────────
+struct Box<T> {
+  value: T
+
+  // Read accessor (imutable self)
+  func get(): T {
+    return self.value
+  }
+
+  // Write accessor (mutable self — 7.7)
+  mut func set(newValue: T): void {
+    self.value = newValue
+  }
+
+  // Método sem self
+  func description(): string {
+    return "Box"
+  }
+
+  // Método void sem return explícito
+  mut func clear(x: T): void {
+    self.value = x
+  }
+}
+
+// ── Testes base ─────────────────────────────────────────────
+val b = Box<int> { value: 10 }
+val v1: int = b.get()          // → 10
+b.set(42)                       // mut → permite escrita
+val v2: int = b.get()          // → 42
+val desc: string = b.description()
+b.clear(99)
+
+// ── type alias + method ─────────────────────────────────────
+typealias IntBox = Box<int>
+val ib = IntBox { value: 7 }
+val iv: int = ib.get()
+
+// ── 7.5: Generic struct + generic method ────────────────────
+struct Pair<A, B> {
+  first: A
+  second: B
+
+  // Troca os tipos: Pair<A, B>.swap() → Pair<B, A>
+  func swap(): Pair<B, A> {
+    return Pair<B, A> { first: self.second, second: self.first }
+  }
+
+  // Método genérico com type param próprio
+  func map<C>(f: (A) => C): Pair<C, B> {
+    return Pair<C, B> { first: f(self.first), second: self.second }
+  }
+}
+
+val p = Pair<int, string> { first: 1, second: "x" }
+val sw: Pair<string, int> = p.swap()
+val sw_first: string = sw.first
+val sw_second: int = sw.second
+
+val mapped: Pair<bool, string> = p.map((n: int): bool => n > 0)
+
+// ── Struct sem genéricos + mut ──────────────────────────────
+struct Counter {
+  mut count: int
+
+  func read(): int {
+    return self.count
+  }
+
+  mut func increment(): void {
+    self.count = self.count + 1
+  }
+
+  mut func reset(): void {
+    self.count = 0
+  }
+
+  func isZero(): bool {
+    return self.count == 0
+  }
+}
+
+val c = Counter { count: 0 }
+val zero: bool = c.isZero()   // true
+c.increment()
+val one: int = c.read()       // 1
+c.reset()
+val zero2: bool = c.isZero()  // true
+
+// ── Struct com multiple methods + fields ────────────────────
+struct Rectangle {
+  width: float
+  height: float
+
+  func area(): float {
+    return self.width * self.height
+  }
+
+  func perimeter(): float {
+    return 2.0 * (self.width + self.height)
+  }
+
+  mut func scale(factor: float): void {
+    self.width = self.width * factor
+    self.height = self.height * factor
+  }
+}
+
+val r = Rectangle { width: 3.0, height: 4.0 }
+val a: float = r.area()        // 12.0
+val p2: float = r.perimeter()  // 14.0
+r.scale(2.0)
+val a2: float = r.area()       // 48.0
+
+// ── Method chaining simulada ────────────────────────────────
+val chain_test: int = Box<int> { value: 5 }.get()
+val nested: string = Pair<int, string> { first: 10, second: "a" }.swap().first
+
+// ── 7.6: Duplicate method (detectado no parser) ────────────
+struct Dup {
+  x: int
+  func foo(): int { return self.x }
+  // func foo(): int { return self.x }  // ← parser: DUPLICATE METHOD
+}
+
+// ── Retrocompatibilidade — struct sem methods ───────────────
+struct Point {
+  x: float
+  y: float
+}
+val pt = Point { x: 1.0, y: 2.0 }
+
+println("OK!")

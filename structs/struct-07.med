@@ -1,0 +1,136 @@
+// ============================================================
+// STRUCT GENERICS — Edge Cases & Member Access Stress Test
+// ============================================================
+
+// ── Structs base ────────────────────────────────────────────
+struct Box<T> { value: T }
+struct Pair<A, B> { first: A; second: B }
+struct Wrapper<T> { inner: T }
+struct Point { mut x: float; mut y: float }
+
+// ══════════════════════════════════════════════════════════════
+// TEST 1: Variavel com struct generico + member access
+// ══════════════════════════════════════════════════════════════
+val box1 = Box<int> { value: 42 }
+val t1a: int = box1.value              // deve passar
+
+val box2 = Box<string> { value: "hi" }
+val t1b: string = box2.value           // deve passar
+
+// ══════════════════════════════════════════════════════════════
+// TEST 2: Struct com 2 type params, member access em cada
+// ══════════════════════════════════════════════════════════════
+val pair1 = Pair<int, string> { first: 1, second: "a" }
+val t2a: int = pair1.first
+val t2b: string = pair1.second
+
+// ══════════════════════════════════════════════════════════════
+// TEST 3: Type alias de struct generico + member access
+// ══════════════════════════════════════════════════════════════
+typealias IntBox = Box<int>
+typealias StrPair = Pair<string, bool>
+
+val t3a: int = IntBox { value: 7 }.value
+val t3b: bool = StrPair { first: "x", second: true }.second
+
+// ══════════════════════════════════════════════════════════════
+// TEST 4: Struct generico sem campos (edge case)
+// ══════════════════════════════════════════════════════════════
+struct Empty<T> {}
+val e1 = Empty<int> {}
+
+// ══════════════════════════════════════════════════════════════
+// TEST 5: Multiplos campos com mesmo type param
+// ══════════════════════════════════════════════════════════════
+struct Multi<T> { a: T; b: T }
+val m1: int = Multi<int> { a: 1, b: 2 }.a
+val m2: int = Multi<int> { a: 1, b: 2 }.b
+val m3: string = Multi<string> { a: "x", b: "y" }.b
+
+// ══════════════════════════════════════════════════════════════
+// TEST 6: 3+ type params
+// ══════════════════════════════════════════════════════════════
+struct Triple<A, B, C> { a: A; b: B; c: C }
+val t6a: int = Triple<int, string, bool> { a: 1, b: "x", c: true }.a
+val t6b: string = Triple<int, string, bool> { a: 1, b: "x", c: true }.b
+val t6c: bool = Triple<int, string, bool> { a: 1, b: "x", c: true }.c
+
+// ══════════════════════════════════════════════════════════════
+// TEST 7: Nested generics — 2 niveis de member access
+// ══════════════════════════════════════════════════════════════
+struct Deep<A> { inner: A }
+val t7a: int = Deep<Deep<int>> { inner: Deep<int> { inner: 5 } }.inner.inner
+
+// ══════════════════════════════════════════════════════════════
+// TEST 8: Mesmo struct, type params diferentes
+// ══════════════════════════════════════════════════════════════
+val t8a: int = Box<int> { value: 10 }.value
+val t8b: string = Box<string> { value: "ten" }.value
+val t8c: bool = Box<bool> { value: true }.value
+val t8d: float = Box<float> { value: 1.5 }.value
+
+// ══════════════════════════════════════════════════════════════
+// TEST 9: Struct nao-generico ainda funciona
+// ══════════════════════════════════════════════════════════════
+val t9: float = Point { x: 1.0, y: 2.0 }.x
+
+// ══════════════════════════════════════════════════════════════
+// TEST 10: Nested com Pair + Box
+// ══════════════════════════════════════════════════════════════
+val t10a: int = Pair<int, Box<string>> { first: 1, second: Box<string> { value: "nested" } }.first
+val t10b: string = Pair<int, Box<string>> { first: 1, second: Box<string> { value: "nested" } }.second.value
+
+// ══════════════════════════════════════════════════════════════
+// TEST 11: Wrapper<Pair<A,B>> nested
+// ══════════════════════════════════════════════════════════════
+val t11a: int = Wrapper<Pair<int, string>> { inner: Pair<int, string> { first: 5, second: "x" } }.inner.first
+val t11b: string = Wrapper<Pair<int, string>> { inner: Pair<int, string> { first: 5, second: "x" } }.inner.second
+
+// ══════════════════════════════════════════════════════════════
+// TEST 12: Struct generico como campo de struct nao-generico
+// ══════════════════════════════════════════════════════════════
+struct Holder { box: Box<int> }
+val t12: int = Holder { box: Box<int> { value: 99 } }.box.value
+
+// ══════════════════════════════════════════════════════════════
+// ERRO 1: Tipo declarado diferente do member access
+// ══════════════════════════════════════════════════════════════
+val e_wrong1: string = Box<int> { value: 5 }.value       // erro: string != int
+val e_wrong2: int = Box<string> { value: "x" }.value     // erro: int != string
+
+// ══════════════════════════════════════════════════════════════
+// ERRO 2: Member access em struct literal com tipo errado no campo
+// ══════════════════════════════════════════════════════════════
+val e_field1 = Box<int> { value: "wrong" }                // erro: expected int, got string
+
+// ══════════════════════════════════════════════════════════════
+// ERRO 3: Missing field em struct generico
+// ══════════════════════════════════════════════════════════════
+val e_miss1 = Box<int> { }                                 // erro: missing field 'value'
+
+// ══════════════════════════════════════════════════════════════
+// ERRO 4: Extra field em struct generico
+// ══════════════════════════════════════════════════════════════
+val e_extra1 = Box<int> { value: 5, extra: 1 }            // erro: unknown field 'extra'
+
+// ══════════════════════════════════════════════════════════════
+// (OK) Inference: Box { value: 5 } infere T = int
+// ══════════════════════════════════════════════════════════════
+val e_noargs = Box { value: 5 }                            // inference: T = int
+
+// ══════════════════════════════════════════════════════════════
+// ERRO 6: Arg count errado no literal
+// ══════════════════════════════════════════════════════════════
+val e_argcount = Box<int, string> { value: 5 }             // erro: expects 1, got 2
+
+// ══════════════════════════════════════════════════════════════
+// ERRO 7: Struct nao-generico com type args no literal
+// ══════════════════════════════════════════════════════════════
+val e_nongen = Point<int> { x: 1.0, y: 2.0 }               // erro: not a generic struct
+
+// ══════════════════════════════════════════════════════════════
+// ERRO 8: Nested com tipo errado
+// ══════════════════════════════════════════════════════════════
+val e_nested_bad = Wrapper<Box<int>> { inner: Box<string> { value: "bad" } }  // erro: expected Box<int>, got Box<string>
+
+println("Done!")

@@ -1,0 +1,31 @@
+// ════════════════════════════════════════════════════════════════
+// struct-constructors-03.med — Generic inference (10.5)
+// ════════════════════════════════════════════════════════════════
+
+struct Box<T> {
+  mut value: T
+}
+
+// Inferência de T a partir do argumento
+const b1 = Box(value: 10)
+const b2 = Box(value: "hello")
+
+// Anotação explícita
+const b3 = Box<int>(value: 42)
+
+struct Pair<A, B> {
+  mut first: A
+  mut second: B
+}
+
+const p1 = Pair(first: 1, second: "x")
+const p2 = Pair(first: true, second: 3.14)
+
+// Acesso — tipo concreto
+val v1 = b1.value
+val v2 = b2.value
+val f1 = p1.first
+val s1 = p1.second
+val f2 = p2.first
+
+println("generic inference tests passed")

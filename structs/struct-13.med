@@ -1,0 +1,161 @@
+// ════════════════════════════════════════════════════════════════
+// struct-13.med — Shorthand Field Assignment Tests
+//
+// Testa: { name, age: 40 }  ≡  { name: name, age: 40 }
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// 1. Shorthand básico
+// ───────────────────────────────────────────────────────────────
+
+struct Point {
+  x: float
+  y: float
+}
+
+func makePoint(x: float, y: float): Point {
+  return Point { x, y }
+}
+
+val p1 = makePoint(x: 3.0, y: 4.0)
+
+
+// ───────────────────────────────────────────────────────────────
+// 2. Shorthand misturado com nomeados
+// ───────────────────────────────────────────────────────────────
+
+struct User {
+  name: string
+  age: int
+  active: bool
+}
+
+func createUser(name: string, age: int): User {
+  return User { name, age, active: true }
+}
+
+val u1 = createUser(name: "ana", age: 30)
+
+
+// ───────────────────────────────────────────────────────────────
+// 3. Shorthand com self em struct method
+// ───────────────────────────────────────────────────────────────
+
+struct Vec2 {
+  x: float
+  y: float
+
+  func doubled(): Vec2 {
+    return Vec2 {
+      x: self.x * 2.0,
+      y: self.y * 2.0
+    }
+  }
+}
+
+val v = Vec2 { x: 1.0, y: 2.0 }
+val v2 = v.doubled()
+
+
+// ───────────────────────────────────────────────────────────────
+// 4. Shorthand em struct genérica com type inference
+// ───────────────────────────────────────────────────────────────
+
+struct Box<T> {
+  value: T
+}
+
+func boxIt<T>(value: T): Box<T> {
+  return Box { value }
+}
+
+val b1 = boxIt<int>(value: 10)
+val b2 = boxIt<string>(value: "hello")
+
+
+// ───────────────────────────────────────────────────────────────
+// 5. Shorthand com type alias
+// ───────────────────────────────────────────────────────────────
+
+typealias IntBox = Box<int>
+
+func makeIntBox(value: int): IntBox {
+  return IntBox { value }
+}
+
+val ib = makeIntBox(value: 7)
+
+
+// ───────────────────────────────────────────────────────────────
+// 6. Todos shorthands, nenhum nomeado
+// ───────────────────────────────────────────────────────────────
+
+struct Triple {
+  a: int
+  b: string
+  c: float
+}
+
+func makeTriple(a: int, b: string, c: float): Triple {
+  return Triple { a, b, c }
+}
+
+val t = makeTriple(a: 1, b: "x", c: 3.0)
+
+
+// ───────────────────────────────────────────────────────────────
+// 7. Shorthand aninhado
+// ───────────────────────────────────────────────────────────────
+
+struct Inner {
+  value: int
+}
+
+struct Outer {
+  inner: Inner
+  label: string
+}
+
+func buildOuter(label: string, value: int): Outer {
+  return Outer {
+    inner: Inner { value },
+    label
+  }
+}
+
+val o = buildOuter(label: "test", value: 99)
+
+
+// ───────────────────────────────────────────────────────────────
+// 8. Apenas shorthands com campos do mesmo tipo
+// ───────────────────────────────────────────────────────────────
+
+struct Pair {
+  a: int
+  b: int
+}
+
+func createPair(a: int, b: int): Pair {
+  return Pair { a, b }
+}
+
+val pair = createPair(a: 1, b: 2)
+
+
+// ───────────────────────────────────────────────────────────────
+// 9. ❌ Shorthand com campo que não existe
+// ───────────────────────────────────────────────────────────────
+
+// func bad(name: string): User {
+//   return User { name, unknownField }
+// }
+
+
+// ───────────────────────────────────────────────────────────────
+// 10. ❌ Shorthand com type mismatch
+// ───────────────────────────────────────────────────────────────
+
+// func bad2(value: string): Point {
+//   return Point { x: 1.0, value }
+// }

@@ -1,5 +1,5 @@
 import { Token, TokenType } from "../lexer/types";
-import { Stmt, Expr, TypeNode, GenericTypeNode, FunctionTypeNode, IfVariableStmt, StructLiteralExpr, StructField, StructMethod } from "../ast";
+import { Stmt, Expr, TypeNode, GenericTypeNode, FunctionTypeNode, IfVariableStmt, StructLiteralExpr, StructField, StructMethod, StructConstructor } from "../ast";
 import { Symbol, createSymbol } from "./types";
 import { SemanticError, Errors } from "./errors";
 import { Environment } from "./Environment";
@@ -633,6 +633,16 @@ export class TypeChecker {
       }
     }
 
+    // ── 10.0 Processar custom init ──────────────────────
+    if (stmt.init) {
+      // Guardar init no symbol do struct
+      const structSymbol = prevEnv.lookupLocal(name);
+      if (structSymbol) {
+        structSymbol.init = stmt.init;
+      }
+      this.checkStructConstructor(stmt, stmt.init);
+    }
+
     // Restaurar escopo
     if (stmt.typeParameters) {
       this.currentEnv = prevEnv;
@@ -693,26 +703,7 @@ export class TypeChecker {
     this.currentEnv = fnEnv;
 
     // ── self (7.3) ────────────────────────────────────────────
-    const hasStructTypeParams = structStmt.typeParameters && structStmt.typeParameters.length > 0;
-    const selfType: TypeNode = hasStructTypeParams
-      ? {
-          kind: "GenericType",
-          name: structStmt.name,
-          args: structStmt.typeParameters!.map(tp => ({
-            kind: "NamedType",
-            name: tp.name,
-          }) as TypeNode),
-        }
-      : { kind: "NamedType", name: structStmt.name } as TypeNode;
-
-    fnEnv.define("self", {
-      name: "self",
-      type: selfType,
-      kind: "parameter",
-      mutable: method.mutable,   // 7.7: mut → self mutável
-      initialized: true,
-      declarationToken: method.name,
-    });
+    this.defineStructSelf(fnEnv, structStmt, method.mutable, method.name);
 
     // Validar tipos dos params
     const paramTypes: TypeNode[] = [];
@@ -765,6 +756,606 @@ export class TypeChecker {
     this.currentEnv = prevEnv;
     this.currentFunctionReturnType = null;
     this.functionDepth--;
+  }
+
+  // ── shared helper: define self in struct method/init scope ──
+  private defineStructSelf(
+    fnEnv: Environment,
+    structStmt: Extract<Stmt, { kind: "StructStmt" }>,
+    mutable: boolean,
+    declToken?: Token,
+  ): void {
+    const hasStructTypeParams = structStmt.typeParameters && structStmt.typeParameters.length > 0;
+    const selfType: TypeNode = hasStructTypeParams
+      ? {
+          kind: "GenericType",
+          name: structStmt.name,
+          args: structStmt.typeParameters!.map(tp => ({
+            kind: "NamedType",
+            name: tp.name,
+          }) as TypeNode),
+        }
+      : { kind: "NamedType", name: structStmt.name } as TypeNode;
+
+    fnEnv.define("self", {
+      name: "self",
+      type: selfType,
+      kind: "parameter",
+      mutable,
+      initialized: true,
+      declarationToken: declToken ?? structStmt.name,
+    });
+  }
+
+  // ── 10.0 Check struct init constructor ──────────────────────
+  private checkStructConstructor(
+    structStmt: Extract<Stmt, { kind: "StructStmt" }>,
+    initNode: StructConstructor,
+  ): void {
+    // Criar escopo da função com type params do struct
+    const fnEnv = new Environment(this.currentEnv, false);
+
+    // Registrar type params do struct no fnEnv
+    if (structStmt.typeParameters) {
+      const seen = new Set<string>();
+      for (const tp of structStmt.typeParameters) {
+        const tpName = tp.name.value as string;
+        if (!seen.has(tpName)) {
+          seen.add(tpName);
+          fnEnv.define(tpName, {
+            name: tpName,
+            type: { kind: "NamedType", name: tp.name } as TypeNode,
+            kind: "typeParam",
+            mutable: false,
+            initialized: true,
+            declarationToken: tp.name,
+            constraint: tp.constraint,
+          });
+        }
+      }
+    }
+
+    // Reservar escopo
+    const prevEnv = this.currentEnv;
+    this.currentEnv = fnEnv;
+
+    // self é sempre mutável no init
+    this.defineStructSelf(fnEnv, structStmt, true, structStmt.name);
+
+    // Validar tipos dos params
+    for (const param of initNode.params) {
+      if (param.type) {
+        const err = this.validateTypeNode(param.type, param.name);
+        if (err) this.errors.push(err);
+      }
+    }
+
+    // Registrar params no fnEnv
+    for (const param of initNode.params) {
+      const paramName = param.name.value as string;
+      const paramType = param.type || { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+      fnEnv.define(paramName, {
+        name: paramName,
+        type: paramType,
+        kind: "parameter",
+        mutable: false,
+        initialized: true,
+        declarationToken: param.name,
+      });
+    }
+
+    // ── Verificar corpo ──────────────────────────────────────
+    this.functionDepth++;
+    this.currentFunctionReturnType = { kind: "PrimitiveType", name: "void" };
+    this.hasReturn = false;
+
+    // Varredura do corpo: verificar atribuições no escopo raiz
+    const initializedFields = new Set<string>();
+    this.checkInitBodyStatements(initNode.body.statements, initializedFields, structStmt, initNode);
+
+    // Verificar return com valor
+    if (this.hasReturn) {
+      // return with value in init is an error — init is always void
+    }
+
+    // Restaurar escopo
+    this.currentEnv = prevEnv;
+    this.currentFunctionReturnType = null;
+    this.functionDepth--;
+
+    // ── Verificar campos sem default não inicializados no escopo raiz ──
+    const fieldsWithoutDefault = structStmt.fields.filter(f => !f.defaultValue);
+    for (const field of fieldsWithoutDefault) {
+      const fieldName = field.name.value as string;
+      if (!initializedFields.has(fieldName)) {
+        this.errors.push(Errors.typeMismatch(
+          `property '${fieldName}' has no default value and is not initialized at the root of 'init'`,
+          field.name,
+        ));
+      }
+    }
+  }
+
+  // ── helper: varrer statements do init body em depth 0 ──────
+  private checkInitBodyStatements(
+    stmts: Stmt[],
+    initializedFields: Set<string>,
+    structStmt: Extract<Stmt, { kind: "StructStmt" }>,
+    initNode: StructConstructor,
+  ): void {
+    for (const stmt of stmts) {
+      switch (stmt.kind) {
+        case "ExpressionStmt": {
+          const expr = stmt.expression;
+          // Detecta self.campo = valor
+          if (expr.kind === "Assign" && expr.name.kind === "Member") {
+            const member = expr.name as Extract<Expr, { kind: "Member" }>;
+            if (member.object.kind === "Identifier" && (member.object.name.value as string) === "self") {
+              const fieldName = (member.property.name.value as string);
+              initializedFields.add(fieldName);
+            }
+          }
+          // return com valor é erro
+          if (expr.kind === "Identifier" && (expr as any).value === "return") {
+            // Não deveria acontecer — return é statement, não expression
+          }
+          this.checkExpression(expr);
+          break;
+        }
+        case "ReturnStmt": {
+          if (stmt.value) {
+            this.errors.push(Errors.invalidReturn(stmt.value.kind === "Literal"
+              ? { line: 0, column: 0, type: 0, value: "" } as Token
+              : { line: 0, column: 0, type: 0, value: "" } as Token
+            ));
+          }
+          this.hasReturn = true;
+          if (stmt.value) this.checkExpression(stmt.value);
+          break;
+        }
+        case "BlockStmt":
+          // Bloco aninhado — NÃO conta para initializedFields
+          this.checkBlockStmt(stmt);
+          break;
+        case "IfStmt": {
+          this.checkExpression(stmt.condition);
+          // then/else branches — NÃO contam para initializedFields
+          if (stmt.thenBranch.kind === "BlockStmt") {
+            this.checkBlockStmt(stmt.thenBranch);
+          } else {
+            this.checkInitBodyStatements(
+              [stmt.thenBranch], initializedFields, structStmt, initNode
+            );
+          }
+          if (stmt.elseBranch) {
+            if (stmt.elseBranch.kind === "BlockStmt") {
+              this.checkBlockStmt(stmt.elseBranch);
+            } else {
+              this.checkInitBodyStatements(
+                [stmt.elseBranch], initializedFields, structStmt, initNode
+              );
+            }
+          }
+          break;
+        }
+        case "ForStmt":
+        case "WhileStmt":
+          // Loops — NÃO contam
+          this.checkStatement(stmt);
+          break;
+        default:
+          this.checkStatement(stmt);
+      }
+    }
+  }
+
+  // ── helper: resolve alias and check if it wraps a struct ───
+  private unwrapStructFromResolved(
+    resolved: TypeNode,
+    aliasName: string,
+    token: Token,
+  ): [Symbol, TypeNode[] | undefined] | null {
+    if (resolved.kind === "GenericType") {
+      const structName = resolved.name.value as string;
+      const structSymbol = this.currentEnv.lookup(structName);
+      if (structSymbol && structSymbol.kind === "struct") {
+        return [structSymbol, resolved.args];
+      }
+      return null;
+    }
+    if (resolved.kind === "NamedType") {
+      const structName = resolved.name.value as string;
+      const structSymbol = this.currentEnv.lookup(structName);
+      if (structSymbol && structSymbol.kind === "struct") {
+        return [structSymbol, undefined];
+      }
+      return null;
+    }
+    return null;
+  }
+
+  // ── 10.0 Handle struct constructor call ─────────────────────
+  private handleStructConstructorCall(
+    structSymbol: Symbol,
+    expr: Extract<Expr, { kind: "Call" }>,
+    preResolvedTypeArgs?: TypeNode[],
+  ): TypeNode {
+    const structName = structSymbol.name;
+    const callName = expr.callee.kind === "Identifier" ? expr.callee.name.value as string : structName;
+    const token = expr.callee.kind === "Identifier"
+      ? expr.callee.name
+      : { line: 0, column: 0, type: 0, value: "" } as Token;
+
+    // Determine mode: auto-init vs custom init
+    const structFields = structSymbol.fields as StructField[] | undefined;
+    const structTypeParams = structSymbol.typeParameters as TypeParameterNode[] | undefined;
+    const hasInit = !!structSymbol.init;
+
+    if (!hasInit) {
+      // ── AUTO-INIT mode (10.2) ──────────────────────────────
+      return this.handleAutoInitConstructor(structSymbol, structFields, structTypeParams, expr, preResolvedTypeArgs, callName, structName, token);
+    } else {
+      // ── CUSTOM INIT mode (10.6) ────────────────────────────
+      return this.handleCustomInitConstructor(structSymbol, structFields, structTypeParams, structSymbol.init, expr, preResolvedTypeArgs, callName, structName, token);
+    }
+  }
+
+  private handleAutoInitConstructor(
+    structSymbol: Symbol,
+    structFields: StructField[] | undefined,
+    structTypeParams: TypeParameterNode[] | undefined,
+    expr: Extract<Expr, { kind: "Call" }>,
+    preResolvedTypeArgs: TypeNode[] | undefined,
+    callName: string,
+    structName: string,
+    token: Token,
+  ): TypeNode {
+    const args = expr.args;
+
+    // Separar named de positional
+    const positionalArgs: Expr[] = [];
+    const namedArgs: { key: string; value: Expr; keyToken?: Token }[] = [];
+    for (const arg of args) {
+      if (arg.kind === "NamedArgument") {
+        const na = arg as Extract<Expr, { kind: "NamedArgument" }>;
+        namedArgs.push({ key: na.key, value: na.value, keyToken: na.keyToken });
+      } else {
+        positionalArgs.push(arg);
+      }
+    }
+
+    // (10.2) Erro se positional
+    if (positionalArgs.length > 0) {
+      this.errors.push(Errors.typeMismatch(
+        `positional arguments not allowed in struct constructor. Use named arguments: ${callName}(field: value, ...)`,
+        token,
+      ));
+      // Still check expressions to avoid cascade
+      for (const a of positionalArgs) this.checkExpression(a);
+      for (const na of namedArgs) this.checkExpression(na.value);
+      return { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: callName } } as TypeNode;
+    }
+
+    if (!structFields) {
+      // No fields, nothing to validate
+      return { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: callName } } as TypeNode;
+    }
+
+    // ── Handle generic type args ──────────────────────────
+    let typeArgs: TypeNode[] | undefined = preResolvedTypeArgs ?? expr.typeArgs;
+    let typeArgMap = new Map<string, TypeNode>();
+
+    if (structTypeParams && structTypeParams.length > 0) {
+      if (!typeArgs || typeArgs.length !== structTypeParams.length) {
+        // Try inference from named arg values
+        const inferred = this.inferStructTypeArgsFromNamedArgs(
+          structTypeParams, structFields, namedArgs,
+        );
+        if (inferred) {
+          typeArgs = inferred;
+        }
+      }
+
+      if (!typeArgs || typeArgs.length !== structTypeParams.length) {
+        this.errors.push(Errors.genericArgCount(
+          callName, structTypeParams.length, typeArgs?.length ?? 0, token, "struct"
+        ));
+        for (const na of namedArgs) this.checkExpression(na.value);
+        return {
+          kind: "GenericType",
+          name: { type: TokenType.IDENTIFIER, value: callName },
+          args: structTypeParams.map(() => ({ kind: "PrimitiveType", name: "unknown" })),
+        };
+      }
+
+      for (let i = 0; i < structTypeParams.length; i++) {
+        typeArgMap.set(structTypeParams[i].name.value as string, typeArgs[i]);
+      }
+    } else if (expr.typeArgs && expr.typeArgs.length > 0) {
+      this.errors.push(Errors.typeMismatch(
+        `'${callName}' is not a generic struct`,
+        token,
+      ));
+      for (const na of namedArgs) this.checkExpression(na.value);
+      return { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: callName } } as TypeNode;
+    }
+
+    // Build field type map with substitution
+    const fieldTypeMap = new Map<string, { type: TypeNode; hasDefault: boolean }>();
+    for (const f of structFields) {
+      const fieldName = f.name.value as string;
+      const fieldType = typeArgMap.size > 0 ? this.substitute(f.type, typeArgMap) : f.type;
+      fieldTypeMap.set(fieldName, { type: fieldType, hasDefault: !!f.defaultValue });
+    }
+
+    // ── Validate named args (10.4) ─────────────────────────
+    // 1. Duplicates
+    const seenKeys = new Set<string>();
+    const providedKeys = new Set<string>();
+
+    for (const na of namedArgs) {
+      if (seenKeys.has(na.key)) {
+        this.errors.push(Errors.typeMismatch(
+          `duplicate argument '${na.key}' in call to '${callName}'`,
+          na.keyToken ?? token,
+        ));
+        continue;
+      }
+      seenKeys.add(na.key);
+
+      // 2. Unknown
+      const fieldInfo = fieldTypeMap.get(na.key);
+      if (!fieldInfo) {
+        this.errors.push(Errors.typeMismatch(
+          `unknown argument '${na.key}' in call to '${callName}'`,
+          na.keyToken ?? token,
+        ));
+        this.checkExpression(na.value);
+        continue;
+      }
+      providedKeys.add(na.key);
+
+      // 4. Type check
+      this.contextualType = fieldInfo.type;
+      const actualType = this.checkExpression(na.value);
+      this.contextualType = null;
+
+      if (!this.areTypesCompatible(fieldInfo.type, actualType)) {
+        this.errors.push(Errors.typeMismatch(
+          `cannot assign '${this.typeToString(actualType)}' to field '${na.key}' of type '${this.typeToString(fieldInfo.type)}'`,
+          na.keyToken ?? token,
+        ));
+      }
+    }
+
+    // 3. Missing required fields
+    for (const f of structFields) {
+      const fieldName = f.name.value as string;
+      if (!providedKeys.has(fieldName) && !fieldTypeMap.get(fieldName)?.hasDefault) {
+        this.errors.push(Errors.typeMismatch(
+          `missing argument '${fieldName}' in call to '${callName}'`,
+          token,
+        ));
+      }
+    }
+
+    // ── Return type (use structName, not callName, for member access) ──
+    if (structTypeParams && structTypeParams.length > 0 && typeArgs && typeArgs.length === structTypeParams.length) {
+      return {
+        kind: "GenericType",
+        name: { type: TokenType.IDENTIFIER, value: structName },
+        args: [...typeArgs],
+      };
+    }
+    return { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: structName } } as TypeNode;
+  }
+
+  private handleCustomInitConstructor(
+    structSymbol: Symbol,
+    structFields: StructField[] | undefined,
+    structTypeParams: TypeParameterNode[] | undefined,
+    initMethod: StructConstructor,
+    expr: Extract<Expr, { kind: "Call" }>,
+    preResolvedTypeArgs: TypeNode[] | undefined,
+    callName: string,
+    structName: string,
+    token: Token,
+  ): TypeNode {
+    const args = expr.args;
+
+    // Separar named de positional
+    const positionalArgs: Expr[] = [];
+    const namedArgs: { key: string; value: Expr; keyToken?: Token }[] = [];
+    for (const arg of args) {
+      if (arg.kind === "NamedArgument") {
+        const na = arg as Extract<Expr, { kind: "NamedArgument" }>;
+        namedArgs.push({ key: na.key, value: na.value, keyToken: na.keyToken });
+      } else {
+        positionalArgs.push(arg);
+      }
+    }
+
+    // (10.6) Erro se named args em custom init
+    if (namedArgs.length > 0) {
+      this.errors.push(Errors.typeMismatch(
+        `named arguments not allowed in custom init call. Use positional arguments.`,
+        namedArgs[0].keyToken ?? token,
+      ));
+      for (const na of namedArgs) this.checkExpression(na.value);
+      for (const a of positionalArgs) this.checkExpression(a);
+      return { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: callName } } as TypeNode;
+    }
+
+    // ── Handle generic type args ──────────────────────────
+    let typeArgs: TypeNode[] | undefined = preResolvedTypeArgs ?? expr.typeArgs;
+    let typeArgMap = new Map<string, TypeNode>();
+
+    if (structTypeParams && structTypeParams.length > 0) {
+      if (!typeArgs || typeArgs.length !== structTypeParams.length) {
+        // Try inference from positional arg values
+        const argTypes: TypeNode[] = [];
+        for (const a of positionalArgs) {
+          argTypes.push(this.checkExpression(a));
+        }
+        // Build temporary init function type for inference
+        const initFnType: FunctionTypeNode = this.buildInitFunctionType(structTypeParams, initMethod);
+        const mapping = this.tryInferTypeArgs(structTypeParams, initFnType.params, argTypes);
+        if (mapping) {
+          typeArgs = structTypeParams.map(tp => mapping.get(tp.name.value as string) ?? { kind: "PrimitiveType", name: "unknown" });
+        }
+      }
+
+      if (!typeArgs || typeArgs.length !== structTypeParams.length) {
+        this.errors.push(Errors.genericArgCount(
+          callName, structTypeParams.length, typeArgs?.length ?? 0, token, "struct"
+        ));
+        for (const a of positionalArgs) this.checkExpression(a);
+        return {
+          kind: "GenericType",
+          name: { type: TokenType.IDENTIFIER, value: callName },
+          args: structTypeParams.map(() => ({ kind: "PrimitiveType", name: "unknown" })),
+        };
+      }
+
+      for (let i = 0; i < structTypeParams.length; i++) {
+        typeArgMap.set(structTypeParams[i].name.value as string, typeArgs[i]);
+      }
+    }
+
+    // Build substituted init param types
+    const initParams = initMethod.params.map(p => ({
+      name: p.name,
+      type: typeArgMap.size > 0 && p.type ? this.substitute(p.type, typeArgMap) : p.type,
+      isRest: p.isRest,
+    }));
+
+    // ── Check positional args against init params ─────────
+    const hasRest = initParams.length > 0 && initParams[initParams.length - 1].isRest === true;
+    const restIndex = hasRest ? initParams.length - 1 : -1;
+
+    // Check arity
+    if (hasRest) {
+      if (positionalArgs.length < restIndex) {
+        this.errors.push(Errors.argumentCountMismatch(
+          restIndex, positionalArgs.length, token,
+        ));
+      }
+    } else {
+      if (positionalArgs.length !== initParams.length) {
+        this.errors.push(Errors.argumentCountMismatch(
+          initParams.length, positionalArgs.length, token,
+        ));
+      }
+    }
+
+    // Check each arg
+    for (let i = 0; i < positionalArgs.length; i++) {
+      let expectedType: TypeNode | null = null;
+
+      if (hasRest && i >= restIndex) {
+        const restType = initParams[restIndex].type;
+        if (restType) {
+          const resolvedRest = this.resolveAlias(restType);
+          expectedType = this.isArray(resolvedRest)
+            ? this.arrayElement(resolvedRest)
+            : resolvedRest.kind === "ArrayType"
+              ? resolvedRest.elementType
+              : resolvedRest;
+        }
+      } else if (i < initParams.length) {
+        expectedType = initParams[i].type ?? null;
+      }
+
+      if (!expectedType) {
+        this.checkExpression(positionalArgs[i]);
+        continue;
+      }
+
+      this.contextualType = expectedType;
+      const actualType = this.checkExpression(positionalArgs[i]);
+      this.contextualType = null;
+
+      if (!this.areTypesCompatible(expectedType, actualType)) {
+        this.errors.push(Errors.typeMismatch(
+          `argument ${i + 1}: expected '${this.typeToString(expectedType)}', got '${this.typeToString(actualType)}'`,
+          token,
+        ));
+      }
+    }
+
+    // ── Return type (use structName, not callName, for member access) ──
+    if (structTypeParams && structTypeParams.length > 0 && typeArgs && typeArgs.length === structTypeParams.length) {
+      return {
+        kind: "GenericType",
+        name: { type: TokenType.IDENTIFIER, value: structName },
+        args: [...typeArgs],
+      };
+    }
+    return { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: structName } } as TypeNode;
+  }
+
+  private buildInitFunctionType(
+    structTypeParams: TypeParameterNode[],
+    initMethod: StructConstructor,
+  ): FunctionTypeNode {
+    return {
+      kind: "FunctionType",
+      params: initMethod.params.map(p => ({
+        ...(p.type ?? { kind: "PrimitiveType", name: "unknown" } as TypeNode),
+        paramName: p.name.value as string,
+        isRest: p.isRest,
+      })),
+      returnType: { kind: "PrimitiveType", name: "void" } as TypeNode,
+      typeParameters: structTypeParams.map(tp => ({
+        kind: "TypeParameter",
+        name: tp.name,
+        constraint: tp.constraint,
+        default: tp.default,
+      })),
+    };
+  }
+
+  private inferStructTypeArgsFromNamedArgs(
+    typeParams: TypeParameterNode[],
+    structFields: StructField[],
+    namedArgs: { key: string; value: Expr }[],
+  ): TypeNode[] | null {
+    if (namedArgs.length === 0) return null;
+
+    const typeParamNames = new Set(typeParams.map(tp => tp.name.value as string));
+    const mapping = new Map<string, TypeNode>();
+
+    // Build field name → type param mapping
+    const fieldToTypeParam = new Map<string, string>();
+    for (const field of structFields) {
+      const fieldName = field.name.value as string;
+      if (field.type.kind === "NamedType" && typeParamNames.has(field.type.name.value as string)) {
+        fieldToTypeParam.set(fieldName, field.type.name.value as string);
+      }
+    }
+
+    for (const na of namedArgs) {
+      const tpName = fieldToTypeParam.get(na.key);
+      if (!tpName) continue;
+
+      if (mapping.has(tpName)) continue; // first match wins
+
+      const inferredType = this.checkExpression(na.value);
+      mapping.set(tpName, inferredType);
+    }
+
+    if (mapping.size === 0) return null;
+    if (mapping.size < typeParams.length) {
+      // Partial inference — fill rest with unknown
+      for (const tp of typeParams) {
+        const tpName = tp.name.value as string;
+        if (!mapping.has(tpName)) {
+          mapping.set(tpName, { kind: "PrimitiveType", name: "unknown" });
+        }
+      }
+    }
+
+    return typeParams.map(tp => mapping.get(tp.name.value as string) ?? { kind: "PrimitiveType", name: "unknown" });
   }
 
   private checkAliasSelfReference(type: TypeNode, aliasName: string, token: Token): SemanticError | null {
@@ -2260,6 +2851,26 @@ export class TypeChecker {
   }
 
 private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
+    // ── Struct constructor call detection ──────────────────────
+    // Se o callee é um identificador que resolve para struct ou type alias de struct
+    if (expr.callee.kind === "Identifier") {
+      const calleeName = expr.callee.name.value as string;
+      const symbol = this.currentEnv.lookup(calleeName);
+      if (symbol) {
+        if (symbol.kind === "struct") {
+          return this.handleStructConstructorCall(symbol, expr);
+        }
+        if (symbol.kind === "type") {
+          const resolved = this.resolveAlias({ kind: "NamedType", name: expr.callee.name });
+          const structInfo = this.unwrapStructFromResolved(resolved, calleeName, expr.callee.name);
+          if (structInfo) {
+            const [structSymbol, typeArgs] = structInfo;
+            return this.handleStructConstructorCall(structSymbol, expr, typeArgs);
+          }
+        }
+      }
+    }
+
     const calleeType = this.resolveAlias(
       this.unwrapGrouping(this.checkExpression(expr.callee))
     );

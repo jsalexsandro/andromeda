@@ -1,0 +1,30 @@
+// ════════════════════════════════════════════════════════════════
+// struct-constructors-05.med — Custom init (10.6)
+// ════════════════════════════════════════════════════════════════
+
+struct User {
+  mut name: string
+  mut age: int
+
+  init(n: string, a: int) {
+    self.name = n
+    self.age = a
+  }
+}
+
+const u = User("ana", 30)
+val name = u.name
+val age = u.age
+
+struct Counter {
+  mut value: int
+
+  init() {
+    self.value = 0
+  }
+}
+
+val c = Counter()
+val v = c.value
+
+println("custom init tests passed")

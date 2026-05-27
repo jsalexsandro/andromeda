@@ -1,0 +1,99 @@
+// ════════════════════════════════════════════════════════════════
+// struct-constructors-06.med — Uninitialized property (10.7)
+// ════════════════════════════════════════════════════════════════
+
+// Teste: campo sem default e não inicializado → erro
+struct Button {
+  mut title: string
+  mut x: int
+  mut y: int
+
+  init(title: string) {
+    self.title = title
+  }
+}
+
+// Teste: inicialização condicional não conta
+struct Rect {
+  mut width: int
+  mut height: int
+
+  init(w: int, h: int) {
+    if (true) {
+      self.width = w
+    }
+    self.height = h
+  }
+}
+
+// Teste: com default + init → tudo ok
+struct Config {
+  mut host: string = "localhost"
+  mut port: int = 8080
+}
+
+const c = Config()
+
+// ── 10.7.1 Ordem de inicialização ─────────────────────────────
+
+// Teste: ler self.x antes de atribuir → erro
+struct Order1 {
+  mut a: int
+  mut b: int
+
+  init(a: int) {
+    val x = self.a   // erro: 'a' used before initialization
+    self.a = a
+    self.b = self.a + 1  // ok: a e b já atribuídos no momento do uso
+  }
+}
+
+// Teste: self.x = self.y + 1 onde y não foi atribuído → erro
+struct Order2 {
+  mut x: int
+  mut y: int
+
+  init(v: int) {
+    self.x = self.y + 1   // erro: 'y' used before initialization
+    self.y = v
+  }
+}
+
+// Teste: passar self para função sem inicializar tudo → erro
+func foo(r: Order3) {}
+
+struct Order3 {
+  mut a: int
+  mut b: int
+
+  init(a: int) {
+    self.a = a
+    foo(self)   // erro: 'self' used before all properties initialized
+    self.b = a
+  }
+}
+
+// Teste: if/while referenciando self antes de inicializar → erro
+struct Order4 {
+  mut x: int
+  mut y: int
+
+  init(v: int) {
+    if (true) {
+      val z = self.x   // erro: 'x' used before initialization
+    }
+    self.x = v
+    self.y = self.x + 1  // ok: x já foi atribuído
+  }
+}
+
+// Teste: self.field = expr que usa self.field2 onde field2 não atribuído → erro
+struct Order5 {
+  mut first: int
+  mut second: int
+
+  init(v: int) {
+    self.first = self.second  // erro: 'second' used before initialization
+    self.second = v
+  }
+}

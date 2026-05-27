@@ -1,0 +1,28 @@
+// ════════════════════════════════════════════════════════════════
+// struct-constructors-04.med — Type alias + constructor (10.5)
+// ════════════════════════════════════════════════════════════════
+
+struct Box<T> {
+  mut value: T
+}
+
+typealias IntBox = Box<int>
+typealias StrBox = Box<string>
+
+const b1 = IntBox(value: 10)
+const b2 = StrBox(value: "hello")
+
+val v1 = b1.value
+val v2 = b2.value
+
+struct Point {
+  mut x: float
+  mut y: float
+}
+
+typealias Coord = Point
+
+val c = Coord(x: 1.0, y: 2.0)
+val cx = c.x
+
+println("alias constructor tests passed")

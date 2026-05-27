@@ -1,0 +1,29 @@
+// ════════════════════════════════════════════════════════════════
+// struct-constructors-01.med — Auto-init básico (10.2)
+// ════════════════════════════════════════════════════════════════
+
+struct User {
+  mut name: string
+  mut age: int
+}
+
+// Constructor com named args — ordem livre
+const u1 = User(name: "ana", age: 30)
+const u2 = User(age: 25, name: "bob")
+const u3 = User(name: "clara", age: 35)
+
+// Acesso aos campos
+val name1 = u1.name
+val age1 = u1.age
+val name2 = u2.name
+
+struct Point {
+  mut x: float
+  mut y: float
+}
+
+val p = Point(x: 1.5, y: 2.5)
+val px = p.x
+val py = p.y
+
+println("auto-init tests passed")

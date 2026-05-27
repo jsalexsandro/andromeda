@@ -471,6 +471,16 @@ export interface StructStmt {
   fields: StructField[]
   methods?: StructMethod[]     // 7.1 — struct methods
   protocols?: Token[]          // implements Printable, Comparable
+  init?: StructConstructor    // 10.0 — custom constructor (desativa auto-init)
+}
+
+// 10.0 — custom init inside a struct
+// init(raw: string) { self.value = raw.trim() }
+export interface StructConstructor {
+  kind: "StructConstructor"
+  params: FunctionStmtParam[]
+  body: BlockStmt
+  typeParameters?: TypeParameterNode[]
 }
 
 export interface StructField {

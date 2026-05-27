@@ -1,5 +1,5 @@
 import { Token } from "../lexer/types";
-import { TypeNode, TypeParameterNode, StructField, StructMethod } from "../ast";
+import { TypeNode, TypeParameterNode, StructField, StructMethod, StructConstructor } from "../ast";
 
 export type SymbolKind = "variable" | "function" | "type" | "struct" | "enum" | "protocol" | "parameter" | "typeParam" | "builtin";
 
@@ -14,6 +14,7 @@ export interface Symbol {
   typeParameters?: TypeParameterNode[];
   fields?: StructField[];
   methods?: StructMethod[];
+  init?: StructConstructor;    // 10.0 — custom constructor
 }
 
 export function createSymbol(

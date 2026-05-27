@@ -1,0 +1,45 @@
+// ════════════════════════════════════════════════════════════════
+// struct-constructors-err.med — Error cases
+// ════════════════════════════════════════════════════════════════
+
+struct User {
+  mut name: string
+  mut age: int
+}
+
+// POSITIONAL_IN_CONSTRUCTOR
+const u1 = User("ana", 30)
+
+struct Pair {
+  mut first: int
+  mut second: int
+}
+
+// DUPLICATE_ARGUMENT
+const p1 = Pair(first: 1, first: 2, second: 3)
+
+// UNKNOWN_PROPERTY
+const p2 = Pair(first: 1, third: 3)
+
+// MISSING_ARGUMENT
+const p3 = Pair(first: 1)
+
+// TYPE_MISMATCH
+const p4 = Pair(first: 1, second: "x")
+
+struct Box<T> {
+  mut value: T
+}
+
+// CONSTRUCTOR_INFERENCE_FAILED
+// const b1 = Box() // no inference source → error
+
+// CUSTOM INIT + NAMED ARGS = error
+struct Token {
+  mut value: string
+  init(raw: string) {
+    self.value = raw
+  }
+}
+
+const t1 = Token(raw: "hello")

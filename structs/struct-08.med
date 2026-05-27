@@ -1,0 +1,42 @@
+// ============================================================
+// FEATURE: Struct Generics — Parser + Semantic (Items 6.1–6.6)
+// ============================================================
+
+// ── 6.2 + 6.6: Struct com type params ───────────────────────
+struct Box<T> {
+  value: T
+}
+
+struct Pair<A, B> {
+  first: A
+  second: B
+}
+
+// ── 6.3 + 4.7: Struct literal com type args ────────────────
+val b1: int = Box<int> { value: 42 }.value
+val b2: string = Box<string> { value: "hello" }.value
+val p1: int = Pair<int, string> { first: 10, second: "hi" }.first
+val p2: string = Pair<int, string> { first: 10, second: "hi" }.second
+
+// ── 6.3: Nested struct literal ─────────────────────────────
+struct Wrapper<T> {
+  inner: T
+}
+
+val w1: int = Wrapper<Box<int>> { inner: Box<int> { value: 7 } }.inner.value
+
+// ── 6.5: GENERIC_ARG_COUNT (via type alias) ────────────────
+typealias IntBox = Box<int>
+typealias StrPair = Pair<string, bool>
+
+val i: int = Box<int> { value: 99 }.value            // .value on Box<int> returns int
+val alias_val: IntBox = IntBox { value: 42 }         // alias in struct literal
+val alias_access: int = IntBox { value: 77 }.value   // alias + member access → int
+val sp: bool = Pair<string, bool> { first: "a", second: true }.second
+
+// ── Structs nao-genericas continuam funcionando ─────────────
+struct Point {
+  mut x: float
+  mut y: float
+}
+val px: float = Point { x: 1.5, y: 2.5 }.x

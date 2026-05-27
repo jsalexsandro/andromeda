@@ -30,6 +30,7 @@ export const KEYWORDS = [
   'typealias',  // Tipos nomeados - nominal type aliases
   'struct',
   'mut',
+  'init',
 ]
 
 export const TYPES_NATIVE = [

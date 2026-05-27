@@ -1,0 +1,33 @@
+// ========================================
+// TEST: Nullable Property Access (5.6)
+// ========================================
+
+struct User {
+    name: string
+    age: int
+}
+
+// 1. Field nullável — funciona
+struct WithNullableField {
+    name: string
+    nick: string?
+}
+
+val w = WithNullableField { name: "Alice", nick: null }
+val n: string? = w.nick
+
+// 2. Variável struct nullável — FUTURO (5.6)
+val u: User? = null
+val name = u.name
+
+// 3. Chained normal — funciona
+struct B { val: int }
+struct A { b: B }
+
+val a = A { b: B { val: 10 } }
+val v: int = a.b.val
+
+// 4. Atribuir null a field não-nullable — erro
+// val w2 = WithNullableField { name: "Bob", nick: "bob" }
+// w2.nick = "new"     // mut field
+// w2.name = null      // erro: string vs null

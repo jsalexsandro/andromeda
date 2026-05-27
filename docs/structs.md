@@ -167,49 +167,15 @@ FASE 6.5 — CONTROL TYPES
 │
 ├── 10. Struct Constructors
 │      10.1 Parser de Constructor automático
-       Caso não exista 'init' no struct significa que ele é 'auto-init' ou seja construtor automatico
-       struct User {  
-         mut name: string
-         mut age: int
-       }
-
-       const u = User(name: 'James', age: 90)
-       const u2 = User(name: 'James') // error, espera o 'age'. Se age ja tiver atribuição esse erro será desconsiderado
-       as propriedades só devem funcionar nomeadas (idependente da sequência)
-
-        Erros:
-        argumento desconhecido
-        duplicate argument
-        unknown argument 'xp'
-
+       Construtor auto-init (padrão)
+      
 │      10.2 Validar argumentos
 │      10.3 Inferir generic params
 │
 │             Box { value: 10 }
 │
 │      10.4 Constructors custom futuramente
-       Caso exista 'init' significa que é um construtor não automatico (customizado)
-       struct User {  
-         mut name: string
-         init(n: string){
-            self.name = n
-         }
-       }
-       const s = User('James')
-       struct Button {
-         mut title: string
-         mut x:int
-         mut y:int
-         init(title: string){
-           self.title = title
-         }
-       }
-
-
-       Aqui x e y ficaram sem valor.
-       * obrigatório inicializar tudo
-       property 'x' not initialized
-       property 'y' not initialized
+     
   
   ---     
 │

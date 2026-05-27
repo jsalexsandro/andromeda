@@ -1,0 +1,28 @@
+struct User { name: string; age: int }
+struct Point { x: float; y: float }
+struct Config { name: string }
+
+func makeUser(n: string, a: int): User {
+    return User { name: n, age: a }
+}
+
+func makePoint(x: float, y: float): Point {
+    return Point { x: x, y: y }
+}
+
+func acceptConfig(c: Config) {}
+
+val u = makeUser("Alice", 30)
+val p = makePoint(1.0, 2.0)
+val c = Config { name: "test" }
+
+acceptConfig(c)
+acceptConfig(Config { name: "inline" })
+
+val u2 = makeUser("Bob", 25)
+
+// Erro: Point não é User
+val wrong = makeUser(Point { x: 1, y: 2 })
+
+// Erro: User não é Config
+acceptConfig(u)
