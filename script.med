@@ -1,0 +1,10 @@
+struct User {
+    mut name: string
+    mut age:  int
+    func createrUser(name: string): User {
+        return User {
+            name, // shorthands
+            age: 40
+        }
+    }
+}

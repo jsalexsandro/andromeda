@@ -1,0 +1,184 @@
+// ════════════════════════════════════════════════════════════════
+// struct-shorthand-01.med — Struct Literal Field Shorthands
+//
+// Testa: { name, age: 40 }  ≡  { name: name, age: 40 }
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// 1. Shorthand básico em função normal
+// ───────────────────────────────────────────────────────────────
+
+struct Point {
+  x: float
+  y: float
+}
+
+func makePoint(x: float, y: float): Point {
+  return Point { x, y }
+}
+
+val p1 = makePoint(x: 3.0, y: 4.0)
+
+
+// ───────────────────────────────────────────────────────────────
+// 2. Shorthand misturado com nomeados
+// ───────────────────────────────────────────────────────────────
+
+struct User {
+  name: string
+  age: int
+  active: bool
+}
+
+func createUser(name: string, age: int): User {
+  return User {
+    name,
+    age,
+    active: true
+  }
+}
+
+val u1 = createUser(name: "ana", age: 30)
+
+
+// ───────────────────────────────────────────────────────────────
+// 3. Shorthand com apenas um campo
+// ───────────────────────────────────────────────────────────────
+
+struct Wrapper {
+  value: int
+}
+
+func wrap(value: int): Wrapper {
+  return Wrapper { value }
+}
+
+val w1 = wrap(value: 42)
+
+
+// ───────────────────────────────────────────────────────────────
+// 4. Shorthand com self em struct method
+// ───────────────────────────────────────────────────────────────
+
+struct Vec2 {
+  x: float
+  y: float
+
+  func doubled(): Vec2 {
+    return Vec2 {
+      x: self.x * 2.0,
+      y: self.y * 2.0
+    }
+  }
+}
+
+val v = Vec2 { x: 1.0, y: 2.0 }
+val v2 = v.doubled()
+
+
+// ───────────────────────────────────────────────────────────────
+// 5. Shorthand com struct genérica
+// ───────────────────────────────────────────────────────────────
+
+struct Box<T> {
+  value: T
+}
+
+func boxIt<T>(value: T): Box<T> {
+  return Box { value }
+}
+
+val b1 = boxIt<int>(value: 10)
+val b2 = boxIt<string>(value: "hello")
+
+
+// ───────────────────────────────────────────────────────────────
+// 6. Shorthand com type alias
+// ───────────────────────────────────────────────────────────────
+
+typealias IntBox = Box<int>
+
+func makeIntBox(value: int): IntBox {
+  return IntBox { value }
+}
+
+val ib = makeIntBox(value: 7)
+
+
+// ───────────────────────────────────────────────────────────────
+// 7. Shorthand com múltiplos campos do mesmo tipo
+// ───────────────────────────────────────────────────────────────
+
+struct Pair {
+  a: int
+  b: int
+}
+
+func createPair(a: int, b: int): Pair {
+  return Pair { a, b }
+}
+
+val pair = createPair(a: 1, b: 2)
+
+
+// ───────────────────────────────────────────────────────────────
+// 8. Shorthand em struct literal na raiz (fora de função)
+// ───────────────────────────────────────────────────────────────
+
+val greeting: string = "ola"
+val count: int = 5
+
+struct Message {
+  text: string
+  priority: int
+}
+
+val msg = Message { text: greeting, priority: count }
+
+
+// ───────────────────────────────────────────────────────────────
+// 9. Shorthand dentro de struct aninhada
+// ───────────────────────────────────────────────────────────────
+
+struct Inner {
+  value: int
+}
+
+struct Outer {
+  inner: Inner
+  label: string
+}
+
+func build(label: string, value: int): Outer {
+  return Outer {
+    inner: Inner { value },
+    label
+  }
+}
+
+val o = build(label: "test", value: 99)
+
+
+// ───────────────────────────────────────────────────────────────
+// 10. Apenas shorthands, nenhum nomeado
+// ───────────────────────────────────────────────────────────────
+
+func allShorthands(a: int, b: string, c: float): string {
+  return b
+}
+
+struct Triple {
+  a: int
+  b: string
+  c: float
+}
+
+func makeTriple(a: int, b: string, c: float): Triple {
+  return Triple { a, b, c }
+}
+
+val t = makeTriple(a: 1, b: "x", c: 3.0)
+
+
+println("struct shorthand tests passed")

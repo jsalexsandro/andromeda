@@ -1,0 +1,46 @@
+// ════════════════════════════════════════════════════════════════
+// struct-shorthand-err.med — Shorthand: expected errors
+// ════════════════════════════════════════════════════════════════
+
+
+struct User {
+  name: string
+  age: int
+}
+
+struct Point {
+  x: float
+  y: float
+}
+
+
+// ❌ ERRO 1: shorthand com campo inexistente + missing field
+// UNKNOWN_PROPERTY: property 'unknownField' does not exist
+// TYPE_MISMATCH: missing required field 'age'
+
+func bad1(name: string): User {
+  return User { name, unknownField }
+}
+
+
+// ❌ ERRO 2: shorthand com type mismatch
+// TYPE_MISMATCH: field 'y': expected 'float', got 'string'
+
+// func bad2(value: string): Point {
+//   return Point { x: 1.0, value }
+// }
+
+
+// ❌ ERRO 3: shorthand com self em struct method onde campo não existe
+// UNKNOWN_PROPERTY: property 'selfVal' does not exist
+
+// struct Container {
+//   value: int
+//
+//   func bad(selfVal: int): Container {
+//     return Container { selfVal }
+//   }
+// }
+
+
+println("shorthand error tests framework")

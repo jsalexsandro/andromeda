@@ -89,6 +89,21 @@ FASE 6.5 — CONTROL TYPES
        5.5 verificar se propriedade é 'mut' (mutável)
 │      5.6 Nullable property access futuramente
 
+       5.7 permitir implicit member assignment  (shorthands)
+       
+        struct User {
+          mut name: string
+          mut age:  int
+          func createrUser(name: string): User {
+            return User {
+              name, // shorthands
+              age: 40
+            }
+          }
+        }
+
+      
+
         # Ate aqui feito!
 
       ---FUTURE---
@@ -154,11 +169,18 @@ FASE 6.5 — CONTROL TYPES
 │      10.1 Parser de Constructor automático
        Caso não exista 'init' no struct significa que ele é 'auto-init' ou seja construtor automatico
        struct User {  
-        mut name: string
+         mut name: string
+         mut age: int
        }
 
-       const u = User(name: 'James')
-       as propriedades só devem funcionar nomeadas
+       const u = User(name: 'James', age: 90)
+       const u2 = User(name: 'James') // error, espera o 'age'. Se age ja tiver atribuição esse erro será desconsiderado
+       as propriedades só devem funcionar nomeadas (idependente da sequência)
+
+        Erros:
+        argumento desconhecido
+        duplicate argument
+        unknown argument 'xp'
 
 │      10.2 Validar argumentos
 │      10.3 Inferir generic params
@@ -173,6 +195,23 @@ FASE 6.5 — CONTROL TYPES
             self.name = n
          }
        }
+       const s = User('James')
+       struct Button {
+         mut title: string
+         mut x:int
+         mut y:int
+         init(title: string){
+           self.title = title
+         }
+       }
+
+
+       Aqui x e y ficaram sem valor.
+       * obrigatório inicializar tudo
+       property 'x' not initialized
+       property 'y' not initialized
+  
+  ---     
 │
 ├── 11. Struct Equality
 │      11.1 Definir igualdade estrutural

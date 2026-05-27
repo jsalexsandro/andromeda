@@ -456,5 +456,3 @@ val builder =
     .chain()
     .chain()
 
-
-println("advanced nominality tests passed")
