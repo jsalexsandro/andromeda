@@ -140,4 +140,3 @@ struct Point {
 }
 val pt = Point { x: 1.0, y: 2.0 }
 
-println("OK!")

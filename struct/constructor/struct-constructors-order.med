@@ -1,0 +1,232 @@
+// ════════════════════════════════════════════════════════════════
+// struct-constructors-order.med — Ordem de inicialização (seção 6.3)
+//
+// Regra: self não pode ser lido nem passado para funções
+// antes de todos os campos obrigatórios estarem atribuídos
+// no escopo raiz do init.
+//
+// Cobre:
+//   6.3.1  leitura direta de campo antes da atribuição
+//   6.3.2  campo usado em expressão antes de atribuído
+//   6.3.3  campo atribuído via outro campo não atribuído
+//   6.3.4  self passado para função antes de completo
+//   6.3.5  leitura dentro de bloco aninhado antes da atribuição raiz
+//   6.3.6  casos válidos — leitura após atribuição raiz
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// Helpers genéricos para testes de passagem de self
+// ───────────────────────────────────────────────────────────────
+
+func inspect<T>(p: T): void {}
+func getVal<T>(p: T): int { return 0 }
+
+
+// ───────────────────────────────────────────────────────────────
+// 1. ✅ Leitura após atribuição — válido
+// ───────────────────────────────────────────────────────────────
+
+struct Valid1 {
+  mut a: int
+  mut b: int
+
+  init(v: int) {
+    self.a = v
+    self.b = self.a + 1   // ok: a foi atribuído antes
+  }
+}
+
+val v1 = Valid1(5)
+val v1_b: int = v1.b   // 6
+
+
+// ───────────────────────────────────────────────────────────────
+// 2. ✅ Self passado após todos os campos atribuídos — válido
+// ───────────────────────────────────────────────────────────────
+
+struct Valid2 {
+  mut a: int
+  mut b: int
+
+  init(v: int) {
+    self.a = v
+    self.b = v * 2
+    inspect(self)   // ok: a e b já atribuídos
+  }
+}
+
+val v2 = Valid2(3)
+
+
+// ───────────────────────────────────────────────────────────────
+// 3. ✅ Refinamento condicional após atribuição raiz — válido
+// ───────────────────────────────────────────────────────────────
+
+struct Valid3 {
+  mut x: int
+  mut y: int
+
+  init(v: int) {
+    self.x = 0
+    self.y = 0
+    if (v > 0) {
+      val z = self.x   // ok: x foi atribuído no raiz antes do if
+      self.x = v
+    }
+    self.y = self.x + 1
+  }
+}
+
+val v3 = Valid3(10)
+val v3_x: int = v3.x   // 10
+val v3_y: int = v3.y   // 11
+
+
+// ───────────────────────────────────────────────────────────────
+// 4. ✅ Campo com default — pode ser lido sem atribuição
+// ───────────────────────────────────────────────────────────────
+
+struct Valid4 {
+  mut name:  string
+  mut score: int = 100
+
+  init(n: string) {
+    self.name = n
+    val s = self.score   // ok: score tem default → considerado inicializado
+  }
+}
+
+val v4 = Valid4("player")
+
+
+// ───────────────────────────────────────────────────────────────
+// 5. ❌ Leitura de campo antes da atribuição raiz
+// ───────────────────────────────────────────────────────────────
+
+struct Order1 {
+  mut a: int
+  mut b: int
+
+  init(v: int) {
+    val x = self.a   // error: property 'a' used before initialization
+    self.a = v
+    self.b = v + 1
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 6. ❌ Campo usado em expressão antes de atribuído
+// ───────────────────────────────────────────────────────────────
+
+struct Order2 {
+  mut x: int
+  mut y: int
+
+  init(v: int) {
+    self.x = self.y + 1   // error: property 'y' used before initialization
+    self.y = v
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 7. ❌ Campo atribuído usando outro campo não atribuído
+// ───────────────────────────────────────────────────────────────
+
+struct Order3 {
+  mut first:  int
+  mut second: int
+
+  init(v: int) {
+    self.first  = self.second   // error: property 'second' used before initialization
+    self.second = v
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 8. ❌ Self passado para função antes de todos os campos atribuídos
+// ───────────────────────────────────────────────────────────────
+
+struct Order4 {
+  mut a: int
+  mut b: int
+
+  init(v: int) {
+    self.a = v
+    inspect(self)   // error: 'self' passed to function before all properties are initialized ('b' not set)
+    self.b = v
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 9. ❌ Retorno de self antes de completo
+// ───────────────────────────────────────────────────────────────
+
+struct Order5 {
+  mut a: int
+  mut b: int
+
+  init(v: int) {
+    self.a = v
+    val result = getVal(self)   // error: 'self' passed to function before all properties are initialized ('b' not set)
+    self.b = result
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 10. ❌ Leitura de self dentro de if antes da atribuição raiz
+// ───────────────────────────────────────────────────────────────
+
+struct Order6 {
+  mut x: int
+  mut y: int
+
+  init(v: int) {
+    if (true) {
+      val z = self.x   // error: property 'x' used before initialization
+    }
+    self.x = v
+    self.y = v + 1
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 11. ❌ Múltiplos usos de self não inicializado — todos reportados
+// ───────────────────────────────────────────────────────────────
+
+struct Order7 {
+  mut a: int
+  mut b: int
+  mut c: int
+
+  init(v: int) {
+    val x = self.a        // error: property 'a' used before initialization
+    val y = self.b        // error: property 'b' used before initialization
+    self.a = v
+    self.b = v
+    self.c = self.a + self.b   // ok: a e b já atribuídos
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 12. ❌ Campo parcialmente atribuído — segundo campo lido antes do raiz
+// ───────────────────────────────────────────────────────────────
+
+struct Order8 {
+  mut p: int
+  mut q: int
+  mut r: int
+
+  init(v: int) {
+    self.p = v
+    self.q = self.r + 1   // error: property 'r' used before initialization
+    self.r = v * 2
+  }
+}

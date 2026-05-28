@@ -27,4 +27,3 @@ struct Counter {
 val c = Counter()
 val v = c.value
 
-println("custom init tests passed")

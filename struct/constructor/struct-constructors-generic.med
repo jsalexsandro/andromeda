@@ -1,0 +1,178 @@
+// ════════════════════════════════════════════════════════════════
+// struct-constructors-generic.med — Inferência de generics (seção 5)
+//
+// Cobre:
+//   5.1  inferência de T a partir do argumento
+//   5.2  múltiplos type params (A, B)
+//   5.3  anotação explícita tem precedência
+//   5.4  conflito de inferência → erro
+//   5.5  T sem informação → erro
+//   5.6  alias resolve mapa antes de inferir
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// Setup
+// ───────────────────────────────────────────────────────────────
+
+struct Box<T> {
+  value: T
+}
+
+struct Pair<A, B> {
+  first:  A
+  second: B
+}
+
+struct Triple<X, Y, Z> {
+  a: X
+  b: Y
+  c: Z
+}
+
+struct Wrapper<T> {
+  inner: Box<T>
+  tag:   string
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 1. Inferência de T — tipos primitivos
+// ───────────────────────────────────────────────────────────────
+
+val b_int    = Box(value: 42)          // T → int
+val b_str    = Box(value: "hello")     // T → string
+val b_float  = Box(value: 3.14)        // T → float
+val b_bool   = Box(value: true)        // T → bool
+
+val check_int:   int    = b_int.value
+val check_str:   string = b_str.value
+val check_float: float  = b_float.value
+val check_bool:  bool   = b_bool.value
+
+
+// ───────────────────────────────────────────────────────────────
+// 2. Anotação explícita — ignora inferência
+// ───────────────────────────────────────────────────────────────
+
+val explicit_int   = Box<int>(value: 10)
+val explicit_float = Box<float>(value: 10)   // coerção int → float
+
+val e1: int   = explicit_int.value
+val e2: float = explicit_float.value
+
+
+// ───────────────────────────────────────────────────────────────
+// 3. Múltiplos type params — cada um inferido independentemente
+// ───────────────────────────────────────────────────────────────
+
+val p1 = Pair(first: 1, second: "x")     // A → int, B → string
+val p2 = Pair(first: true, second: 3.0)  // A → bool, B → float
+val p3 = Pair(first: "a", second: "b")   // A → string, B → string
+
+val p1_first:  int    = p1.first
+val p1_second: string = p1.second
+val p2_first:  bool   = p2.first
+val p3_second: string = p3.second
+
+
+// ───────────────────────────────────────────────────────────────
+// 4. Três type params
+// ───────────────────────────────────────────────────────────────
+
+val t1 = Triple(a: 1, b: "x", c: true)   // X → int, Y → string, Z → bool
+
+val t1_a: int    = t1.a
+val t1_b: string = t1.b
+val t1_c: bool   = t1.c
+
+
+// ───────────────────────────────────────────────────────────────
+// 5. T inferido a partir de struct aninhado
+// ───────────────────────────────────────────────────────────────
+
+val inner_box = Box<int>(value: 5)
+val wrapped   = Wrapper(inner: inner_box, tag: "test")  // T → int (via inner: Box<int>)
+
+val w_tag: string = wrapped.tag
+val w_val: int    = wrapped.inner.value
+
+
+// ───────────────────────────────────────────────────────────────
+// 6. Inferência com default ignorado
+// ───────────────────────────────────────────────────────────────
+
+struct Container<T> {
+  value: T
+  label: string = "default"
+}
+
+val co1 = Container(value: 100)          // T → int, label usa default
+val co2 = Container(value: "x", label: "custom")
+
+val co1_label: string = co1.label   // "default"
+val co2_label: string = co2.label   // "custom"
+
+
+// ───────────────────────────────────────────────────────────────
+// 7. Alias genérico — mapa de T já resolvido, não precisa inferir
+// ───────────────────────────────────────────────────────────────
+
+typealias IntBox    = Box<int>
+typealias BoolPair  = Pair<bool, bool>
+
+val ib  = IntBox(value: 10)            // T já é int — sem inferência
+val bp  = BoolPair(first: true, second: false)
+
+val ib_v: int  = ib.value
+val bp_f: bool = bp.first
+
+
+// ───────────────────────────────────────────────────────────────
+// 8. ❌ Conflito de inferência — dois campos mapeiam T com tipos diferentes
+// ───────────────────────────────────────────────────────────────
+
+struct Same<T> {
+  a: T
+  b: T
+}
+
+// val bad = Same(a: 1, b: "x")
+// error: conflicting types for 'T': inferred 'int' from 'a' and 'string' from 'b'
+
+
+// ───────────────────────────────────────────────────────────────
+// 9. ❌ T sem informação — nenhum campo fornece o tipo
+// ───────────────────────────────────────────────────────────────
+
+struct Ghost<T> {
+  label: string    // T não aparece em nenhum campo concreto
+}
+
+// val bad = Ghost(label: "x")
+// error: cannot infer type parameter 'T' for 'Ghost' — provide an explicit annotation: Ghost<Type>(...)
+
+val ok = Ghost<int>(label: "x")    // anotação explícita resolve
+
+
+// ───────────────────────────────────────────────────────────────
+// 10. ❌ Alias genérico — tipo errado no argumento
+// ───────────────────────────────────────────────────────────────
+
+// val bad = IntBox(value: "string")
+// error: cannot assign 'string' to field 'value' of type 'int' in 'IntBox'
+
+
+// ───────────────────────────────────────────────────────────────
+// 11. ❌ Múltiplos params — inferência incompleta (A resolvido, B não)
+// ───────────────────────────────────────────────────────────────
+
+struct Half<A, B> {
+  a: A
+  meta: string    // B não aparece em nenhum campo
+}
+
+// val bad = Half(a: 1, meta: "x")
+// error: cannot infer type parameter 'B' for 'Half' — provide an explicit annotation
+
+val ok2 = Half<int, bool>(a: 1, meta: "x")   // explícito resolve

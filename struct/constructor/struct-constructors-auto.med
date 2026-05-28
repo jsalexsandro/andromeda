@@ -1,341 +1,205 @@
-// ════════════════════════════════════════════════════════════════
-// struct-11.med — Type Identity / Nominality Stress Tests
+// ═════════════════════════════════════════════════════════════
+// struct-constructors-auto.med — Auto-init (seções 4.1 ~ 4.3)
 //
-// Objetivo:
-// testar:
-// - nominalidade
-// - aliases
-// - generics
-// - nested structs
-// - method receiver typing
-// - assignment compatibility
-// - equality of instantiated generics
-// - shadowing de nomes
-// - recursive references
-//
-// Esses testes devem QUEBRAR se a linguagem cair em structural typing.
-// ════════════════════════════════════════════════════════════════
+// Cobre:
+// 4.1 argumentos nomeados, ordem livre
+// 4.2 validação: duplicata → desconhecido → ausente → tipo
+// 4.3 aliases de tipo como construtor
+// ═════════════════════════════════════════════════════════════
 
 
 // ───────────────────────────────────────────────────────────────
-// 1. NOMINALITY BASICS
+// 1. Caminho feliz — campos obrigatórios, ordem canônica
 // ───────────────────────────────────────────────────────────────
 
-struct UserId {
-  value: int
+struct Point {
+  x: float
+  y: float
 }
 
-struct ProductId {
-  value: int
+val p1 = Point(x: 1.0, y: 2.0)
+val p2 = Point(y: 2.0, x: 1.0) // ordem invertida — deve funcionar
+
+val check_x: float = p1.x // 1.0
+val check_y: float = p1.y // 2.0
+
+
+// ───────────────────────────────────────────────────────────────
+// 2. Campos com padrão — orientação no construtor
+// ───────────────────────────────────────────────────────────────
+
+struct Config {
+  host: string
+  port: int = 8080
+  timeout: int = 30
+  debug: bool = false
 }
 
-val u = UserId { value: 10 }
-val p = ProductId { value: 10 }
+val c1 = Config(host: "localhost") // todos os padrões
+val c2 = Config(host: "prod.io", port: 443) // timeout e debug com default
+val c3 = Config(host: "dev.io", debug: true) // timeoute porta e padrão
+val c4 = Config(host: "x", port: 80, timeout: 5, debug: true) // nenhum padrão usado
 
-// ❌ ERRO:
-// Mesmo shape, structs diferentes
-// val fail1: UserId = p
-
-// ❌ ERRO:
-// val fail2: ProductId = u
-
-
-// ───────────────────────────────────────────────────────────────
-// 2. TYPEALIAS NÃO CRIA NOVO TIPO
-// ───────────────────────────────────────────────────────────────
-
-typealias UID = UserId
-
-val uid: UID = UserId { value: 99 }
-
-// ✅ OK
-val uid2: UserId = uid
-
-// ✅ OK
-val uid3: UID = u
+val c1_port: int = c1.port // 8080
+val c2_port: int = c2.port // 443
+val c3_debug: bool = c3.debug // true
+val c4_timeout: int = c4.timeout // 5
 
 
 // ───────────────────────────────────────────────────────────────
-// 3. GENERIC NOMINALITY
+// 3. Todos os campos com padrão — construtor vazio válido
+// ───────────────────────────────────────────────────────────────
+
+struct Defaults {
+  a: int = 0
+  b: string = ""
+  c: bool = false
+}
+
+val d1 = Defaults()
+val d2 = Defaults(a: 42)
+val d3 = Defaults(a: 1, b: "oi", c: true)
+
+val d1_a: int = d1.a // 0
+val d2_a: int = d2.a // 42
+val d3_b: string = d3.b // "oi"
+
+
+// ───────────────────────────────────────────────────────────────
+// 4. Estruturas genéricas — auto-init com tipo anotado
 // ───────────────────────────────────────────────────────────────
 
 struct Box<T> {
   value: T
 }
 
-val bi = Box<int> { value: 1 }
-val bs = Box<string> { value: "a" }
+val bi = Box<int>(value: 10)
+val bs = Box<string>(value: "hello")
+val bf = Box<float>(value: 3.14)
 
-// ❌ ERRO:
-// Instanciações genéricas diferentes
-// val fail3: Box<int> = bs
-
-// ❌ ERRO:
-// val fail4: Box<string> = bi
+val bi_v: int = bi.value // 10
+val bs_v: string = bs.value // "hello"
 
 
 // ───────────────────────────────────────────────────────────────
-// 4. NOMINALITY ENTRE STRUCTS GENÉRICAS DIFERENTES
-// ───────────────────────────────────────────────────────────────
-
-struct Wrapper<T> {
-  value: T
-}
-
-// ❌ ERRO:
-// Mesmo shape interno NÃO importa
-// val fail5: Wrapper<int> = bi
-
-// ❌ ERRO:
-// val fail6: Box<int> = Wrapper<int> { value: 1 }
-
-
-// ───────────────────────────────────────────────────────────────
-// 5. NESTED GENERICS
-// ───────────────────────────────────────────────────────────────
-
-val nested1 = Box<Box<int>> {
-  value: Box<int> { value: 1 }
-}
-
-val nested2 = Box<Box<string>> {
-  value: Box<string> { value: "x" }
-}
-
-// ❌ ERRO:
-// val fail7: Box<Box<int>> = nested2
-
-
-// ───────────────────────────────────────────────────────────────
-// 6. METHOD RECEIVER TYPE CHECKING
-// ───────────────────────────────────────────────────────────────
-
-struct Counter {
-  mut value: int
-
-  mut func increment(): void {
-    self.value = self.value + 1
-  }
-}
-
-struct FakeCounter {
-  mut value: int
-
-  mut func increment(): void {
-    self.value = self.value + 999
-  }
-}
-
-val c = Counter { value: 0 }
-val f = FakeCounter { value: 0 }
-
-// ❌ ERRO:
-// Mesmo methods + fields ≠ mesmo tipo
-// val fail8: Counter = f
-
-
-// ───────────────────────────────────────────────────────────────
-// 7. GENERIC METHOD RETURN NOMINALITY
-// ───────────────────────────────────────────────────────────────
-
-struct Pair<A, B> {
-  first: A
-  second: B
-
-  func swap(): Pair<B, A> {
-    return Pair<B, A> {
-      first: self.second,
-      second: self.first
-    }
-  }
-}
-
-val pair = Pair<int, string> {
-  first: 1,
-  second: "x"
-}
-
-val swapped = pair.swap()
-
-// ✅ OK
-val ok1: Pair<string, int> = swapped
-
-// ❌ ERRO:
-// val fail9: Pair<int, string> = swapped
-
-
-// ───────────────────────────────────────────────────────────────
-// 8. TYPEALIAS EM GENERICS
-// ───────────────────────────────────────────────────────────────
-
-typealias IntBox = Box<int>
-
-val ib = IntBox { value: 7 }
-
-// ✅ OK
-val ok2: Box<int> = ib
-
-// ✅ OK
-val ok3: IntBox = bi
-
-// ❌ ERRO:
-// val fail10: Box<string> = ib
-
-
-// ───────────────────────────────────────────────────────────────
-// 9. FIELD TYPE NOMINALITY
-// ───────────────────────────────────────────────────────────────
-
-struct User {
-  id: UserId
-}
-
-struct Product {
-  id: ProductId
-}
-
-val user = User {
-  id: UserId { value: 1 }
-}
-
-val product = Product {
-  id: ProductId { value: 1 }
-}
-
-// ❌ ERRO:
-// val fail11: User = product
-
-
-// ───────────────────────────────────────────────────────────────
-// 10. SHADOW TYPE PARAMETERS
-// ───────────────────────────────────────────────────────────────
-
-struct Result<T> {
-  value: T
-
-  func map<T>(x: T): T {
-    return x
-  }
-}
-
-val r = Result<int> { value: 10 }
-
-// Aqui o T do método NÃO é o T da struct
-val mapped: string = r.map<string>("ok")
-
-
-// ───────────────────────────────────────────────────────────────
-// 11. RECURSIVE TYPE REFERENCES
-// ───────────────────────────────────────────────────────────────
-
-struct Node {
-  value: int
-  next: Node?
-}
-
-// Se tiver optional futuramente:
-// testar recursion sem infinite size
-
-
-// ───────────────────────────────────────────────────────────────
-// 12. SELF TYPE CONSISTENCY
+// 5. Struct com campos de struct — composição
 // ───────────────────────────────────────────────────────────────
 
 struct Vec2 {
   x: float
   y: float
-
-  func add(other: Vec2): Vec2 {
-    return Vec2 {
-      x: self.x + other.x,
-      y: self.y + other.y
-    }
-  }
 }
 
-struct Vec3 {
-  x: float
-  y: float
+struct Line {
+  start: Vec2
+  end: Vec2
 }
 
-val v2 = Vec2 { x: 1.0, y: 2.0 }
-val v3 = Vec3 { x: 1.0, y: 2.0 }
+val origin = Vec2(x: 0.0, y: 0.0)
+val target = Vec2(x: 3.0, y: 4.0)
+val line = Line(start: origin, end: target)
 
-// ❌ ERRO:
-// Mesmo shape ≠ mesmo tipo
-// val fail12: Vec2 = v3
-
-// ❌ ERRO:
-// v2.add(v3)
+val line_x: float = line.start.x // 0.0
+val line_y: float = line.end.y // 4.0
 
 
 // ───────────────────────────────────────────────────────────────
-// 13. NOMINALITY EM ARRAYS (FUTURO)
+// 6. ❌ Argumento posicional — sempre erro
 // ───────────────────────────────────────────────────────────────
 
-// val arr1: [UserId] = [UserId { value: 1 }]
-// val arr2: [ProductId] = arr1 // ❌
-
-
-// ───────────────────────────────────────────────────────────────
-// 14. DISTINCT TYPE CONSTRUCTORS
-// ───────────────────────────────────────────────────────────────
-
-struct Email {
-  value: string
-}
-
-struct Password {
-  value: string
-}
-
-// ❌ ERRO:
-// val fail13: Email = Password { value: "123" }
-
-// ❌ ERRO:
-// val fail14: Password = Email { value: "abc" }
+// val bad = Point(1.0, 2.0)
+// erro: argumentos posicionais não são permitidos no construtor da struct 'Point'
 
 
 // ───────────────────────────────────────────────────────────────
-// 15. DEEP GENERIC EQUALITY
+// 7. ❌ Duplicata de argumento
 // ───────────────────────────────────────────────────────────────
 
-typealias IntPair = Pair<int, int>
+// val bad = Point(x: 1.0, x: 2.0, y: 3.0)
+// erro: argumento duplicado 'x' na chamada para 'Point'
 
-val pair1 = Pair<int, int> {
-  first: 1,
-  second: 2
-}
-
-val pair2: IntPair = pair1
-
-// ✅ OK
+// val bad2 = Config(host: "a", port: 80, host: "b")
+// erro: argumento duplicado 'host' na chamada para 'Config'
 
 
 // ───────────────────────────────────────────────────────────────
-// 16. METHOD RETURN EXACT TYPE
+// 8. ❌ Argumento desconhecido
 // ───────────────────────────────────────────────────────────────
 
-struct Animal {
-  name: string
-}
+// val bad = Point(x: 1.0, y: 2.0, z: 3.0)
+// erro: argumento desconhecido 'z' na chamada para 'Point'
 
-struct Dog {
-  name: string
-}
-
-struct Shelter {
-  func adopt(): Animal {
-    return Animal { name: "a" }
-  }
-}
-
-val s = Shelter {}
-val adopted = s.adopt()
-
-// ❌ ERRO:
-// val fail15: Dog = adopted
+// val bad2 = Config(host: "x", retries: 3)
+// erro: argumento desconhecido 'retries' na chamada para 'Config'
 
 
-println("nominality tests passed")
+// ───────────────────────────────────────────────────────────────
+// 9. ❌ Argumento ausente (campo obrigatório)
+// ───────────────────────────────────────────────────────────────
 
+// val bad = Point(x: 1.0)
+// erro: argumento 'y' ausente na chamada para 'Point'
+
+// val bad2 = Config()
+// erro: argumento 'host' ausente na chamada para 'Config'
+
+
+// ───────────────────────────────────────────────────────────────
+// 10. ❌ Tipo errado no argumento
+// ───────────────────────────────────────────────────────────────
+
+// val bad = Point(x: "one", y: 2.0)
+// erro: não é possível atribuir 'string' ao campo 'x' do tipo 'float'
+
+// val bad2 = Config(host: "x", port: "8080")
+// erro: não é possível atribuir 'string' ao campo 'port' do tipo 'int'
+
+
+// ───────────────────────────────────────────────────────────────
+// 11. ❌ Ordem de erros — duplicata detectada antes de desconhecida
+// ───────────────────────────────────────────────────────────────
+
+// val bad = Point(x: 1.0, x: 2.0, z: 3.0)
+// erro: argumento duplicado 'x' na chamada para 'Point'
+// (z não é reportado — para no primeiro erro)
+
+
+// ───────────────────────────────────────────────────────────────
+// 12. Type alias — construtor via alias simples
+// ───────────────────────────────────────────────────────────────
+
+typealias Origin = Point
+
+val o1 = Origin(x: 0.0, y: 0.0)
+val o_x: float = o1.x // 0.0
+
+
+// ───────────────────────────────────────────────────────────────
+// 13. Type alias — construtor via alias genérico
+// ───────────────────────────────────────────────────────────────
+
+typealias IntBox = Box<int>
+typealias StringBox = Box<string>
+
+val ib = IntBox(value: 99)
+val sb = StringBox(value: "world")
+
+val ib_v: int = ib.value // 99
+val sb_v: string = sb.value // "world"
+
+
+// ───────────────────────────────────────────────────────────────
+// 14. ❌ Type alias — tipo errado preserva o nome do alias na mensagem
+// ───────────────────────────────────────────────────────────────
+
+// val bad = IntBox(value: "ninety")
+// erro: não é possível atribuir 'string' ao campo 'value' do tipo 'int' em 'IntBox'
+// (mensagem usa 'IntBox', não 'Box<int>')
+
+
+// ───────────────────────────────────────────────────────────────
+// 15. ❌ Type alias — argumento ausente preserva nome do alias
+// ───────────────────────────────────────────────────────────────
+
+// val bad = IntBox()
+// erro: argumento 'value' ausente na chamada para 'IntBox'

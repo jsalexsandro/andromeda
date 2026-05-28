@@ -850,7 +850,10 @@ export class TypeChecker {
     this.hasReturn = false;
 
     // Varredura do corpo: verificar atribuições no escopo raiz
-    const initializedFields = new Set<string>();
+    // Fields with defaults are considered initialized from the start
+    const initializedFields = new Set<string>(
+      structStmt.fields.filter(f => f.defaultValue).map(f => f.name.value as string)
+    );
     this.checkInitBodyStatements(initNode.body.statements, initializedFields, structStmt, initNode);
 
     // Verificar return com valor
@@ -876,6 +879,196 @@ export class TypeChecker {
     }
   }
 
+  // ── helper: check self reads before initialization ────
+  private checkExprSelfReads(
+    expr: Expr,
+    initializedFields: Set<string>,
+    requiredFieldNames: string[],
+    structFieldNames: string[],
+  ): void {
+    switch (expr.kind) {
+      case "Identifier":
+        if (expr.name.value === "self") {
+          const missing = requiredFieldNames.filter(f => !initializedFields.has(f));
+          if (missing.length > 0) {
+            this.errors.push(Errors.typeMismatch(
+              "'self' used before all properties are initialized",
+              expr.name,
+            ));
+          }
+        }
+        break;
+      case "Member":
+        if (expr.object.kind === "Identifier" && expr.object.name.value === "self") {
+          const propName = expr.property.name.value as string;
+          if (structFieldNames.includes(propName)) {
+            if (!initializedFields.has(propName)) {
+              this.errors.push(Errors.typeMismatch(
+                `property '${propName}' used before initialization`,
+                expr.property.name,
+              ));
+            }
+          } else {
+            const missing = requiredFieldNames.filter(f => !initializedFields.has(f));
+            if (missing.length > 0) {
+              this.errors.push(Errors.typeMismatch(
+                "'self' used before all properties are initialized",
+                expr.property.name,
+              ));
+            }
+          }
+        } else {
+          this.checkExprSelfReads(expr.object, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        break;
+      case "Call":
+        this.checkExprSelfReads(expr.callee, initializedFields, requiredFieldNames, structFieldNames);
+        for (const arg of expr.args) {
+          this.checkExprSelfReads(arg, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        break;
+      case "Binary":
+        this.checkExprSelfReads(expr.left, initializedFields, requiredFieldNames, structFieldNames);
+        this.checkExprSelfReads(expr.right, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "Unary":
+        this.checkExprSelfReads(expr.right, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "Logical":
+        this.checkExprSelfReads(expr.left, initializedFields, requiredFieldNames, structFieldNames);
+        this.checkExprSelfReads(expr.right, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "Group":
+        this.checkExprSelfReads(expr.expression, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "Assign":
+        this.checkExprSelfReads(expr.value, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "Index":
+        this.checkExprSelfReads(expr.object, initializedFields, requiredFieldNames, structFieldNames);
+        this.checkExprSelfReads(expr.index, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "Array":
+        for (const el of expr.elements) {
+          this.checkExprSelfReads(el, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        break;
+      case "Object":
+        for (const prop of expr.properties) {
+          this.checkExprSelfReads(prop.value, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        break;
+      case "Conditional":
+        this.checkExprSelfReads(expr.condition, initializedFields, requiredFieldNames, structFieldNames);
+        this.checkExprSelfReads(expr.consequent, initializedFields, requiredFieldNames, structFieldNames);
+        this.checkExprSelfReads(expr.alternate, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "NullishCoalescing":
+        this.checkExprSelfReads(expr.left, initializedFields, requiredFieldNames, structFieldNames);
+        this.checkExprSelfReads(expr.right, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "Spread":
+        this.checkExprSelfReads(expr.argument, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "New":
+        this.checkExprSelfReads(expr.callee, initializedFields, requiredFieldNames, structFieldNames);
+        for (const arg of expr.args) {
+          this.checkExprSelfReads(arg, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        break;
+      case "NamedArgument":
+        this.checkExprSelfReads(expr.value, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "ArrowFunction":
+        if (expr.body && typeof expr.body === "object" && "kind" in expr.body) {
+          const bodyExpr = expr.body as Expr;
+          if (bodyExpr.kind !== "BlockStmt") {
+            this.checkExprSelfReads(bodyExpr, initializedFields, requiredFieldNames, structFieldNames);
+          }
+        }
+        break;
+      case "Await":
+        this.checkExprSelfReads(expr.expression, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "StructLiteral":
+        for (const f of expr.fields) {
+          this.checkExprSelfReads(f.value, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        break;
+      case "IcexElement":
+        for (const attr of expr.attributes) {
+          if (typeof attr.value === "object" && attr.value !== null && "kind" in attr.value) {
+            this.checkExprSelfReads(attr.value as Expr, initializedFields, requiredFieldNames, structFieldNames);
+          }
+        }
+        for (const child of expr.children) {
+          if (child.kind === "IcexExpression") {
+            this.checkExprSelfReads(child.expression, initializedFields, requiredFieldNames, structFieldNames);
+          } else if (child.kind === "IcexElement") {
+            this.checkExprSelfReads(child as any, initializedFields, requiredFieldNames, structFieldNames);
+          }
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  // ── helper: check statement body for self reads ───────
+  private checkStatementSelfReads(
+    stmt: Stmt,
+    initializedFields: Set<string>,
+    requiredFieldNames: string[],
+    structFieldNames: string[],
+  ): void {
+    switch (stmt.kind) {
+      case "ExpressionStmt":
+        this.checkExprSelfReads(stmt.expression, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "ReturnStmt":
+        if (stmt.value) this.checkExprSelfReads(stmt.value, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "VariableStmt":
+        if (stmt.initializer) this.checkExprSelfReads(stmt.initializer, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "BlockStmt":
+        for (const s of stmt.statements) {
+          this.checkStatementSelfReads(s, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        break;
+      case "IfStmt":
+        this.checkExprSelfReads(stmt.condition, initializedFields, requiredFieldNames, structFieldNames);
+        this.checkStatementSelfReads(stmt.thenBranch, initializedFields, requiredFieldNames, structFieldNames);
+        if (stmt.elseBranch) {
+          this.checkStatementSelfReads(stmt.elseBranch, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        break;
+      case "WhileStmt":
+        this.checkExprSelfReads(stmt.condition, initializedFields, requiredFieldNames, structFieldNames);
+        this.checkStatementSelfReads(stmt.body, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "ForStmt":
+        if (stmt.initializer) {
+          this.checkStatementSelfReads(stmt.initializer, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        if (stmt.condition) {
+          this.checkExprSelfReads(stmt.condition, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        this.checkExprSelfReads(stmt.update, initializedFields, requiredFieldNames, structFieldNames);
+        this.checkStatementSelfReads(stmt.body, initializedFields, requiredFieldNames, structFieldNames);
+        break;
+      case "IfVariableStmt":
+        this.checkExprSelfReads(stmt.initializer, initializedFields, requiredFieldNames, structFieldNames);
+        this.checkStatementSelfReads(stmt.thenBranch, initializedFields, requiredFieldNames, structFieldNames);
+        if (stmt.elseBranch) {
+          this.checkStatementSelfReads(stmt.elseBranch, initializedFields, requiredFieldNames, structFieldNames);
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   // ── helper: varrer statements do init body em depth 0 ──────
   private checkInitBodyStatements(
     stmts: Stmt[],
@@ -883,7 +1076,12 @@ export class TypeChecker {
     structStmt: Extract<Stmt, { kind: "StructStmt" }>,
     initNode: StructConstructor,
   ): void {
+    const structFieldNames = structStmt.fields.map(f => f.name.value as string);
+    const requiredFieldNames = structStmt.fields
+      .filter(f => !f.defaultValue)
+      .map(f => f.name.value as string);
     for (const stmt of stmts) {
+      this.checkStatementSelfReads(stmt, initializedFields, requiredFieldNames, structFieldNames);
       switch (stmt.kind) {
         case "ExpressionStmt": {
           const expr = stmt.expression;
@@ -895,11 +1093,7 @@ export class TypeChecker {
               initializedFields.add(fieldName);
             }
           }
-          // return com valor é erro
-          if (expr.kind === "Identifier" && (expr as any).value === "return") {
-            // Não deveria acontecer — return é statement, não expression
-          }
-          this.checkExpression(expr);
+          this.checkExpressionStmt(stmt);
           break;
         }
         case "ReturnStmt": {
@@ -1027,7 +1221,7 @@ export class TypeChecker {
     // (10.2) Erro se positional
     if (positionalArgs.length > 0) {
       this.errors.push(Errors.typeMismatch(
-        `positional arguments not allowed in struct constructor. Use named arguments: ${callName}(field: value, ...)`,
+        `positional arguments not allowed in struct constructor. Use named arguments: ${callName}(${structFields ? structFields.map(f => `${f.name.value}: value`).join(", ") : "field: value"})`,
         token,
       ));
       // Still check expressions to avoid cascade
@@ -1048,11 +1242,29 @@ export class TypeChecker {
     if (structTypeParams && structTypeParams.length > 0) {
       if (!typeArgs || typeArgs.length !== structTypeParams.length) {
         // Try inference from named arg values
-        const inferred = this.inferStructTypeArgsFromNamedArgs(
+        const inferenceResult = this.inferStructTypeArgsFromNamedArgs(
           structTypeParams, structFields, namedArgs,
         );
-        if (inferred) {
-          typeArgs = inferred;
+        if (inferenceResult) {
+          if (inferenceResult.conflicts.length > 0) {
+            for (const c of inferenceResult.conflicts) {
+              this.errors.push(Errors.typeMismatch(
+                `conflicting types for '${c.param}': inferred '${this.typeToString(c.existing)}' and '${this.typeToString(c.conflict)}'`,
+                token,
+              ));
+            }
+            typeArgs = inferenceResult.typeArgs;
+          } else if (inferenceResult.unresolved.length > 0) {
+            for (const u of inferenceResult.unresolved) {
+              this.errors.push(Errors.typeMismatch(
+                `cannot infer type parameter '${u}' for '${callName}' — provide an explicit annotation: ${callName}<Type>(...)`,
+                token,
+              ));
+            }
+            typeArgs = inferenceResult.typeArgs;
+          } else {
+            typeArgs = inferenceResult.typeArgs;
+          }
         }
       }
 
@@ -1319,43 +1531,142 @@ export class TypeChecker {
     typeParams: TypeParameterNode[],
     structFields: StructField[],
     namedArgs: { key: string; value: Expr }[],
-  ): TypeNode[] | null {
+  ): { typeArgs: TypeNode[]; unresolved: string[]; conflicts: { param: string; existing: TypeNode; conflict: TypeNode }[] } | null {
     if (namedArgs.length === 0) return null;
 
     const typeParamNames = new Set(typeParams.map(tp => tp.name.value as string));
     const mapping = new Map<string, TypeNode>();
+    const conflicts: { param: string; existing: TypeNode; conflict: TypeNode }[] = [];
 
-    // Build field name → type param mapping
-    const fieldToTypeParam = new Map<string, string>();
-    for (const field of structFields) {
-      const fieldName = field.name.value as string;
-      if (field.type.kind === "NamedType" && typeParamNames.has(field.type.name.value as string)) {
-        fieldToTypeParam.set(fieldName, field.type.name.value as string);
-      }
+    const fieldDeclaredTypes = new Map<string, TypeNode>();
+    for (const f of structFields) {
+      fieldDeclaredTypes.set(f.name.value as string, f.type);
     }
+
+    const unify = (paramType: TypeNode, argType: TypeNode): boolean => {
+      if (paramType.kind === "GroupingType") return unify(paramType.type, argType);
+      if (argType.kind === "GroupingType") return unify(paramType, argType.type);
+
+      // T — type param direct
+      if (paramType.kind === "NamedType") {
+        const name = paramType.name.value as string;
+        if (typeParamNames.has(name)) {
+          const existing = mapping.get(name);
+          if (existing) {
+            if (!this.areTypesCompatible(existing, argType)) {
+              conflicts.push({ param: name, existing, conflict: argType });
+            }
+            return true;
+          }
+          mapping.set(name, argType);
+        }
+        return true;
+      }
+
+      // T[] — legacy ArrayType
+      if (paramType.kind === "ArrayType") {
+        const elemArg = this.isArray(argType)
+          ? this.arrayElement(argType as GenericTypeNode)
+          : argType.kind === "ArrayType"
+            ? argType.elementType
+            : null;
+        if (elemArg) return unify(paramType.elementType, elemArg);
+        return true;
+      }
+
+      // GenericType: Box<T>, Array<T>, Optional<T>, etc.
+      if (paramType.kind === "GenericType") {
+        const paramName = paramType.name.value as string;
+
+        if (paramName === "Array" && paramType.args.length === 1) {
+          const elemArg = argType.kind === "ArrayType"
+            ? argType.elementType
+            : this.isArray(argType)
+              ? this.arrayElement(argType as GenericTypeNode)
+              : null;
+          if (elemArg) return unify(paramType.args[0], elemArg);
+        }
+
+        if (paramName === "Optional" && paramType.args.length === 1) {
+          const innerArg = argType.kind === "GenericType" && (argType.name.value as string) === "Optional" && argType.args.length === 1
+            ? argType.args[0]
+            : argType.kind === "NullableType"
+              ? argType.type
+              : argType.kind === "PrimitiveType" && argType.name === "null"
+                ? null
+                : argType;
+          if (innerArg) return unify(paramType.args[0], innerArg);
+          return true;
+        }
+
+        if (
+          argType.kind === "GenericType" &&
+          (argType.name.value as string) === paramName &&
+          argType.args.length === paramType.args.length
+        ) {
+          return paramType.args.every((pa, i) => unify(pa, argType.args[i]));
+        }
+
+        return true;
+      }
+
+      // T? — NullableType
+      if (paramType.kind === "NullableType") {
+        const innerArg = argType.kind === "NullableType"
+          ? argType.type
+          : argType.kind === "PrimitiveType" && argType.name === "null"
+            ? null
+            : argType;
+        if (innerArg) return unify(paramType.type, innerArg);
+        return true;
+      }
+
+      // UnionType — try each member
+      if (paramType.kind === "UnionType") {
+        return paramType.types.some(pt => unify(pt, argType));
+      }
+
+      return true;
+    };
+
+    const savedErrorCount = this.errors.length;
 
     for (const na of namedArgs) {
-      const tpName = fieldToTypeParam.get(na.key);
-      if (!tpName) continue;
+      const declaredType = fieldDeclaredTypes.get(na.key);
+      if (!declaredType) continue;
 
-      if (mapping.has(tpName)) continue; // first match wins
+      const savedCtx = this.contextualType;
+      this.contextualType = null;
+      const valueType = this.checkExpression(na.value);
+      this.contextualType = savedCtx;
 
-      const inferredType = this.checkExpression(na.value);
-      mapping.set(tpName, inferredType);
-    }
+      if (valueType.kind === "PrimitiveType" && valueType.name === "unknown") {
+        this.errors.length = savedErrorCount;
+        return null;
+      }
 
-    if (mapping.size === 0) return null;
-    if (mapping.size < typeParams.length) {
-      // Partial inference — fill rest with unknown
-      for (const tp of typeParams) {
-        const tpName = tp.name.value as string;
-        if (!mapping.has(tpName)) {
-          mapping.set(tpName, { kind: "PrimitiveType", name: "unknown" });
-        }
+      if (!unify(declaredType, valueType)) {
+        this.errors.length = savedErrorCount;
+        return null;
       }
     }
 
-    return typeParams.map(tp => mapping.get(tp.name.value as string) ?? { kind: "PrimitiveType", name: "unknown" });
+    this.errors.length = savedErrorCount;
+
+    const unresolved: string[] = [];
+    const typeArgs: TypeNode[] = [];
+    for (const tp of typeParams) {
+      const tpName = tp.name.value as string;
+      const type = mapping.get(tpName);
+      if (!type) {
+        unresolved.push(tpName);
+        typeArgs.push({ kind: "PrimitiveType", name: "unknown" });
+      } else {
+        typeArgs.push(type);
+      }
+    }
+
+    return { typeArgs, unresolved, conflicts };
   }
 
   private checkAliasSelfReference(type: TypeNode, aliasName: string, token: Token): SemanticError | null {
@@ -2520,7 +2831,7 @@ export class TypeChecker {
 
     for (const f of structFields) {
       const fieldName = f.name.value as string;
-      if (!seenKeys.has(fieldName)) {
+      if (!seenKeys.has(fieldName) && !f.defaultValue) {
         this.errors.push(Errors.typeMismatch(
           `missing required field '${fieldName}' in struct literal for '${resolvedStructName ?? name}'`,
           expr.structName
@@ -3110,7 +3421,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
           this.errors.push(Errors.typeMismatch(
             `argument ${i + 1}: expected '${this.typeToString(resolvedExpected)}', ` +
             `got '${this.typeToString(spreadType)}'`,
-            { line: 0, column: 0, type: 0, value: "" } as Token
+            this.getExprToken(arg),
           ));
         }
         continue;
@@ -3128,7 +3439,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
           this.errors.push(Errors.typeMismatch(
             `argument ${label}: expected '${this.typeToString(resolvedExpected)}', ` +
             `got '${this.typeToString(actualType)}'`,
-            { line: 0, column: 0, type: 0, value: "" } as Token
+            this.getExprToken(arg),
           ));
         }
         continue;
@@ -3143,12 +3454,30 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         this.errors.push(Errors.typeMismatch(
           `argument ${label}: expected '${this.typeToString(resolvedExpected)}', ` +
           `got '${this.typeToString(actualType)}'`,
-          { line: 0, column: 0, type: 0, value: "" } as Token
+          this.getExprToken(arg),
         ));
       }
     }
 
     return effectiveReturnType;
+  }
+
+  private getExprToken(expr: Expr): Token {
+    switch (expr.kind) {
+      case "Identifier": return expr.name;
+      case "Literal": return expr.value;
+      case "Unary": return expr.operator;
+      case "Binary": return expr.operator;
+      case "Call": return this.getExprToken(expr.callee);
+      case "Member": return expr.property;
+      case "Group": return this.getExprToken(expr.expression);
+      case "Spread": return this.getExprToken(expr.argument);
+      case "ArrowFunction":
+        if (expr.params.length > 0) return expr.params[0].name;
+        return { line: 0, column: 0, type: 0, value: "" } as Token;
+      default:
+        return { line: 0, column: 0, type: 0, value: "" } as Token;
+    }
   }
 
   private checkMemberExpr(expr: Extract<Expr, { kind: "Member" }>): TypeNode {

@@ -1,0 +1,223 @@
+// ════════════════════════════════════════════════════════════════
+// struct-constructors-custom.med — Custom init (seções 6.1 ~ 6.2)
+//
+// Cobre:
+//   6.1  sintaxe e comportamento
+//   6.2  campos obrigatórios — atribuição no escopo raiz
+//   6.3  atribuições condicionais não contam
+//   6.4  campos com default dispensam atribuição no init
+//   6.5  argumentos nomeados proibidos
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// 1. Happy path — todos os campos atribuídos no escopo raiz
+// ───────────────────────────────────────────────────────────────
+
+struct User {
+  mut name: string
+  mut age:  int
+
+  init(n: string, a: int) {
+    self.name = n
+    self.age  = a
+  }
+}
+
+val u1 = User("ana", 30)
+val u2 = User("bob", 25)
+
+val u1_name: string = u1.name   // "ana"
+val u1_age:  int    = u1.age    // 30
+
+
+// ───────────────────────────────────────────────────────────────
+// 2. Init sem parâmetros — campos com default
+// ───────────────────────────────────────────────────────────────
+
+struct Counter {
+  mut value: int = 0
+
+  init() {
+    // value tem default — init não precisa atribuir
+  }
+}
+
+val c1 = Counter()
+val c1_v: int = c1.value   // 0
+
+
+// ───────────────────────────────────────────────────────────────
+// 3. Mix: campos com e sem default — só obrigatórios precisam de atribuição
+// ───────────────────────────────────────────────────────────────
+
+struct Session {
+  mut token:   string
+  mut timeout: int    = 3600
+  mut active:  bool   = true
+
+  init(t: string) {
+    self.token = t
+    // timeout e active têm default — não precisam ser atribuídos
+  }
+}
+
+val s1 = Session("abc123")
+val s1_token:   string = s1.token    // "abc123"
+val s1_timeout: int    = s1.timeout  // 3600
+val s1_active:  bool   = s1.active   // true
+
+
+// ───────────────────────────────────────────────────────────────
+// 4. Atribuição raiz + refinamento condicional
+// ───────────────────────────────────────────────────────────────
+
+struct Clamp {
+  mut value: int
+
+  init(v: int) {
+    self.value = 0           // atribuição raiz — satisfaz a regra
+    if (v > 0) {
+      self.value = v         // refinamento — permitido
+    }
+  }
+}
+
+val cl1 = Clamp(-5)
+val cl2 = Clamp(10)
+
+val cl1_v: int = cl1.value   // 0  (negativo → mantém 0)
+val cl2_v: int = cl2.value   // 10
+
+
+// ───────────────────────────────────────────────────────────────
+// 5. Init com lógica no corpo — usa campos após atribuição
+// ───────────────────────────────────────────────────────────────
+
+struct Rect {
+  mut width:  float
+  mut height: float
+  mut area:   float
+
+  init(w: float, h: float) {
+    self.width  = w
+    self.height = h
+    self.area   = self.width * self.height   // ok: width e height já atribuídos
+  }
+}
+
+val r1 = Rect(3.0, 4.0)
+val r1_area: float = r1.area   // 12.0
+
+
+// ───────────────────────────────────────────────────────────────
+// 6. Init struct genérica — T do struct disponível no init
+// ───────────────────────────────────────────────────────────────
+
+struct Slot<T> {
+  mut item:  T
+  mut empty: bool
+
+  init(i: T) {
+    self.item  = i
+    self.empty = false
+  }
+}
+
+val slot_int = Slot<int>(10)
+val slot_str = Slot<string>("hello")
+
+val slot_i: int    = slot_int.item    // 10
+val slot_e: bool   = slot_int.empty   // false
+val slot_s: string = slot_str.item    // "hello"
+
+
+// ───────────────────────────────────────────────────────────────
+// 7. Self atribuído e lido no mesmo init — ordem importa
+// ───────────────────────────────────────────────────────────────
+
+struct Chain {
+  mut a: int
+  mut b: int
+  mut c: int
+
+  init(v: int) {
+    self.a = v
+    self.b = self.a + 1    // ok: a já atribuído
+    self.c = self.b * 2    // ok: b já atribuído
+  }
+}
+
+val ch = Chain(5)
+val ch_a: int = ch.a   // 5
+val ch_b: int = ch.b   // 6
+val ch_c: int = ch.c   // 12
+
+
+// ───────────────────────────────────────────────────────────────
+// 8. ❌ Argumentos nomeados em custom init — proibido
+// ───────────────────────────────────────────────────────────────
+
+// val bad = User(n: "ana", a: 30)
+// error: named arguments not allowed in custom init call to 'User'
+
+
+// ───────────────────────────────────────────────────────────────
+// 9. ❌ Campo obrigatório não atribuído no escopo raiz
+// ───────────────────────────────────────────────────────────────
+
+struct Button {
+  mut title: string
+  mut x: int              // error: property 'x' has no default and is not initialized at the root scope of 'init'
+  mut y: int              // error: property 'y' has no default and is not initialized at the root scope of 'init'
+
+  init(title: string) {
+    self.title = title
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 10. ❌ Atribuição condicional não conta como raiz
+// ───────────────────────────────────────────────────────────────
+
+struct Cond {
+  mut x: int   // error: property 'x' has no default and is not initialized at the root scope of 'init'
+
+  init(v: int) {
+    if (v > 0) {
+      self.x = v    // não conta — está dentro de if
+    }
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 11. ❌ Atribuição dentro de while não conta
+// ───────────────────────────────────────────────────────────────
+
+struct Loop {
+  mut total: int   // error: property 'total' has no default and is not initialized at the root scope of 'init'
+
+  init(n: int) {
+    var i = 0
+    while (i < n) {
+      self.total = i    // não conta — está dentro de while
+    }
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// 12. ❌ Múltiplos campos não atribuídos — todos reportados
+// ───────────────────────────────────────────────────────────────
+
+struct Form {
+  mut name:  string    // error: property 'name' not initialized
+  mut email: string    // error: property 'email' not initialized
+  mut age:   int       // error: property 'age' not initialized
+
+  init() {
+    // nada atribuído
+  }
+}

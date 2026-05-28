@@ -1,0 +1,72 @@
+// ───────────────────────────────────────────────────────────────
+// struct-defaults-literal.med
+// Teste: campos com defaultValue são opcionais em struct literals
+// ───────────────────────────────────────────────────────────────
+
+// ── 1. Básico: todos os defaults omitidos ──
+struct Config {
+  host:   string = "localhost"
+  port:   int    = 8080
+  secure: bool   = true
+}
+
+val c1 = Config { host: "server" }
+
+// ── 2. Um default omitido ──
+val c2 = Config { host: "server", port: 3000 }
+
+// ── 3. Nenhum omitido (tudo explícito) ──
+val c3 = Config { host: "server", port: 3000, secure: false }
+
+// ── 4. Defaults de tipos variados ──
+struct AllDefaults {
+  a: int    = 0
+  b: float  = 1.5
+  c: string = "default"
+  d: bool   = false
+}
+
+val d1 = AllDefaults {}
+val d2 = AllDefaults { a: 10 }
+
+// ── 5. Misto: obrigatório + opcionais ──
+struct Mixed {
+  required: string
+  opt1: int    = 99
+  opt2: bool   = true
+}
+
+val m1 = Mixed { required: "must" }
+val m2 = Mixed { required: "must", opt1: 42 }
+
+// ── 6. Campo mutável com default ──
+struct WithMut {
+  mut label: string = "unlabeled"
+  mut count: int    = 0
+  name:     string
+}
+
+val w1 = WithMut { name: "test" }
+val w2 = WithMut { name: "test", label: "custom" }
+
+// ── 7. Struct genérica com default ──
+struct DefaultBox<T> {
+  value: T
+  tag:   string = "generic"
+}
+
+val g1 = DefaultBox<int> { value: 42 }
+val g2 = DefaultBox<string> { value: "hi", tag: "custom" }
+val g3 = DefaultBox { value: true }
+
+// ── 8. Múltiplos defaults omitidos em struct grande ──
+struct Large {
+  a: int    = 1
+  b: int    = 2
+  c: int    = 3
+  d: int    = 4
+  e: string
+}
+
+val l1 = Large { e: "only" }
+val l2 = Large { e: "two", a: 10, d: 40 }

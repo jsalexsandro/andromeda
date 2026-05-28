@@ -1,0 +1,707 @@
+// ════════════════════════════════════════════════════════════════
+// syntax-ultimate.med — O Guia Definitivo de Structs no Andromeda
+//
+// Cobre TODOS os aspectos de structs:
+//   Capítulo 1 — Declaração e tipos de campo
+//   Capítulo 2 — Struct Literals (sintaxe {})
+//   Capítulo 3 — Shorthand
+//   Capítulo 4 — Construtores Auto-init (named args)
+//   Capítulo 5 — Construtores Custom init
+//   Capítulo 6 — Métodos
+//   Capítulo 7 — Genéricos
+//   Capítulo 8 — Type alias
+//   Capítulo 9 — Nominalidade (type identity)
+//   Capítulo 10 — Ordem de inicialização em init
+//   Capítulo 11 — Casos de erro (comentados)
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 1: DECLARAÇÃO E TIPOS DE CAMPO
+// ───────────────────────────────────────────────────────────────
+
+// Struct vazia
+struct Empty {}
+
+// Struct básica com campos imutáveis
+struct Person {
+  name: string
+  age:  int
+}
+
+// Campos mutáveis (mut)
+struct Counter {
+  mut count: int
+  mut label: string
+}
+
+// Campos com valor default
+struct Config {
+  host:   string = "localhost"
+  port:   int    = 8080
+  secure: bool   = true
+}
+
+// Todos os tipos de campo: primitivos, array, nullable, union, tuple
+struct AllTypes {
+  a: int
+  b: float
+  c: string
+  d: bool
+  e: int[]                    // array unidimensional
+  f: string?                  // nullable (string | null)
+  g: int | string             // union type
+  h: [int, string]            // tuple
+  i: float[][]                // array bidimensional
+}
+
+// Campos com nome de keyword (válido)
+struct Keywords {
+  int:     string
+  string:  int
+  bool:    float
+  void:    string
+  unknown: int
+  any:     bool
+}
+
+// Struct com campos de struct
+struct Address {
+  street: string
+  city:   string
+  zip:    string
+}
+
+struct Employee {
+  name:    string
+  address: Address
+}
+
+// Struct recursiva (via optional)
+struct TreeNode {
+  value: int
+  left:  TreeNode?
+  right: TreeNode?
+}
+
+// Declaração em linha única com ;
+struct Point3D { x: float; y: float; z: float }
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 2: STRUCT LITERALS (sintaxe {})
+// ───────────────────────────────────────────────────────────────
+
+val empty_lit = Empty {}
+
+val alice = Person {
+  name: "Alice",
+  age:  30
+}
+
+// Ordem livre
+val bob = Person { age: 25, name: "Bob" }
+
+// Expressões nos valores
+val charlie = Person {
+  name: "C" + "harlie",
+  age:  10 + 20
+}
+
+// Literal aninhado
+val emp = Employee {
+  name: "Diana",
+  address: Address {
+    street: "123 Main St",
+    city:   "Springfield",
+    zip:    "12345"
+  }
+}
+
+// Int → float widening
+val p3d = Point3D { x: 10, y: 20, z: 30 }
+
+// Campos com default — podem ser omitidos (mas struct literal exige todos por enquanto)
+val cfg = Config { host: "server", port: 3000, secure: false }
+
+// Acesso a campos
+val alice_name: string = alice.name
+val alice_age:  int    = alice.age
+
+// Acesso encadeado
+val emp_city: string = emp.address.city
+
+// Acesso em expressões
+val next_age: int = alice.age + 1
+
+// Atribuição em campo mutável
+val c = Counter { count: 0, label: "visits" }
+// c.count = 5   — se houver suporte a reassign
+// c.label = "page views"
+
+// Struct literal em chamada de função
+func greet(p: Person): string {
+  return "Hello, " + p.name
+}
+
+val greeting = greet(Person { name: "Eve", age: 28 })
+
+// Struct literal como retorno
+func newPerson(name: string): Person {
+  return Person { name: name, age: 0 }
+}
+
+val baby = newPerson("Frank")
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 3: SHORTHAND
+// ───────────────────────────────────────────────────────────────
+// { name, age } ≡ { name: name, age: age }
+
+struct User {
+  name:   string
+  age:    int
+  active: bool
+}
+
+func makeUser(name: string, age: int): User {
+  return User { name, age, active: true }
+}
+
+val u1 = makeUser("Grace", 32)
+
+// Shorthand misturado com nomeado
+func makeUser2(name: string): User {
+  return User { name, age: 21, active: false }
+}
+
+val u2 = makeUser2("Heidi")
+
+struct Triple { a: int; b: string; c: float }
+
+// Todos shorthand
+func makeTriple(a: int, b: string, c: float): Triple {
+  return Triple { a, b, c }
+}
+
+val t1 = makeTriple(1, "x", 3.0)
+
+// Shorthand com self em método
+struct Vec2 {
+  x: float
+  y: float
+
+  func doubled(): Vec2 {
+    return Vec2 {
+      x: self.x * 2.0,
+      y: self.y * 2.0
+    }
+  }
+}
+
+val v = Vec2 { x: 1.0, y: 2.0 }
+val v_dbl = v.doubled()
+
+// Shorthand em struct genérica
+struct Box<T> { value: T }
+
+func boxIt<T>(value: T): Box<T> {
+  return Box { value }
+}
+
+val b_int = boxIt<int>(10)
+val b_str = boxIt<string>("hello")
+
+// Shorthand com type alias
+typealias IntBox = Box<int>
+
+func makeIntBox(value: int): IntBox {
+  return IntBox { value }
+}
+
+val ib = makeIntBox(7)
+
+// Shorthand aninhado
+struct Inner { value: int }
+struct Outer { inner: Inner; label: string }
+
+func buildOuter(label: string, value: int): Outer {
+  return Outer {
+    inner: Inner { value },
+    label
+  }
+}
+
+val o = buildOuter("test", 99)
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 4: CONSTRUTORES AUTO-INIT (named args)
+// ───────────────────────────────────────────────────────────────
+
+struct Product {
+  mut id:    int
+  mut name:  string
+  mut price: float
+}
+
+// Chamada com named args — ordem livre
+val p1 = Product(id: 1, name: "Widget", price: 9.99)
+val p2 = Product(price: 19.99, name: "Gadget", id: 2)
+
+// Acesso a campos
+val p1_id:    int    = p1.id
+val p1_name:  string = p1.name
+val p1_price: float  = p1.price
+
+// Auto-init com defaults — campos com default podem ser omitidos
+struct Logger {
+  mut level:  string = "info"
+  mut output: string = "stdout"
+  mut name:   string
+}
+
+val log1 = Logger(name: "app1")              // level e output usam default
+val log2 = Logger(name: "app2", level: "debug")  // só output usa default
+
+// Auto-init em struct genérica
+struct Wrapper<T> {
+  mut inner: T
+  mut tag:   string
+}
+
+val w_int = Wrapper<int>(inner: 42, tag: "answer")
+val w_str = Wrapper<string>(inner: "hello", tag: "greeting")
+
+// Inferência de tipo no construtor
+val w_infer = Wrapper(inner: 99, tag: "inferred")     // T → int
+
+// Inferência com struct aninhado
+struct Boxed<T> { inner: Box<T>; label: string }
+
+val inner_box = Box<int>(value: 5)
+val boxed = Boxed(inner: inner_box, label: "nested")  // T → int (via Box<int>)
+
+// Type alias no construtor
+typealias Coord = Point3D
+val origin = Coord(x: 0.0, y: 0.0, z: 0.0)
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 5: CONSTRUTORES CUSTOM INIT
+// ───────────────────────────────────────────────────────────────
+
+struct Rectangle {
+  mut width:  float
+  mut height: float
+  mut area:   float
+
+  init(w: float, h: float) {
+    self.width  = w
+    self.height = h
+    self.area   = self.width * self.height
+  }
+}
+
+val rect = Rectangle(3.0, 4.0)
+val rect_area: float = rect.area   // 12.0
+
+// Init com default fields — não precisa atribuir
+struct Session {
+  mut token:   string
+  mut timeout: int    = 3600
+  mut active:  bool   = true
+
+  init(t: string) {
+    self.token = t
+  }
+}
+
+val sess = Session("abc123")
+
+// Init sem parâmetros — todos com default
+struct DefaultBox {
+  mut value: int = 0
+  mut label: string = "empty"
+
+  init() {}
+}
+
+val db = DefaultBox()
+
+// Atribuição raiz + refinamento condicional
+struct Clamp {
+  mut value: int
+
+  init(v: int) {
+    self.value = 0
+    if (v > 0) {
+      self.value = v
+    }
+  }
+}
+
+val clamp1 = Clamp(-5)
+val clamp2 = Clamp(10)
+
+// Init em struct genérica
+struct Slot<T> {
+  mut item:  T
+  mut empty: bool
+
+  init(i: T) {
+    self.item  = i
+    self.empty = false
+  }
+}
+
+val slot = Slot<int>(42)
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 6: MÉTODOS
+// ───────────────────────────────────────────────────────────────
+
+struct Calc {
+  mut value: int
+
+  // Leitura (self imutável)
+  func get(): int {
+    return self.value
+  }
+
+  // Escrita (self mutável)
+  mut func set(v: int): void {
+    self.value = v
+  }
+
+  // Método void sem return explícito
+  mut func reset(): void {
+    self.value = 0
+  }
+
+  // Método com lógica
+  func isPositive(): bool {
+    return self.value > 0
+  }
+}
+
+val calc = Calc { value: 10 }
+val v1: int = calc.get()        // 10
+calc.set(42)
+val v2: int = calc.get()        // 42
+val pos: bool = calc.isPositive() // true
+calc.reset()
+val v3: int = calc.get()        // 0
+
+// Método em struct genérica
+struct Pair<A, B> {
+  first:  A
+  second: B
+
+  func swap(): Pair<B, A> {
+    return Pair<B, A> { first: self.second, second: self.first }
+  }
+
+  func map<C>(f: (A) => C): Pair<C, B> {
+    return Pair<C, B> { first: f(self.first), second: self.second }
+  }
+}
+
+val pair = Pair<int, string> { first: 1, second: "x" }
+val swapped: Pair<string, int> = pair.swap()
+val mapped: Pair<bool, string> = pair.map((n: int): bool => n > 0)
+
+// Type alias + método
+typealias IntPair = Pair<int, int>
+val ip = IntPair { first: 10, second: 20 }
+val ip_swapped = ip.swap()
+
+// Método com self, return e mut — Rectangle completo
+struct Rect {
+  mut width:  float
+  mut height: float
+
+  func area(): float {
+    return self.width * self.height
+  }
+
+  func perimeter(): float {
+    return 2.0 * (self.width + self.height)
+  }
+
+  mut func scale(f: float): void {
+    self.width  = self.width * f
+    self.height = self.height * f
+  }
+}
+
+val r = Rect { width: 3.0, height: 4.0 }
+val ra: float = r.area()       // 12.0
+r.scale(2.0)
+val ra2: float = r.area()      // 48.0
+
+// Method chaining
+val chain_result: int = Calc { value: 7 }.get()
+val nested_swap: string = Pair<int, string> { first: 10, second: "a" }.swap().first
+
+// Shadow de type param em método
+struct Result<T> {
+  value: T
+
+  func map<T>(x: T): T {
+    return x
+  }
+}
+
+val res = Result<int> { value: 10 }
+val mapped_str: string = res.map<string>("hello")
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 7: GENÉRICOS
+// ───────────────────────────────────────────────────────────────
+
+// Type param único
+struct Holder<T> { item: T }
+
+val h_int = Holder<int> { item: 5 }
+val h_str = Holder<string> { item: "text" }
+
+// Múltiplos type params
+struct Pair2<A, B> { a: A; b: B }
+
+val p2b = Pair2<int, string> { a: 1, b: "x" }
+
+// Mesmo type param em múltiplos campos
+struct Same<T> { a: T; b: T }
+
+val same = Same<int> { a: 10, b: 20 }
+
+// 3 type params
+struct Triple3<X, Y, Z> { a: X; b: Y; c: Z }
+
+val t3 = Triple3<int, string, bool> { a: 1, b: "x", c: true }
+
+// Genérico aninhado
+val nested = Box<Box<int>> { value: Box<int> { value: 1 } }
+
+// Genérico com type alias
+typealias StringBox = Box<string>
+val sb = StringBox { value: "hello" }
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 8: TYPE ALIAS
+// ───────────────────────────────────────────────────────────────
+
+typealias Age = int
+typealias Name = string
+
+struct Profile {
+  name: Name
+  age:  Age
+}
+
+val prof = Profile { name: "Ivan", age: 25 }
+
+// Type alias de struct
+typealias PersonAlias = Person
+val pa: PersonAlias = Person { name: "Judy", age: 40 }
+
+// Type alias genérico
+typealias IntHolder = Holder<int>
+val ih = IntHolder { item: 99 }
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 9: NOMINALIDADE (Type Identity)
+// ───────────────────────────────────────────────────────────────
+
+struct UserId   { value: int }
+struct ProductId { value: int }
+
+val uid = UserId   { value: 1 }
+val pid = ProductId { value: 1 }
+
+// Type alias é transparente — NÃO cria novo tipo
+typealias UID = UserId
+val uid2: UID    = UserId { value: 2 }
+val uid3: UserId = uid2                 // OK: alias é o mesmo tipo
+
+// Genéricos: Box<int> ≠ Box<string>
+val bi = Box<int>    { value: 1 }
+val bs = Box<string> { value: "a" }
+
+// Structs genéricas diferentes com mesmo shape
+struct Wrap<T> { value: T }
+// Wrap<int> ≠ Box<int>
+
+// Nested generics: Box<Box<int>> ≠ Box<Box<string>>
+val n1 = Box<Box<int>>    { value: Box<int>    { value: 1 } }
+val n2 = Box<Box<string>> { value: Box<string> { value: "x" } }
+
+// Método receiver: tipo do self importa
+struct Dog { name: string }
+struct Cat { name: string }
+
+// Dog ≠ Cat mesmo com mesmos campos
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 10: ORDEM DE INICIALIZAÇÃO EM CUSTOM INIT
+// ───────────────────────────────────────────────────────────────
+
+// Válido: leitura após atribuição raiz
+struct Chain {
+  mut a: int
+  mut b: int
+  mut c: int
+
+  init(v: int) {
+    self.a = v
+    self.b = self.a + 1     // ok: a já atribuído
+    self.c = self.b * 2     // ok: b já atribuído
+  }
+}
+
+val ch = Chain(5)
+val ch_c: int = ch.c        // 12
+
+// Válido: self passado para função após todos campos atribuídos
+func inspect<T>(p: T): void {}
+
+struct Ready {
+  mut a: int
+  mut b: int
+
+  init(v: int) {
+    self.a = v
+    self.b = v * 2
+    inspect(self)           // ok: a e b já atribuídos
+  }
+}
+
+// Válido: campo com default pode ser lido sem atribuição explícita
+struct Prefilled {
+  mut name:  string
+  mut score: int = 100
+
+  init(n: string) {
+    self.name = n
+    val s = self.score      // ok: score tem default
+  }
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 11: CASOS DE ERRO (comentados — não compilam)
+// ───────────────────────────────────────────────────────────────
+
+// ── 11.1 Struct literal: campo faltando ──
+// val e1 = Person { name: "X" }
+// EXPECTED: missing field 'age'
+
+// ── 11.2 Struct literal: campo extra ──
+// val e2 = Person { name: "X", age: 1, extra: true }
+// EXPECTED: unknown field 'extra'
+
+// ── 11.3 Struct literal: tipo incompatível ──
+// val e3 = Person { name: 123, age: "x" }
+// EXPECTED: type mismatch on 'name'
+
+// ── 11.4 Struct literal: campo duplicado ──
+// val e4 = Person { name: "A", name: "B", age: 1 }
+// EXPECTED: duplicate field 'name'
+
+// ── 11.5 Construtor auto-init: argumento posicional ──
+// val e5 = Product(1, "Widget", 9.99)
+// EXPECTED: positional arguments not allowed in struct constructor
+
+// ── 11.6 Construtor auto-init: argumento duplicado ──
+// val e6 = Product(id: 1, name: "A", id: 2)
+// EXPECTED: duplicate argument 'id'
+
+// ── 11.7 Construtor auto-init: argumento desconhecido ──
+// val e7 = Product(id: 1, name: "A", extra: true)
+// EXPECTED: unknown argument 'extra'
+
+// ── 11.8 Construtor auto-init: argumento faltando ──
+// val e8 = Product(id: 1)
+// EXPECTED: missing argument 'name'
+
+// ── 11.9 Construtor auto-init: tipo incompatível ──
+// val e9 = Product(id: 1, name: 42, price: 9.99)
+// EXPECTED: cannot assign 'int' to field 'name' of type 'string'
+
+// ── 11.10 Construtor custom init: named args proibidos ──
+// val e10 = Rectangle(w: 3.0, h: 4.0)
+// EXPECTED: named arguments not allowed in custom init
+
+// ── 11.11 Custom init: campo não atribuído no raiz ──
+// struct E11 {
+//   mut x: int
+//   init() {}  // 'x' never assigned
+// }
+// EXPECTED: property 'x' has no default value and is not initialized
+
+// ── 11.12 Custom init: leitura antes da atribuição ──
+// struct E12 {
+//   mut a: int
+//   init(v: int) { val x = self.a; self.a = v }
+// }
+// EXPECTED: property 'a' used before initialization
+
+// ── 11.13 Custom init: self passado antes de completo ──
+// struct E13 {
+//   mut a: int
+//   mut b: int
+//   init(v: int) { self.a = v; inspect(self); self.b = v }
+// }
+// EXPECTED: 'self' used before all properties are initialized
+
+// ── 11.14 Genérico: arg count errado ──
+// val e14 = Box<int, string> { value: 1 }
+// EXPECTED: Generic struct 'Box' expects 1 type argument(s), got 2
+
+// ── 11.15 Genérico: struct não genérica com type args ──
+// val e15 = Person<int> { name: "X", age: 1 }
+// EXPECTED: 'Person' is not a generic struct
+
+// ── 11.16 Nominalidade: tipos diferentes ──
+// val e16: UserId = ProductId { value: 1 }
+// EXPECTED: type mismatch
+
+// ── 11.17 Nominalidade: alias não é novo tipo ──
+// typealias MyInt = int
+// val e17: MyInt = 5  // OK — alias transparente
+
+// ── 11.18 Atribuição condicional não conta como raiz ──
+// struct E18 {
+//   mut x: int
+//   init(v: int) { if (v > 0) { self.x = v } }
+// }
+// EXPECTED: property 'x' has no default value and is not initialized
+
+// ── 11.19 Shorthand: campo que não existe ──
+// func bad(u: string): User { return User { name: u, unknownField } }
+// EXPECTED: unknown field 'unknownField'
+
+// ── 11.20 Struct inexistente ──
+// val e20 = NaoExiste { x: 1 }
+// EXPECTED: type 'NaoExiste' is not found
+
+// ── 11.21 Construtor genérico sem tipo nem inferência possível ──
+// struct Ghost<T> { label: string }
+// val e21 = Ghost(label: "x")
+// EXPECTED: cannot infer type parameter 'T' for 'Ghost'
+
+// ── 11.22 Construtor genérico com inferência conflitante ──
+// struct Conflict<T> { a: T; b: T }
+// val e22 = Conflict(a: 1, b: "x")
+// EXPECTED: conflicting types for 'T'
+
+// ── 11.23 Acesso a campo que não existe ──
+// val e23 = alice.xyz
+// EXPECTED: unknown property 'xyz'

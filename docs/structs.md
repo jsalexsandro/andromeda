@@ -126,6 +126,9 @@ FASE 6.5 — CONTROL TYPES
 │
 │      6.5 Detectar GENERIC_ARG_COUNT
 │      6.6 Detectar duplicate generic params
+
+        # Ate aqui feito!
+
 │
 ├── 7. Struct Methods
 │      7.1 Parser methods dentro do struct
@@ -139,6 +142,9 @@ FASE 6.5 — CONTROL TYPES
 │      7.5 Resolver generics nos methods
 │      7.6 Detectar métodos duplicados
        7.7 informa para o compilador que tal função é mutável
+
+      # Ate aqui feito!
+
 │
 ├── 8. Extension Methods
 │      8.1 Parser `extend`
@@ -167,15 +173,35 @@ FASE 6.5 — CONTROL TYPES
 │
 ├── 10. Struct Constructors
 │      10.1 Parser de Constructor automático
-       Construtor auto-init (padrão)
+       - Construtor auto-init (padrão), caso o não exista nenhum metodo 'init'
+       - formato: 
+       - struct User {
+           name: string
+         }
+
+         const u = User(name: 'Jonny')
+       - É suportado apenas named-param
+
+       erros:
+       1. Duplicatas — mesmo nome aparece mais de uma vez na chamada.
+       2. Desconhecidos — nome não corresponde a nenhum campo do struct.
+       3. Ausentes — campo obrigatório não foi fornecido.
+       4. Tipos — valor fornecido não é assignable ao tipo do campo. Reutiliza o type-checker normal.
       
 │      10.2 Validar argumentos
 │      10.3 Inferir generic params
-│
 │             Box { value: 10 }
-│
+        Antes de qualquer validação de tipos, inferir os type params a partir dos argumentos.
+        Substituir `T → tipo_concreto` em todos os campos do struct para esta instância.
+        
 │      10.4 Constructors custom futuramente
-     
+       Caso seja detectado 'init' significa que isso é um 'custom'
+       init() { 
+        
+       }
+
+       Todos as propriedades devems ser iniciadas, sejam elas dentro do init ou no momento de declaração
+       para as regras completas (structs-rules.md)
   
   ---     
 │

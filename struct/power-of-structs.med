@@ -1,0 +1,582 @@
+// ════════════════════════════════════════════════════════════════
+// POWER OF STRUCTS — O guia definitivo para structs no Andromeda
+//
+// Cada capítulo ensina um aspecto diferente. Todos os exemplos
+// compilam — este é um arquivo 100% válido.
+// ════════════════════════════════════════════════════════════════
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 1: DECLARAÇÃO
+// ───────────────────────────────────────────────────────────────
+
+// Struct vazia — existe, não tem campos
+struct Empty {}
+
+// Struct com campos imutáveis (val — padrão)
+struct Person {
+  name: string
+  age:  int
+}
+
+// Campos mutáveis (mut) — podem ser reatribuídos
+struct Counter {
+  mut count: int
+  mut label: string
+}
+
+// Campos com valor default — opcionais no construtor e no literal
+struct Config {
+  host:   string = "localhost"
+  port:   int    = 8080
+  secure: bool   = true
+}
+
+// Todos os tipos de campo
+struct AllTypes {
+  a: int
+  b: float
+  c: string
+  d: bool
+  e: int[]           // array
+  f: string?         // nullable (string | null)
+  g: int | string    // union
+  h: [int, string]   // tuple
+  i: float[][]       // array bidimensional
+}
+
+// Struct com campos de struct
+struct Address {
+  street: string
+  city:   string
+  zip:    string
+}
+
+struct Employee {
+  name:    string
+  address: Address
+}
+
+// Struct recursiva (via optional — sem无限 recursão)
+struct TreeNode {
+  value: int
+  left:  TreeNode?
+  right: TreeNode?
+}
+
+// Declaração em linha única com ;
+struct Point3D { x: float; y: float; z: float }
+
+// Campos com nome de keyword — válido
+struct Keywords {
+  int:     string
+  string:  int
+  bool:    float
+  void:    string
+}
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 2: STRUCT LITERALS ({ })
+// ───────────────────────────────────────────────────────────────
+
+// Literal vazio
+val empty_lit = Empty {}
+
+// Literal com campos nomeados
+val alice = Person { name: "Alice", age: 30 }
+
+// Ordem livre
+val bob = Person { age: 25, name: "Bob" }
+
+// Expressões nos valores
+val charlie = Person { name: "C" + "harlie", age: 10 + 20 }
+
+// Literal aninhado
+val emp = Employee {
+  name: "Diana",
+  address: Address { street: "123 Main St", city: "Springfield", zip: "12345" }
+}
+
+// Int → float widening
+val p3d = Point3D { x: 10, y: 20, z: 30 }
+
+// Campos com default podem ser omitidos no literal
+val cfg1 = Config { host: "server" }
+val cfg2 = Config { host: "server", port: 3000 }
+
+// Acesso a campos
+val alice_name: string = alice.name
+val emp_city: string = emp.address.city
+
+// Atribuição a campo mutável
+val c = Counter { count: 0, label: "visits" }
+
+// Literal em chamada de função
+func greet(p: Person): string {
+  return "Hello, " + p.name
+}
+
+val greeting = greet(Person { name: "Eve", age: 28 })
+
+// Literal como retorno de função
+func newPerson(name: string): Person {
+  return Person { name: name, age: 0 }
+}
+
+val baby = newPerson("Frank")
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 3: SHORTHAND
+// ───────────────────────────────────────────────────────────────
+// { name, age }  ≡  { name: name, age: age }
+
+struct User {
+  name:   string
+  age:    int
+  active: bool
+}
+
+func makeUser(name: string, age: int): User {
+  return User { name, age, active: true }
+}
+
+val u1 = makeUser("Grace", 32)
+
+// Shorthand misturado com nomeado
+func makeUser2(name: string): User {
+  return User { name, age: 21, active: false }
+}
+
+val u2 = makeUser2("Heidi")
+
+// Todos shorthand
+struct Triple { a: int; b: string; c: float }
+
+func makeTriple(a: int, b: string, c: float): Triple {
+  return Triple { a, b, c }
+}
+
+val t1 = makeTriple(1, "x", 3.0)
+
+// Shorthand em struct genérica
+struct Box<T> { value: T }
+
+func boxIt<T>(value: T): Box<T> {
+  return Box { value }
+}
+
+val b_int = boxIt<int>(10)
+val b_str = boxIt<string>("hello")
+
+// Shorthand com type alias
+typealias IntBox = Box<int>
+
+func makeIntBox(value: int): IntBox {
+  return IntBox { value }
+}
+
+val ib = makeIntBox(7)
+
+// Shorthand aninhado
+struct Inner { value: int }
+struct Outer { inner: Inner; label: string }
+
+func buildOuter(label: string, value: int): Outer {
+  return Outer { inner: Inner { value }, label }
+}
+
+val o = buildOuter("test", 99)
+
+// Shorthand com self em método
+struct Vec2 {
+  x: float
+  y: float
+
+  func doubled(): Vec2 {
+    return Vec2 { x: self.x * 2.0, y: self.y * 2.0 }
+  }
+}
+
+val v = Vec2 { x: 1.0, y: 2.0 }
+val v_dbl = v.doubled()
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 4: AUTO-INIT CONSTRUCTORS (named args)
+// ───────────────────────────────────────────────────────────────
+// Quando NÃO há `init` declarado, o compilador gera um construtor
+// que aceita argumentos nomeados na ordem que quiser.
+
+struct Product {
+  mut id:    int
+  mut name:  string
+  mut price: float
+}
+
+// Chamada com named args — ordem livre
+val p1 = Product(id: 1, name: "Widget", price: 9.99)
+val p2 = Product(price: 19.99, name: "Gadget", id: 2)
+
+// Campos com default podem ser omitidos
+struct Logger {
+  mut level:  string = "info"
+  mut output: string = "stdout"
+  mut name:   string
+}
+
+val log1 = Logger(name: "app1")
+val log2 = Logger(name: "app2", level: "debug")
+
+// Auto-init em struct genérica
+struct Wrapper<T> {
+  mut inner: T
+  mut tag:   string
+}
+
+val w_int = Wrapper<int>(inner: 42, tag: "answer")
+val w_str = Wrapper<string>(inner: "hello", tag: "greeting")
+
+// Inferência de tipo no construtor
+val w_infer = Wrapper(inner: 99, tag: "inferred")
+
+// Inferência com struct aninhado
+struct Boxed<T> { inner: Box<T>; label: string }
+
+val inner_box = Box<int>(value: 5)
+val boxed = Boxed(inner: inner_box, label: "nested")
+
+// Type alias no construtor
+typealias Coord = Point3D
+val origin = Coord(x: 0.0, y: 0.0, z: 0.0)
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 5: CUSTOM INIT CONSTRUCTORS
+// ───────────────────────────────────────────────────────────────
+// Quando há `init` declarado, o auto-init é desativado.
+// O construtor usa argumentos POSICIONAIS (como função normal).
+
+struct Rectangle {
+  mut width:  float
+  mut height: float
+  mut area:   float
+
+  init(w: float, h: float) {
+    self.width  = w
+    self.height = h
+    self.area   = self.width * self.height
+  }
+}
+
+val rect = Rectangle(3.0, 4.0)
+val rect_area: float = rect.area
+
+// Init com campos com default — não precisa atribuir tudo
+struct Session {
+  mut token:   string
+  mut timeout: int    = 3600
+  mut active:  bool   = true
+
+  init(t: string) {
+    self.token = t
+  }
+}
+
+val sess = Session("abc123")
+
+// Init sem parâmetros — todos com default
+struct DefaultBox {
+  mut value: int    = 0
+  mut label: string = "empty"
+
+  init() {}
+}
+
+val db = DefaultBox()
+
+// Atribuição raiz + refinamento condicional
+struct Clamp {
+  mut value: int
+
+  init(v: int) {
+    self.value = 0
+    if (v > 0) {
+      self.value = v
+    }
+  }
+}
+
+val clamp1 = Clamp(-5)
+val clamp2 = Clamp(10)
+
+// Init em struct genérica
+struct Slot<T> {
+  mut item:  T
+  mut empty: bool
+
+  init(i: T) {
+    self.item  = i
+    self.empty = false
+  }
+}
+
+val slot = Slot<int>(42)
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 6: MÉTODOS
+// ───────────────────────────────────────────────────────────────
+
+struct Calc {
+  mut value: int
+
+  func get(): int {
+    return self.value
+  }
+
+  mut func set(v: int): void {
+    self.value = v
+  }
+
+  mut func reset(): void {
+    self.value = 0
+  }
+
+  func isPositive(): bool {
+    return self.value > 0
+  }
+}
+
+val calc = Calc { value: 10 }
+val v1: int = calc.get()
+calc.set(42)
+val v2: int = calc.get()
+val pos: bool = calc.isPositive()
+calc.reset()
+val v3: int = calc.get()
+
+// Método em struct genérica
+struct Pair<A, B> {
+  first:  A
+  second: B
+
+  func swap(): Pair<B, A> {
+    return Pair<B, A> { first: self.second, second: self.first }
+  }
+
+  func map<C>(f: (A) => C): Pair<C, B> {
+    return Pair<C, B> { first: f(self.first), second: self.second }
+  }
+}
+
+val pair = Pair<int, string> { first: 1, second: "x" }
+val swapped: Pair<string, int> = pair.swap()
+val mapped: Pair<bool, string> = pair.map((n: int): bool => n > 0)
+
+// Type alias + método
+typealias IntPair = Pair<int, int>
+val ip = IntPair { first: 10, second: 20 }
+val ip_swapped = ip.swap()
+
+// Vários métodos no mesmo struct
+struct Rect {
+  mut width:  float
+  mut height: float
+
+  func area(): float {
+    return self.width * self.height
+  }
+
+  func perimeter(): float {
+    return 2.0 * (self.width + self.height)
+  }
+
+  mut func scale(f: float): void {
+    self.width  = self.width * f
+    self.height = self.height * f
+  }
+}
+
+val r = Rect { width: 3.0, height: 4.0 }
+val ra: float = r.area()
+r.scale(2.0)
+val ra2: float = r.area()
+
+// Method chaining
+val chain_result: int = Calc { value: 7 }.get()
+val nested_swap: string = Pair<int, string> { first: 10, second: "a" }.swap().first
+
+// Shadow de type param em método
+struct Result<T> {
+  value: T
+
+  func map<T>(x: T): T {
+    return x
+  }
+}
+
+val res = Result<int> { value: 10 }
+val mapped_str: string = res.map<string>("hello")
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 7: GENÉRICOS
+// ───────────────────────────────────────────────────────────────
+
+// Type param único
+struct Holder<T> { item: T }
+
+val h_int = Holder<int> { item: 5 }
+val h_str = Holder<string> { item: "text" }
+
+// Múltiplos type params
+struct Pair2<A, B> { a: A; b: B }
+
+val p2b = Pair2<int, string> { a: 1, b: "x" }
+
+// Mesmo type param em múltiplos campos
+struct Same<T> { a: T; b: T }
+
+val same = Same<int> { a: 10, b: 20 }
+
+// 3 type params
+struct Triple3<X, Y, Z> { a: X; b: Y; c: Z }
+
+val t3 = Triple3<int, string, bool> { a: 1, b: "x", c: true }
+
+// Genérico aninhado
+val nested = Box<Box<int>> { value: Box<int> { value: 1 } }
+
+// Genérico com type alias
+typealias StringBox = Box<string>
+val sb = StringBox { value: "hello" }
+
+// Inferência em struct literal
+val inferred = Box { value: 99 }
+val inferred_str = Box { value: "text" }
+
+// Inferência com multi-params
+val inferred_pair = Pair2 { a: 1, b: "x" }
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 8: TYPE ALIAS
+// ───────────────────────────────────────────────────────────────
+
+typealias Age = int
+typealias Name = string
+
+struct Profile {
+  name: Name
+  age:  Age
+}
+
+val prof = Profile { name: "Ivan", age: 25 }
+
+// Type alias de struct
+typealias PersonAlias = Person
+val pa: PersonAlias = Person { name: "Judy", age: 40 }
+
+// Type alias genérico
+typealias IntHolder = Holder<int>
+val ih = IntHolder { item: 99 }
+
+// Type alias transparente — NÃO cria novo tipo
+struct UserId { value: int }
+
+typealias UID = UserId
+
+val uid2: UID    = UserId { value: 2 }
+val uid3: UserId = uid2
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 9: NOMINALIDADE (Type Identity)
+// ───────────────────────────────────────────────────────────────
+// Structs com mesmos campos MAS NOMES DIFERENTES são tipos
+// diferentes. Type alias é transparente — não cria novo tipo.
+
+struct UserId2   { value: int }
+struct ProductId2 { value: int }
+
+val uid_b = UserId2   { value: 1 }
+val pid_b = ProductId2 { value: 1 }
+
+// Genéricos: Box<int> ≠ Box<string>
+val bi_9 = Box<int>    { value: 1 }
+val bs_9 = Box<string> { value: "a" }
+
+// Structs genéricas diferentes com mesmo shape
+struct Wrap<T> { value: T }
+// Wrap<int> ≠ Box<int>
+
+// Nested generics: Box<Box<int>> ≠ Box<Box<string>>
+val n1_9 = Box<Box<int>>    { value: Box<int>    { value: 1 } }
+val n2_9 = Box<Box<string>> { value: Box<string> { value: "x" } }
+
+// Método receiver: tipo do self importa
+struct Dog { name: string }
+struct Cat { name: string }
+// Dog ≠ Cat mesmo com mesmos campos
+
+
+// ───────────────────────────────────────────────────────────────
+// CAPÍTULO 10: ORDEM DE INICIALIZAÇÃO EM CUSTOM INIT
+// ───────────────────────────────────────────────────────────────
+
+// Válido: leitura após atribuição raiz
+struct Chain {
+  mut a: int
+  mut b: int
+  mut c: int
+
+  init(v: int) {
+    self.a = v
+    self.b = self.a + 1
+    self.c = self.b * 2
+  }
+}
+
+val ch = Chain(5)
+val ch_c: int = ch.c
+
+// Válido: self passado para função após todos campos atribuídos
+func inspect<T>(p: T): void {}
+
+struct Ready {
+  mut a: int
+  mut b: int
+
+  init(v: int) {
+    self.a = v
+    self.b = v * 2
+    inspect(self)
+  }
+}
+
+// Válido: campo com default pode ser lido sem atribuição explícita
+struct Prefilled {
+  mut name:  string
+  mut score: int = 100
+
+  init(n: string) {
+    self.name = n
+    val s = self.score
+  }
+}
+
+// Válido: atribuição raiz + refinamento condicional
+struct ValidRefine {
+  mut x: int
+  mut y: int
+
+  init(v: int) {
+    self.x = 0
+    self.y = 0
+    if (v > 0) {
+      self.x = v
+    }
+  }
+}
