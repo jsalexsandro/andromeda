@@ -1,0 +1,2 @@
+// EXPECTED: TYPE_MISMATCH — int vs null
+val err1: bool = 42 == null

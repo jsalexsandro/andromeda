@@ -128,36 +128,17 @@ Fase 6.4 IfBindingExpr
 -  IfContExpr
 -  Reutilizar as apis internas de declaração de variaveis do parser
 -  Permtir multiplas declarações [talvez, futuro]
+  no Ast IfVariableStmt
 
-no Ast IfVariableStmt
-[ate aqui feito]
-  
+
+
 FASE 6.5 — CONTROL TYPES
 │
 ├── StructStatement
-│
-├── 1. Parser base do struct
-│      1.1 Reconhecer keyword `struct`
-│      1.2 Parser do nome do struct
-│      1.3 Parser do corpo `{ ... }`
-│      1.4 Criar AST StructStatement
-│      1.5 Registrar struct na symbol table
-│      1.6 Detectar structs duplicados
-│      1.7 Permitir struct vazio
-│
-├── 2. Struct Fields
-│      2.1 Parser de propriedades
-│             mut name: string
-│             mut age: int
-│             pi: float = 3.14
-│      detectar a keyword 'mut' ela informa que aquela proprieda é mutavel!
-│      2.2 Reutilizar ParserTypeAnnotation (para anotações)
-│      2.3 Permitir arrays nos campos
-│      2.4 Permitir union types
-│      2.5 Permitir nullable fields
-│      2.6 Herdaremos todas as possibiliadades de anotação de ParserTypeAnnotation
-│      2.7 Detectar campos duplicados
-│
+    Estrutura Grande e Complexa veja @structs.md 
+    Totalmente implementado
+
+# ATE AQUI IMPLEMENTADO
 
 FASE 7 — CLASSES
 │

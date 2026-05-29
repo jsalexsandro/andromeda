@@ -1,0 +1,5 @@
+// EXPECTED: TYPE_MISMATCH — MultiGeneric<int,string> vs MultiGeneric<string,int>
+struct MultiGeneric<A, B> { first: A; second: B }
+val mg1 = MultiGeneric<int, string> { first: 1, second: "a" }
+val mg2 = MultiGeneric<string, int> { first: "x", second: 1 }
+val err: bool = mg1 == mg2

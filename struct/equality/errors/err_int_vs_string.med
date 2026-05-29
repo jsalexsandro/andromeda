@@ -1,0 +1,2 @@
+// EXPECTED: TYPE_MISMATCH — int vs string
+val err: bool = 1 == "x"

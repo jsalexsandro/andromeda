@@ -3072,12 +3072,12 @@ export class TypeChecker {
     }
 
     if (["==", "!="].includes(op)) {
-      if (
-        leftType.kind === "PrimitiveType" &&
-        rightType.kind === "PrimitiveType" &&
-        leftType.name !== rightType.name
-      ) {
-        this.errors.push(Errors.typeMismatch(`incompatible types for operator '${op}'`, expr.operator));
+      if (!this.areTypesCompatible(leftType, rightType) &&
+          !this.areTypesCompatible(rightType, leftType)) {
+        this.errors.push(Errors.typeMismatch(
+          `incompatible types for operator '${op}': '${this.typeToString(leftType)}' and '${this.typeToString(rightType)}'`,
+          expr.operator
+        ));
       }
       return { kind: "PrimitiveType", name: "bool" };
     }

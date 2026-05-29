@@ -24,6 +24,18 @@
 13. [Spread Operator](#13-spread-operator)
 14. [Comments](#14-comments)
 15. [Examples](#15-examples)
+16. [Structs](#16-structs)
+    - [Declaration](#161-declaração)
+    - [Struct Literals](#162-struct-literals)
+    - [Field Access](#163-field-access)
+    - [Mutable Fields](#164-mutable-fields)
+    - [Methods](#165-methods)
+    - [Constructors](#166-constructors)
+    - [Generic Structs](#167-generic-structs)
+    - [Type Aliases com Structs](#168-type-aliases-com-structs)
+    - [Nominal Typing](#169-nominal-typing)
+    - [Struct Equality](#1610-struct-equality)
+    - [Complete Examples](#1611-exemplos-completos)
 
 ---
 
@@ -886,8 +898,392 @@ val result: int = double(5)
 
 ---
 
+## 16. Structs
+
+Structs são tipos nominais com campos nomeados (similar a `struct` em Rust, `data class` em Kotlin, ou `record` em Java).
+
+### 16.1 Declaração
+
+```
+struct Nome {
+  campo: Tipo
+  mut campoMut: Tipo
+  campoComDefault: Tipo = valor
+}
+```
+
+#### Exemplos
+
+```typescript
+// Struct básico
+struct User {
+  name: string
+  age: int
+}
+
+// Campo mutável (pode ser reatribuído)
+struct Counter {
+  mut value: int
+}
+
+// Campo com valor default (opcional em literais e construtores)
+struct Config {
+  host:   string = "localhost"
+  port:   int    = 8080
+  secure: bool   = true
+}
+
+// Tipos compostos como campo
+struct WithArrays {
+  ids:     int[]
+  matrix:  int[][]
+  entries: Array<string>
+}
+
+// Union e nullable
+struct Status {
+  code:    int | string
+  message: string?
+}
+
+// Struct vazio
+struct Empty {}
+```
+
+### 16.2 Struct Literals
+
+Criar um valor de struct com `Nome { campo: valor }`:
+
+```typescript
+val user = User { name: "Alice", age: 30 }
+val cfg  = Config { host: "server" }           // port=8080, secure=true (defaults)
+val c    = Counter { value: 0 }
+val e    = Empty {}                             // struct vazio
+```
+
+**Regras:**
+- Campos **sem** default são obrigatórios no literal
+- Campos **com** default são opcionais
+- Ordem dos campos não importa
+- Tipos são validados campo a campo
+
+#### Shorthand Field Assignment
+
+Quando uma variável tem o **mesmo nome** do campo, pode usar `{ campo }` em vez de `{ campo: valor }`:
+
+```typescript
+struct Point { x: float; y: float }
+
+func makePoint(x: float, y: float): Point {
+  return Point { x, y }          // ≡ { x: x, y: y }
+}
+
+val p = makePoint(x: 3.0, y: 4.0)
+
+// Misto: shorthand + nomeado
+struct User { name: string; age: int; active: bool }
+
+func create(name: string, age: int): User {
+  return User { name, age, active: true }  // active é nomeado, name/age são shorthand
+}
+```
+
+### 16.3 Field Access
+
+```typescript
+val name: string = user.name       // acesso simples
+val city: string = user.addr.city  // acesso encadeado
+```
+
+**Nullable field access** — campos `T?` podem ser lidos e atribuídos a `null`:
+
+```typescript
+struct Profile {
+  mut email: string?
+}
+
+val p = Profile { email: null }
+p.email = "alice@example.com"       // atribuição em mut field
+val e: string? = p.email            // leitura — tipo é string?
+```
+
+### 16.4 Mutable Fields
+
+Campos declarados com `mut` podem ser reatribuídos:
+
+```typescript
+struct Counter {
+  mut value: int
+}
+
+val c = Counter { value: 0 }
+c.value = 42                         // ok — field é mut
+// c.value = "x"                     // TYPE_MISMATCH — tipo errado
+```
+
+A variável que segura o struct pode ser `val` ou `var` — a mutabilidade é do campo, não da variável.
+
+### 16.5 Methods
+
+Structs podem ter métodos — funções declaradas dentro do corpo do struct.
+O primeiro parâmetro implícito é `self`, que dá acesso aos campos.
+
+```typescript
+struct Point {
+  x: float
+  y: float
+
+  // Método de leitura (self implícito)
+  func magnitude(): float {
+    return (self.x * self.x + self.y * self.y).sqrt()
+  }
+
+  // Método mutável — pode alterar self
+  mut func scale(factor: float) {
+    self.x = self.x * factor
+    self.y = self.y * factor
+  }
+
+  // Método genérico
+  func map<C>(fn: (float) => C): C {
+    return fn(self.x)
+  }
+}
+
+val p = Point { x: 3.0, y: 4.0 }
+val m = p.magnitude()                // 5.0
+p.scale(2.0)                         // Point { x: 6.0, y: 8.0 }
+```
+
+### 16.6 Constructors
+
+Structs têm **dois modos** mutuamente exclusivos, determinados pela presença de `init`.
+
+#### Auto-init (sem `init` declarado)
+
+O compilador gera um construtor automático com **argumentos nomeados**:
+
+```typescript
+struct User {
+  name: string
+  age:  int
+}
+
+val u1 = User(name: "Alice", age: 30)  // ok
+val u2 = User(age: 30, name: "Alice")  // ordem não importa
+// val u3 = User("Alice", 30)           // ERROR: positional not allowed
+```
+
+Campos com default são opcionais no construtor:
+
+```typescript
+struct Config {
+  host: string = "localhost"
+  port: int    = 8080
+}
+
+val c = Config(host: "server")         // port=8080 (default)
+```
+
+#### Custom init (com `init` declarado)
+
+Usa **argumentos posicionais** e corpo arbitrário:
+
+```typescript
+struct Token {
+  mut value: string
+
+  init(raw: string) {
+    self.value = raw.trim()
+  }
+}
+
+val t = Token("  hello  ")             // positional
+// val t = Token(raw: "hello")         // ERROR: named not allowed in custom init
+```
+
+**Regra de inicialização:** campos sem default devem ser atribuídos no escopo raiz do `init` (não dentro de `if`/`for`):
+
+```typescript
+struct Rect {
+  mut width:  int
+  mut height: int = 0                  // opcional — tem default
+
+  init(w: int) {
+    self.width = w                     // ok — escopo raiz
+    // self.height usa default (0)
+  }
+}
+```
+
+### 16.7 Generic Structs
+
+Structs podem ter parâmetros de tipo:
+
+```typescript
+struct Box<T> {
+  value: T
+}
+
+struct Pair<A, B> {
+  first:  A
+  second: B
+}
+```
+
+**Uso com type args explícitos:**
+
+```typescript
+val b1 = Box<int> { value: 10 }
+val b2 = Box<string> { value: "hello" }
+val p  = Pair<int, string> { first: 1, second: "a" }
+```
+
+**Inferência de type args** (em construtores e literais):
+
+```typescript
+val b = Box { value: 42 }             // infere Box<int>
+val p = Pair { first: 1, second: "a" } // infere Pair<int, string>
+```
+
+**Struct genérico como campo de outro struct:**
+
+```typescript
+struct Wrapper<T> { inner: Box<T> }
+
+val w = Wrapper { inner: Box { value: 10 } }  // inferência encadeada
+```
+
+### 16.8 Type Aliases com Structs
+
+Alias de struct é transparente — o alias e o original são o mesmo tipo:
+
+```typescript
+struct UserId { value: int }
+typealias UID = UserId
+
+val uid: UID    = UserId { value: 1 }
+val uid2: UserId = uid                  // ok — mesmo tipo
+```
+
+**Generic type alias:**
+
+```typescript
+typealias IntBox = Box<int>
+val b: IntBox = Box { value: 42 }
+
+typealias StringPair<A> = Pair<A, string>
+val p = StringPair { first: 1, second: "x" }  // Pair<int, string>
+```
+
+### 16.9 Nominal Typing
+
+Structs são **nominais** — duas declarações com os mesmos campos **não** são o mesmo tipo:
+
+```typescript
+struct UserId  { value: int }
+struct ProductId { value: int }
+
+val uid = UserId { value: 1 }
+val pid = ProductId { value: 1 }
+
+// uid = pid           // TYPE_MISMATCH — nomes diferentes
+// uid == pid          // TYPE_MISMATCH
+```
+
+### 16.10 Struct Equality
+
+Structs suportam `==` e `!=` com comparação estrutural (deep equality):
+
+```typescript
+struct Person { name: string; age: int }
+
+val a = Person { name: "Alice", age: 30 }
+val b = Person { name: "Bob",   age: 25 }
+
+val eq: bool = a == b                  // false (em runtime)
+val ne: bool = a != b                  // true
+val same: bool = a == a                // true — mesma variável
+```
+
+**Regras:**
+
+| Comparação | Resultado |
+|---|---|
+| `Person == Person` | ✅ mesmo tipo nominal |
+| `Person == ProductId` | ❌ TYPE_MISMATCH — nomes diferentes |
+| `Box<int> == Box<int>` | ✅ mesmos type args |
+| `Box<int> == Box<string>` | ❌ TYPE_MISMATCH — args diferentes |
+| `UserId? == null` | ✅ nullable com null |
+| `UserId == null` | ❌ TYPE_MISMATCH — non-nullable |
+| `UID == UserId` | ✅ alias transparente |
+| `Person == 42` | ❌ TYPE_MISMATCH — struct ≠ primitive |
+
+**Deep equality de arrays:** arrays dentro de structs são comparados elemento a elemento.
+
+```typescript
+struct Data { values: int[] }
+val d1 = Data { values: [1, 2, 3] }
+val d2 = Data { values: [1, 2, 3] }
+val eq = d1 == d2            // true — deep equality
+```
+
+### 16.11 Exemplos Completos
+
+```typescript
+// Modelo de domínio com structs
+typealias Email = string
+
+struct Address {
+  street: string
+  city:   string
+  zip:    string?
+}
+
+struct Person {
+  name:    string
+  email:   Email
+  address: Address
+  mut age: int = 0
+
+  func isAdult(): bool {
+    return self.age >= 18
+  }
+
+  mut func birthday() {
+    self.age = self.age + 1
+  }
+}
+
+val addr = Address { street: "123 Main", city: "NYC", zip: null }
+val p = Person { name: "Alice", email: "a@b.com", address: addr }
+
+val adult: bool = p.isAdult()
+p.birthday()
+
+// Struct genérico com método
+struct Result<T, E> {
+  value: T
+  error: E?
+
+  func isOk(): bool {
+    return self.error == null
+  }
+
+  func unwrap(): T {
+    return self.value
+  }
+}
+
+val ok: Result<int, string> = Result { value: 42, error: null }
+val okCheck: bool = ok.isOk()
+```
+
+---
+
 ## Implemented Features (✓)
 
+- [x] **Structs** - Declaração, literais, métodos, construtores, genéricos, equality
 - [x] **For loops** - `for (var i: int = 0; i < 10; i++)`
 - [x] **Ternary Operator** - `condition ? a : b`
 - [x] **Nullish Coalescing** - `??` operator

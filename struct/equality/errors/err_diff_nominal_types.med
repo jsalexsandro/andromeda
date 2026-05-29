@@ -1,0 +1,6 @@
+// EXPECTED: TYPE_MISMATCH — Person vs ProductId são tipos nominais diferentes
+struct Person { name: string; age: int }
+struct ProductId { value: int }
+val p = Person { name: "A", age: 1 }
+val pid = ProductId { value: 1 }
+val err: bool = p == pid

@@ -1,0 +1,99 @@
+// ============================================================
+// FEATURE: Struct Equality §11.3
+// AXIS: Nullable comparison (T? == null, T? == T?, T == null)
+// ============================================================
+// Regra: nullable pode comparar com null ou com outro do
+// mesmo tipo nullable. Non-nullable vs null é TYPE_MISMATCH.
+// ============================================================
+
+
+// ── Structs de teste ──
+
+struct NullableField {
+  mut name: string?
+  mut age:  int?
+}
+
+struct BothNullable {
+  a: NullableField
+  b: NullableField
+}
+
+struct Box<T> { value: T }
+
+
+// ── GROUP 1 — NULLABLE FIELD == NULL ──
+
+val nf = NullableField { name: null, age: null }
+
+val eq_null_name: bool = nf.name == null   // string? == null
+val eq_null_age:  bool = nf.age  == null   // int? == null
+val ne_null_name: bool = nf.name != null   // string? != null
+val ne_null_age:  bool = nf.age  != null
+
+// ── GROUP 2 — NULLABLE FIELD WITH VALUE vs NULL ──
+
+val nf_val = NullableField { name: "Alice", age: 30 }
+
+val eq_val_null:  bool = nf_val.name == null   // string? com valor == null → false (runtime)
+val ne_val_notnull: bool = nf_val.name != null  // string? com valor != null → true (runtime)
+
+// ── GROUP 3 — NULLABLE FIELD == NULLABLE FIELD (mesmo tipo) ──
+
+val nf2 = NullableField { name: "Bob", age: 25 }
+
+val eq_nullable: bool = nf_val == nf2    // NullableField == NullableField
+val ne_nullable: bool = nf_val != nf2
+
+// Ambos null
+val nf_null1 = NullableField { name: null, age: null }
+val nf_null2 = NullableField { name: null, age: null }
+val eq_both_null: bool = nf_null1 == nf_null2
+
+// ── GROUP 4 — NULLABLE ESTRUTURAS ANINHADAS ──
+
+val bn1 = BothNullable { a: nf_val,   b: nf_null1 }
+val bn2 = BothNullable { a: nf_null2, b: nf2 }
+
+val eq_both_nested: bool = bn1 == bn2
+val ne_both_nested: bool = bn1 != bn2
+
+// ── GROUP 5 — GENERIC NULLABLE ──
+
+val g_null: Box<int?> = Box { value: null }
+val g_val:  Box<int?> = Box { value: 42 }
+
+// Box<int?> == Box<int?> — mesmo tipo genérico
+val eq_g_null: bool = g_null == g_val
+val ne_g_null: bool = g_null != g_val
+
+// ── GROUP 6 — null == null ──
+
+val eq_null_null: bool = null == null
+val ne_null_null: bool = null != null
+
+// ── GROUP 7 — ERROR CASES ──
+
+// Non-nullable int == null
+// EXPECTED: TYPE_MISMATCH
+// val err_int_vs_null: bool = 42 == null
+
+// Non-nullable string != null
+// EXPECTED: TYPE_MISMATCH
+// val err_string_vs_null: bool = "hello" != null
+
+// Non-nullable float == null
+// EXPECTED: TYPE_MISMATCH
+// val err_float_vs_null: bool = 3.14 == null
+
+// Non-nullable bool != null
+// EXPECTED: TYPE_MISMATCH
+// val err_bool_vs_null: bool = true != null
+
+// int? vs string? (nullable de tipos diferentes)
+// EXPECTED: TYPE_MISMATCH
+// val err_diff_nullable: bool = nf.age == nf.name
+
+// Non-nullable struct field vs null
+// EXPECTED: TYPE_MISMATCH
+// val err_field_vs_null: bool = nf_val == null

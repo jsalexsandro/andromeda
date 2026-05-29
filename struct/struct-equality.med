@@ -1,0 +1,151 @@
+// ════════════════════════════════════════════════════════════════
+// struct-equality.med — Testes de igualdade estrutural (== / !=)
+//
+// Regras:
+//   - Mesmo tipo nominal → comparação permitida (campo a campo em runtime)
+//   - Tipos nominais diferentes → erro TYPE_MISMATCH
+//   - Nullable pode ser comparado com null
+//   - Alias é transparente
+//   - Structs genéricas precisam dos mesmos type args
+// ════════════════════════════════════════════════════════════════
+
+
+// ── Structs para teste ──
+struct Person { name: string; age: int }
+
+struct Point { x: float; y: float }
+
+struct UserId { value: int }
+
+struct ProductId { value: int }
+
+struct Box<T> { value: T }
+
+struct Config {
+  host:   string = "localhost"
+  port:   int    = 8080
+  secure: bool   = true
+}
+
+struct Pair<A, B> { first: A; second: B }
+
+
+// ── 1. MESMO STRUCT ──
+// Comparar dois valores do mesmo struct é SEMPRE válido
+
+val p1 = Person { name: "Alice", age: 30 }
+val p2 = Person { name: "Bob",   age: 25 }
+
+val eq1: bool = p1 == p2
+val ne1: bool = p1 != p2
+
+// Literais diretamente
+val eq2: bool = Person { name: "A", age: 1 } == Person { name: "B", age: 2 }
+
+// Struct vazio
+struct Empty {}
+val e1 = Empty {}
+val e2 = Empty {}
+val eq_empty: bool = e1 == e2
+
+
+// ── 2. MESMA VARIÁVEL ──
+// Comparar uma variável contra ela mesma
+
+val eq_self: bool = p1 == p1
+val ne_self: bool = p1 != p1
+
+
+// ── 3. STRUCT COM DEFAULT ──
+// Campos com default não afetam a comparabilidade
+
+val cfg1 = Config { host: "a" }
+val cfg2 = Config { host: "b" }
+val eq_cfg: bool = cfg1 == cfg2
+
+
+// ── 4. STRUCT GENÉRICO — MESMO TIPO ──
+
+val b1 = Box<int> { value: 10 }
+val b2 = Box<int> { value: 20 }
+val eq_box: bool = b1 == b2
+val ne_box: bool = b1 != b2
+
+// Inferência
+val b3 = Box { value: "hello" }
+val b4 = Box { value: "world" }
+val eq_inf: bool = b3 == b4
+
+
+// ── 5. STRUCT GENÉRICO — MULTI PARAM ──
+
+val pair1 = Pair<int, string> { first: 1, second: "a" }
+val pair2 = Pair<int, string> { first: 2, second: "b" }
+val eq_pair: bool = pair1 == pair2
+
+
+// ── 6. TYPE ALIAS — TRANSPARENTE ──
+
+typealias UID = UserId
+
+val uid1: UID    = UserId { value: 1 }
+val uid2: UserId = UserId { value: 2 }
+val eq_alias: bool = uid1 == uid2
+
+
+// ── 7. NULLABLE COMPARISON ──
+
+struct Nullable {
+  mut name: string?
+}
+
+val n1 = Nullable { name: null }
+val n2 = Nullable { name: "test" }
+
+// Nullable == null
+val eq_null1: bool = n1.name == null
+
+// Nullable == Nullable (mesmo struct, mesmo campo nullable)
+val n3 = Nullable { name: "hello" }
+val n4 = Nullable { name: "world" }
+val eq_null2: bool = n3 == n4
+
+// Nullable != null
+val ne_null: bool = n2.name != null
+
+
+// ── 8. PRIMITIVOS (regressão — já funcionava) ──
+
+val eq_int:   bool = 10 == 20
+val eq_float: bool = 3.14 == 2.71
+val eq_str:   bool = "abc" == "def"
+val eq_bool:  bool = true == false
+
+val ne_int:   bool = 10 != 20
+val ne_float: bool = 3.14 != 2.71
+val ne_str:   bool = "abc" != "def"
+
+// Int widening: int == float
+val eq_widen: bool = 10 == 5.0
+val eq_widen2: bool = 42 == 42.0
+
+
+// ── 9. COMPARAÇÃO INVÁLIDA (deve dar erro) ──
+
+// Person != ProductId — tipos nominais diferentes
+// val err1: bool = p1 == pid       // ERROR: incompatible types
+
+// UserId != ProductId — mesmo shape, nomes diferentes
+// val err2: bool = uid1 == pid     // ERROR: incompatible types
+
+// Struct != primitivo
+// val err3: bool = p1 == 42        // ERROR: incompatible types
+
+// Non-nullable == null
+// val err4: bool = p1 == null      // ERROR: incompatible types
+
+// Box<int> != Box<string> — type args diferentes
+// val err5: bool = b1 == bs        // ERROR: incompatible types
+
+// int != string
+// val err6: bool = 1 == "x"        // ERROR: incompatible types

@@ -1,0 +1,6 @@
+// EXPECTED: TYPE_MISMATCH — mesmo shape, nomes diferentes
+struct UserId { value: int }
+struct ProductId { value: int }
+val uid = UserId { value: 1 }
+val pid = ProductId { value: 1 }
+val err: bool = uid == pid

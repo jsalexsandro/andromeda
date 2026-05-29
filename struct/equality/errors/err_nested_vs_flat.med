@@ -1,0 +1,6 @@
+// EXPECTED: TYPE_MISMATCH — Nested struct vs AllFields struct
+struct AllFields { a: int; b: float; c: string; d: bool }
+struct Nested { inner: AllFields; label: string }
+val f1 = AllFields { a: 1, b: 2.5, c: "hi", d: true }
+val n1 = Nested { inner: f1, label: "test" }
+val err: bool = n1 == f1

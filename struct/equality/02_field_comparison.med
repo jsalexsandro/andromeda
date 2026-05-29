@@ -1,0 +1,99 @@
+// ============================================================
+// FEATURE: Struct Equality §11.2
+// AXIS: Field comparison (struct fields com diversos tipos)
+// ============================================================
+// Regra: a comparação ==/!= entre structs do mesmo tipo
+// independe dos valores dos fields — o type checker só
+// verifica se os tipos são compatíveis, não os valores.
+// ============================================================
+
+
+// ── Structs de teste ──
+
+struct AllFields {
+  a: int
+  b: float
+  c: string
+  d: bool
+}
+
+struct Nested {
+  inner: AllFields
+  label: string
+}
+
+struct MixedDefaults {
+  x: int    = 0
+  y: string = "default"
+  z: bool   = false
+}
+
+struct WithArray {
+  items: int[]
+  name:  string
+}
+
+struct MultiGeneric<A, B> {
+  first:  A
+  second: B
+}
+
+
+// ── GROUP 1 — TODOS OS TIPOS PRIMITIVOS ──
+
+val f1 = AllFields { a: 1, b: 2.5, c: "hi", d: true }
+val f2 = AllFields { a: 9, b: 0.5, c: "bye", d: false }
+
+val eq_fields:  bool = f1 == f2       // mesmos fields, valores diferentes
+val ne_fields:  bool = f1 != f2
+
+// Todos iguais
+val f3 = AllFields { a: 1, b: 2.5, c: "hi", d: true }
+val eq_clone:   bool = f1 == f3
+
+// ── GROUP 2 — STRUCT ANINHADO ──
+
+val n1 = Nested { inner: f1, label: "first" }
+val n2 = Nested { inner: f2, label: "second" }
+
+val eq_nested:  bool = n1 == n2
+val ne_nested:  bool = n1 != n2
+
+// ── GROUP 3 — STRUCT COM DEFAULT ──
+
+val m1 = MixedDefaults { x: 1, y: "a", z: true }
+val m2 = MixedDefaults { x: 9, y: "b", z: false }
+
+val eq_defaults: bool = m1 == m2
+val ne_defaults: bool = m1 != m2
+
+// ── GROUP 4 — STRUCT COM ARRAY ──
+
+val a1 = WithArray { items: [1, 2, 3], name: "a" }
+val a2 = WithArray { items: [4, 5, 6], name: "b" }
+
+val eq_array:    bool = a1 == a2
+val ne_array:    bool = a1 != a2
+
+// ── GROUP 5 — MULTI-PARAM GENERIC ──
+
+val mg1 = MultiGeneric<int, string> { first: 1, second: "a" }
+val mg2 = MultiGeneric<int, string> { first: 2, second: "b" }
+
+val eq_multi:    bool = mg1 == mg2
+val ne_multi:    bool = mg1 != mg2
+
+
+// ── GROUP 6 — ERROR CASES ──
+
+// Nested vs AllFields (struct aninhado vs struct raiz)
+// EXPECTED: TYPE_MISMATCH
+// val err_nested_vs_flat: bool = n1 == f1
+
+// MultiGeneric<int,string> vs MultiGeneric<string,int> — ordem de params diferente
+// EXPECTED: TYPE_MISMATCH
+// val err_param_order: bool = mg1 == MultiGeneric<string, int> { first: "x", second: 1 }
+
+// WithArray vs WithArray — mesmo tipo, array fields não afetam comparabilidade
+// (deve passar, apenas confirmação)
+// val eq_same_array_type: bool = a1 == a2

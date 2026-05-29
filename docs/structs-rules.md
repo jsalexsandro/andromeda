@@ -278,3 +278,63 @@ val c3 = Config { port: 3000 }                  // error: missing required field
 Isso elimina a inconsistência entre `Config(host: "server")` (auto-init constructor) e `Config { host: "server" }` (struct literal) — ambos aceitam a omissão de campos com default.
 
 **Implementação:** em `checkStructLiteralExpr`, o loop que verifica campos faltantes (`seenKeys`) pula campos que possuem `f.defaultValue`.
+
+---
+
+## 11. Struct Equality
+
+Structs suportam comparação com `==` e `!=` seguindo as mesmas regras de **tipagem nominal** do resto da linguagem.
+
+### 11.1 Regra geral
+
+Dois valores são comparáveis se `areTypesCompatible(left, right)` retorna `true`.
+
+| Comparação | Resultado |
+|---|---|
+| `Person == Person` | ✅ Permitido — mesmo tipo nominal |
+| `Person != Person` | ✅ Permitido |
+| `Person == Product` | ❌ Erro — tipos nominais diferentes |
+| `Person == 42` | ❌ Erro — struct ≠ primitive |
+| `null == null` | ✅ Permitido |
+| `Person? == null` | ✅ Permitido — nullable com null |
+| `Person == null` | ❌ Erro — non-nullable com null |
+
+### 11.2 Genéricos
+
+Structs genéricas precisam dos **mesmos type args** para serem comparáveis.
+
+| Comparação | Resultado |
+|---|---|
+| `Box<int> == Box<int>` | ✅ Permitido |
+| `Box<int> == Box<string>` | ❌ Erro — type args diferentes |
+| `Box<int> != Box<string>` | ❌ Erro |
+| `Pair<int,string> == Pair<int,string>` | ✅ Permitido |
+
+### 11.3 Type alias
+
+Alias é transparente — comparar via alias ou via nome original é equivalente.
+
+| Comparação | Resultado |
+|---|---|
+| `UID{...} == UserId{...}` | ✅ Permitido — alias transparente |
+
+### 11.4 Nullable
+
+| Comparação | Resultado |
+|---|---|
+| `nullableField == null` | ✅ Permitido |
+| `nullableField != null` | ✅ Permitido |
+| `NullableStruct == NullableStruct` | ✅ Permitido (mesmo tipo) |
+
+### 11.5 Primitivos (regressão)
+
+| Comparação | Resultado |
+|---|---|
+| `int == int` | ✅ Permitido |
+| `int == float` | ✅ Permitido (widening) |
+| `int == string` | ❌ Erro — primitivos diferentes |
+| `string == string` | ✅ Permitido |
+
+### 11.6 Implementação
+
+Em `checkBinaryExpr`, o bloco `==`/`!=` foi substituído de uma validação apenas de primitivos para uma chamada a `areTypesCompatible(leftType, rightType)`, que já trata corretamente todos os casos acima (nominalidade, genéricos, nullable, alias).

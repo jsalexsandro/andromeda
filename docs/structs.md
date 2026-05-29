@@ -145,32 +145,7 @@ FASE 6.5 — CONTROL TYPES
 
       # Ate aqui feito!
 
-│
-├── 8. Extension Methods
-│      8.1 Parser `extend`
-│
-│             extend Array<T> {}
-│
-│      8.2 Resolver tipo extendido
-│      8.3 Registrar métodos externos
-│      8.4 Detectar conflitos
-│      8.5 Permitir builtin extensions
-│
-├── 9. Builtin Struct Types
-│      9.1 Registrar Array<T> builtin
-│      9.2 Registrar String builtin
-│      9.3 Registrar Function builtin
-│      9.4 Resolver methods builtin
-│
-│             push
-│             pop
-│             get
-│             clear
-│
-│      9.5 Implementar syntax sugar:
-│
-│             int[] -> Array<int>
-│
+
 ├── 10. Struct Constructors
 │      10.1 Parser de Constructor automático
        - Construtor auto-init (padrão), caso o não exista nenhum metodo 'init'
@@ -210,6 +185,38 @@ FASE 6.5 — CONTROL TYPES
 │      11.2 Comparação de fields
 │      11.3 Nullable comparison
 │
+       Custom Equality
+
+
+# ATE AQUI FEITO
+
+│
+├── 8. Extension Methods
+│      8.1 Parser `extend`
+│
+│             extend Array<T> {}
+│
+│      8.2 Resolver tipo extendido
+│      8.3 Registrar métodos externos
+│      8.4 Detectar conflitos
+│      8.5 Permitir builtin extensions
+│
+├── 9. Builtin Struct Types
+│      9.1 Registrar Array<T> builtin
+│      9.2 Registrar String builtin
+│      9.3 Registrar Function builtin
+│      9.4 Resolver methods builtin
+│
+│             push
+│             pop
+│             get
+│             clear
+│
+│      9.5 Implementar syntax sugar:
+│
+│             int[] -> Array<int>
+│
+
 ├── 12. Struct Mutability
 │      12.1 Permitir fields mutáveis
 │

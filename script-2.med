@@ -1,5 +1,20 @@
-struct Void {
+// implementar o resto dos structs estamos na parte do equals do structs
 
+struct Items {
+    content: string[] = []
+    size:int = len(self.content)
 }
 
-const e = Void {}
+const i = Items(content: ['James', 'Henry'])
+
+func hasSize(i: int){
+    if (i > 1){
+        print('Multiples items')
+    } else {
+        print('Only item')
+
+    }
+}
+
+
+hasSize(i.size)

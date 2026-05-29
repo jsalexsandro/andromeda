@@ -1,0 +1,5 @@
+// EXPECTED: TYPE_MISMATCH — Box<int> vs Box<string>
+struct Box<T> { value: T }
+val b1 = Box<int> { value: 10 }
+val b2 = Box<string> { value: "x" }
+val err: bool = b1 == b2

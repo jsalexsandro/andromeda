@@ -1,0 +1,96 @@
+// ============================================================
+// FEATURE: Struct Equality §11.1
+// AXIS: Structural equality definition (same type → comparable)
+// ============================================================
+// Regra: dois valores do mesmo tipo nominal são comparáveis
+// com == e !=. Tipos nominais diferentes geram TYPE_MISMATCH.
+// ============================================================
+
+
+// ── Structs de teste ──
+
+struct Person { name: string; age: int }
+
+struct UserId { value: int }
+
+struct ProductId { value: int }
+
+struct Empty {}
+
+struct Box<T> { value: T }
+
+
+// ── GROUP 1 — BASIC (mesmo struct, mesma variável, empty) ──
+
+val p1 = Person { name: "Alice", age: 30 }
+val p2 = Person { name: "Bob",   age: 25 }
+
+val eq_same:     bool = p1 == p2       // mesmo tipo nominal Person
+val ne_same:     bool = p1 != p2       // != também funciona
+val eq_self:     bool = p1 == p1       // mesma variável
+val ne_self:     bool = p1 != p1       // != consigo mesma
+
+val e1 = Empty {}
+val e2 = Empty {}
+val eq_empty:    bool = e1 == e2       // struct vazio
+val ne_empty:    bool = e1 != e2
+
+
+// ── GROUP 2 — TYPE ALIAS (alias é transparente) ──
+
+typealias UID = UserId
+
+val uid1: UID    = UserId { value: 1 }
+val uid2: UserId = UserId { value: 2 }
+
+val eq_alias:    bool = uid1 == uid2   // UID == UserId — alias transparente
+val ne_alias:    bool = uid1 != uid2
+
+
+// ── GROUP 3 — GENERIC STRUCT ──
+
+val b1 = Box<int>    { value: 10 }
+val b2 = Box<int>    { value: 20 }
+val b3 = Box<string> { value: "x" }
+
+val eq_box:  bool = b1 == b2           // Box<int> == Box<int>
+val ne_box:  bool = b1 != b2
+
+// Inferência com genérico
+val b_inf1 = Box { value: 42 }
+val b_inf2 = Box { value: 99 }
+val eq_inf:  bool = b_inf1 == b_inf2
+
+
+// ── GROUP 4 — PRIMITIVE WIDENING ──
+
+val eq_widen:  bool = 10 == 5.0        // int == float (widening)
+val eq_widen2: bool = 42 == 42.0
+val ne_widen:  bool = 10 != 5.0
+
+
+// ── GROUP 5 — ERROR CASES (comentados — testados separadamente) ──
+
+// Person vs ProductId — nomes diferentes
+// EXPECTED: TYPE_MISMATCH
+// val err_diff_type: bool = p1 == ProductId { value: 1 }
+
+// UserId vs ProductId — mesmo shape, nomes diferentes
+// EXPECTED: TYPE_MISMATCH
+// val err_same_shape: bool = UserId { value: 1 } == ProductId { value: 1 }
+
+// Struct vs primitivo
+// EXPECTED: TYPE_MISMATCH
+// val err_struct_vs_int: bool = p1 == 42
+
+// Struct não-nullable vs null
+// EXPECTED: TYPE_MISMATCH
+// val err_struct_vs_null: bool = p1 == null
+
+// Box<int> vs Box<string> — type args diferentes
+// EXPECTED: TYPE_MISMATCH
+// val err_diff_generic: bool = b1 == b3
+
+// int vs string
+// EXPECTED: TYPE_MISMATCH
+// val err_int_vs_string: bool = 1 == "x"

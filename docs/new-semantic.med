@@ -274,22 +274,13 @@ IfVariableExpr (if val x = y {})
    >  Suporte ao
 - [ ] Detectar alias circular (ex: `typealias A = A`) → erro
 
-[feito até aqui]
 
 ### StructStmt
-- [ ] Registrar `name` no escopo de tipos
-- [ ] Validar o tipo de cada campo
-- [ ] Verificar que todos os métodos dos protocols estão implementados
-- [ ] Detectar campos duplicados
-│      3.1 Resolver tipos dos campos
-│      3.2 Verificar tipos inexistentes
-│      3.3 Permitir self-reference indireta
-│      3.4 Detectar circularidade inválida
-│      3.5 Registrar struct como type symbol
-- [ ] Verificar a keyword 'mut' ela informa que aquela propriedade é mutavel 
- 
-- [ ] Suporte a `TypeParameterNode`
-- [ ] Checar que `protocols` declarados existem no escopo
+├── StructStatement
+    Estrutura Grande e Complexa veja @structs.md 
+    Totalmente implementado
+
+# ATE AQUI FEITO
 
 ### EnumStmt
 - [ ] Registrar `name` no escopo de tipos

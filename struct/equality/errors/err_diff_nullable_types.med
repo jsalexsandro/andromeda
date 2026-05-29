@@ -1,0 +1,4 @@
+// EXPECTED: TYPE_MISMATCH — int? vs string? (nullable de tipos diferentes)
+struct NF { mut age: int?; mut name: string? }
+val nf = NF { age: null, name: null }
+val err: bool = nf.age == nf.name

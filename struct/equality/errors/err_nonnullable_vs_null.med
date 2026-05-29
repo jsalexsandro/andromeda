@@ -1,0 +1,4 @@
+// EXPECTED: TYPE_MISMATCH — non-nullable struct vs null
+struct Person { name: string; age: int }
+val p = Person { name: "A", age: 1 }
+val err: bool = p == null
