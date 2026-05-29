@@ -18,6 +18,7 @@ export class TypeChecker {
   private hasReturn: boolean = false;
   private currentFunctionReturnType: TypeNode | null = null;
   private contextualType: TypeNode | null = null;
+  private resolvedTypes = new Map<Expr, TypeNode>();
 
   constructor() {
     this.globalEnv = new Environment(null, true);
@@ -2652,6 +2653,12 @@ export class TypeChecker {
   }
 
   private checkExpression(expr: Expr): TypeNode {
+    const result = this.checkExpressionImpl(expr);
+    this.resolvedTypes.set(expr, result);
+    return result;
+  }
+
+  private checkExpressionImpl(expr: Expr): TypeNode {
     switch (expr.kind) {
       case "Identifier": {
         const name = expr.name.value as string;
@@ -4094,16 +4101,28 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
   public getSymbolCount(): number {
     return this.globalEnv.getSymbolCount();
   }
+
+  public getResolvedTypes(): Map<Expr, TypeNode> {
+    return this.resolvedTypes;
+  }
+
+  public getEnvironment(): Environment {
+    return this.globalEnv;
+  }
 }
 
 export function analyze(program: Stmt[]): {
   errors: SemanticError[];
   symbolCount: number;
+  resolvedTypes: Map<Expr, TypeNode>;
+  environment: Environment;
 } {
   const checker = new TypeChecker();
   const errors = checker.check(program);
   return {
     errors,
     symbolCount: checker.getSymbolCount(),
+    resolvedTypes: checker.getResolvedTypes(),
+    environment: checker.getEnvironment(),
   };
 }

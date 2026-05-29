@@ -26,12 +26,12 @@ Toda expressão produz um **temporário** nomeado (`t0`, `t1`, ...).
 
 ## Fase 1 — Estrutura Base
 
-### [ ] 1.1 Tipos de instrução (`MIRinstruction`)
+### [ ] 1.1 Tipos de instrução (`IRInstruction`)
 
 Criar o tipo union que representa todas as instruções possíveis:
 
 ```typescript
-type MIRinstruction =
+type IRInstruction =
   // Valores
   | { op: "const";    dest: string; value: IRValue }
   | { op: "copy";     dest: string; src: string }

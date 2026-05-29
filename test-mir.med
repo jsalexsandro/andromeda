@@ -1,0 +1,38 @@
+// MIR test: SSA + var mutation + if/else phi
+val x: int = 42
+val y: int = 10
+
+var a: int = x + y
+a = a + 5
+
+var b: int = x
+b = b * 2
+b = b - 3
+
+val flag: bool = true
+val notFlag = !flag
+
+val tern = a > x ? a : x
+
+val coal = x ?? 999
+
+// if/else com phi
+var acc: int = 0
+if (a > 50) {
+  acc = a + 1
+} else {
+  acc = a - 1
+}
+
+var acc2: int = acc + 100
+if (a > 50) {
+  acc2 = acc2 * 2
+}
+
+val final = a + b + acc + acc2
+
+func greet(name: string): string {
+  var msg: string = "Hello, "
+  msg = msg + name
+  return msg
+}

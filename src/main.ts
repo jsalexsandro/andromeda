@@ -2,6 +2,8 @@ import * as fs from 'fs'
 import { Lexer } from './lexer/lexer'
 import { Parser } from './parser/parser'
 import { analyze } from './semantic/TypeChecker'
+import { MIRBuilder } from './mir/MIRBuilder'
+import { printMIR } from './mir/printer'
 
 function showHelp() {
   console.log(`Andromeda Language CLI v1.0.0`)
@@ -109,7 +111,7 @@ export function main() {
     }
 
     console.time("semantic")
-    const { errors, symbolCount } = analyze(ast)
+    const { errors, symbolCount, resolvedTypes } = analyze(ast)
     console.timeEnd("semantic")
 
     if (errors.length > 0) {
@@ -122,6 +124,15 @@ export function main() {
 
     console.log(`[Compilation successful!]`)
     console.log(`  Symbols registered: ${symbolCount}`)
+
+    // ── MIR generation ───────────────────────────
+    if (genJs) {
+      const builder = new MIRBuilder(ast, resolvedTypes)
+      const mir = builder.build()
+      console.log(`  MIR functions: ${mir.functions.length}`)
+      console.log(``)
+      console.log(printMIR(mir))
+    }
 
   } else if (isAst) {
     console.log(`[Andromeda] Parsing ${filename}...`)
