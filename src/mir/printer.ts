@@ -50,7 +50,9 @@ function printInstruction(inst: MIRInstruction): string {
     case "jumpIf":
       return `jump_if ${inst.cond}, ${inst.then}, ${inst.else}`
     case "return":
-      return inst.value ? `return ${inst.value}` : "return void"
+      if (inst.value === null) return "return void"
+      if (typeof inst.value === "string") return `return ${inst.value}`
+      return `return const ${printIRValue(inst.value)}`
     case "phi":
       return `${inst.dest} = phi(${inst.pairs.map(p => `${p.block}, ${p.value}`).join(", ")})`
     case "notNull":
@@ -73,6 +75,12 @@ function printInstruction(inst: MIRInstruction): string {
       return `${inst.object}[${inst.index}] = ${inst.value}`
     case "spread":
       return `${inst.dest} = spread ${inst.src}`
+    case "cellAlloc":
+      return `${inst.dest} = cellAlloc`
+    case "cellLoad":
+      return `${inst.dest} = cellLoad ${inst.src}`
+    case "cellStore":
+      return `cellStore ${inst.cell} = ${inst.value}`
   }
 }
 

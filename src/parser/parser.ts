@@ -1595,9 +1595,16 @@ export class Parser {
         }
       }
 
+      const nextToken = this.peek();
+
+      // Não tratar { como infix (struct literal) se left não for Identifier
+      // Evita que if val x = expr { ... } consuma o bloco como struct literal
+      if (nextToken.type === TokenType.LBRACE && left && left.kind !== "Identifier") {
+        return left;
+      }
+
       // se o token pode ser prefixo (nova expressão) e está em linha diferente,
       // não tratar como infix — é o início de outro statement
-      const nextToken = this.peek();
       const canBePrefix = this.prefixParselets.has(nextToken.type);
       const isDifferentLine = nextToken.line !== this.previous().line;
       if (canBePrefix && isDifferentLine) {

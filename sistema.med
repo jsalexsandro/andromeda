@@ -1,0 +1,13 @@
+const itName = !false
+
+func use(name: string, id: int){
+    print("Oi")
+    print(name)
+}
+
+if (!itName){
+    print("Isso Aqui é foda")
+}  else {
+    use(name: 'Jenni Jenni', 134)
+}
+

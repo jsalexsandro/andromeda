@@ -46,7 +46,7 @@ export type MIRInstruction =
   | { op: "block";    name: string }
   | { op: "jump";     label: string }
   | { op: "jumpIf";   cond: string; then: string; else: string }
-  | { op: "return";   value: string | null }
+  | { op: "return";   value: string | IRValue | null }
   | { op: "phi";      dest: string; pairs: { block: string; value: string }[] }
 
   // Null checks
@@ -68,6 +68,11 @@ export type MIRInstruction =
 
   // Spread
   | { op: "spread";    dest: string; src: string }
+
+  // Closures — mutable capture via heap cells
+  | { op: "cellAlloc";  dest: string }
+  | { op: "cellLoad";   dest: string; src: string }
+  | { op: "cellStore";  cell: string; value: string }
 
 
 // ─── Função MIR ───────────────────────────────────────────────

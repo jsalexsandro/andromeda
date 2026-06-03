@@ -29,11 +29,28 @@ export class IRGenerator {
     this.instructions.push(inst)
   }
 
+  protected insertAt(index: number, inst: MIRInstruction): void {
+    this.instructions.splice(index, 0, inst)
+  }
+
   protected emitConst(dest: string, value: IRValue): void {
     this.emit({ op: "const", dest, value })
   }
 
   protected emitCopy(dest: string, src: string): void {
+    for (let i = this.instructions.length - 1; i >= 0; i--) {
+      const inst = this.instructions[i]
+      if (inst.op === "phi" && inst.dest === src) {
+        inst.dest = dest
+        return
+      }
+      if (inst.op === "block") break
+    }
+    const last = this.instructions[this.instructions.length - 1]
+    if (last?.op === "const" && last.dest === src) {
+      last.dest = dest
+      return
+    }
     this.emit({ op: "copy", dest, src })
   }
 
@@ -57,7 +74,14 @@ export class IRGenerator {
     this.emit({ op: "jumpIf", cond, then: thenLabel, else: elseLabel })
   }
 
-  protected emitReturn(value: string | null): void {
+  protected emitReturn(value: string | IRValue | null): void {
+    if (typeof value === "string") {
+      const last = this.instructions[this.instructions.length - 1]
+      if (last?.op === "const" && last.dest === value && last.value !== undefined) {
+        this.instructions.pop()
+        value = last.value
+      }
+    }
     this.emit({ op: "return", value })
   }
 
@@ -103,5 +127,17 @@ export class IRGenerator {
 
   protected emitSpread(dest: string, src: string): void {
     this.emit({ op: "spread", dest, src })
+  }
+
+  protected emitCellAlloc(dest: string): void {
+    this.emit({ op: "cellAlloc", dest })
+  }
+
+  protected emitCellLoad(dest: string, src: string): void {
+    this.emit({ op: "cellLoad", dest, src })
+  }
+
+  protected emitCellStore(cell: string, value: string): void {
+    this.emit({ op: "cellStore", cell, value })
   }
 }

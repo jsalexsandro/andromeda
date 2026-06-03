@@ -1041,7 +1041,7 @@ readNumber(): Token {
     let type = isKeyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
 
     // Check for type keywords
-    if (type === TokenType.IDENTIFIER && TYPE_KEYWORDS[ident]) {
+    if (type === TokenType.IDENTIFIER && Object.hasOwn(TYPE_KEYWORDS, ident)) {
       type = TYPE_KEYWORDS[ident]
     }
 

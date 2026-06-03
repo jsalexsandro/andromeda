@@ -1,0 +1,24 @@
+// --- Código Fonte para Teste de Closures Múltiplas ---
+
+const inicializar = true
+
+if (inicializar) {
+  var count = 0
+  
+  // Função 1: Incrementa o mesmo 'count'
+  func incrementar() {
+    count = count + 1
+    print('Count')
+  }
+  
+  // Função 2: Decrementa o mesmo 'count'
+  func decrementar() {
+    count = count - 1
+    print("Count")
+  }
+
+  // Executa os testes intercalados para validar o estado compartilhado
+  val t1 = incrementar() // Deve printar 1
+  val t2 = incrementar() // Deve printar 2
+  val t3 = decrementar() // Deve printar 1
+}

@@ -221,6 +221,8 @@ val x: int = expr
 - `var` → mutável
 - Sem inicializador → `const x null`
 
+OBS: Andromeda não permite declarar variavel sem valor de uso.
+
 ### [ ] 3.2 Assignment
 
 ```
@@ -326,6 +328,8 @@ continue
 
 ---
 
+[Ate aqui feito]
+
 ## Fase 5 — Funções
 
 ### [ ] 5.1 FunctionStatement
@@ -378,7 +382,7 @@ User(name: "Alice", age: 30)
 →  const t0 string "Alice"
    const t1 int 30
    callNamed t2 User [{ name: "name", value: t0 }, { name: "age", value: t1 }]
-```
+``` (Implementado apenas o de funções)
 
 ### [ ] 5.5 ArrowFunction
 
@@ -730,3 +734,6 @@ Regras que toda instrução deve respeitar:
 ---
 
 *Andromeda Language — IR Design v0.1*
+
+
+Otimização: Eliminar SSA redudante

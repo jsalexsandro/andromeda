@@ -1,0 +1,222 @@
+// ═══════════════════════════════════════════════════════════
+// tests.med — Test suite para MIR (Mid-level IR)
+// Uso: bun src/main.ts compile tests.med -g
+// ═══════════════════════════════════════════════════════════
+
+// ─── 1. Const folding ───────────────────────────────────
+
+val a: int = 42 + 10          // → 52
+val b: int = 100 - 30         // → 70
+val c: int = 5 * 6            // → 30
+val d: int = 20 / 4           // → 5
+val e: int = 10 % 3           // → 1
+val f: bool = true && false   // → false
+val g: bool = true || false   // → true
+val h: bool = !false          // → true
+val i: bool = 10 > 5          // → true
+val j: bool = 3 == 3          // → true
+val k: int = true ? 1 : 999   // → 1
+val l: int = null ?? 42       // → 42
+val m: int = 42 ?? 99         // → 42 (not null, skips right)
+
+// ─── 2. If/Else ─────────────────────────────────────────
+
+func ifElse(input: int): int {
+  var r: int = 0
+  if (input > 10) {
+    r = input - 1
+  } else {
+    r = input + 1
+  }
+  return r
+}
+
+func ifNoElse(input: int): int {
+  var r: int = 5
+  if (input > 0) {
+    r = 10
+  }
+  return r
+}
+
+func ifNested(input: int): int {
+  var r: int = 0
+  if (input > 0) {
+    if (input > 10) {
+      r = 1
+    } else {
+      r = 2
+    }
+  } else {
+    r = 3
+  }
+  return r
+}
+
+func ifConstFold(): int {
+  var r: int = 0
+  if (true) {
+    r = 42
+  } else {
+    r = 99        // dead
+  }
+  return r        // → 42
+}
+
+// ─── 3. While ───────────────────────────────────────────
+
+func whileBasic(n: int): int {
+  var i: int = 0
+  var acc: int = 0
+  while (i < n) {
+    acc = acc + i
+    i = i + 1
+  }
+  return acc
+}
+
+func whileBreak(n: int): int {
+  var i: int = 0
+  while (i < n) {
+    if (i > 5) {
+      break
+    }
+    i = i + 1
+  }
+  return i
+}
+
+func whileContinue(n: int): int {
+  var i: int = 0
+  var acc: int = 0
+  while (i < n) {
+    i = i + 1
+    if (i == 1) {
+      continue
+    }
+    acc = acc + i
+  }
+  return acc
+}
+
+func whileFalse(): int {
+  var x: int = 10
+  while (false) {
+    x = 99     // dead
+  }
+  return x     // → 10
+}
+
+// ─── 4. For ─────────────────────────────────────────────
+
+func forBasic(n: int): int {
+  var acc: int = 0
+  for (var i: int = 0; i < n; i = i + 1) {
+    acc = acc + i
+  }
+  return acc
+}
+
+func forBreak(n: int): int {
+  var acc: int = 0
+  for (var i: int = 0; i < n; i = i + 1) {
+    if (i > 3) {
+      break
+    }
+    acc = acc + i
+  }
+  return acc
+}
+
+func forContinue(n: int): int {
+  var acc: int = 0
+  for (var i: int = 0; i < n; i = i + 1) {
+    if (i == 0) {
+      continue
+    }
+    acc = acc + i
+  }
+  return acc
+}
+
+// ─── 5. Compound assignments ────────────────────────────
+
+func compound(x: int): int {
+  var a: int = x
+  a += 10
+  a -= 3
+  a *= 2
+  a /= 3
+  return a
+}
+
+// ─── 6. Var mutation + SSA ──────────────────────────────
+
+val constX: int = 42
+val constY: int = 10
+
+var varA: int = constX + constY    // → 52
+varA = varA + 5                    // → 57
+
+var varB: int = constX
+varB = varB * 2                    // → 84
+varB = varB - 3                    // → 81
+
+var acc: int = 0
+if (varA > 50) {
+  acc = varA + 1                   // → 58
+} else {
+  acc = varA - 1
+}
+
+var acc2: int = acc + 100          // → 158
+if (varA > 50) {
+  acc2 = acc2 * 2                  // → 316
+}
+
+val final: int = varA + varB + acc + acc2  // 57 + 81 + 58 + 316 = 512
+
+// ─── 7. Funcoes simples ─────────────────────────────────
+
+func greet(name: string): string {
+  var msg: string = "Hello, "
+  msg = msg + name
+  return msg
+}
+
+// ─── 8. Phi predecessor sanity ──────────────────────────
+
+func phiTwoPaths(a: int, b: int): int {
+  var r: int = 0
+  if (a > b) {
+    r = a
+  } else {
+    r = b
+  }
+  return r
+}
+
+func phiNoElse(a: int): int {
+  var r: int = 0
+  if (a > 0) {
+    r = a
+  }
+  return r
+}
+
+// ─── 9. Return dentro de if (dead jump elimination) ─────
+
+func h_test(x: int): int {
+  if (x > 0) { return 1 }
+  if (x < 0) { return -1 }
+  return 0
+}
+
+func testReturnInIf(x: int): int {
+  var r: int = 0
+  if (x > 0) {
+    return 42
+  }
+  r = 10
+  return r
+}
