@@ -24,6 +24,9 @@ Toda expressão produz um **temporário** nomeado (`t0`, `t1`, ...).
 
 ---
 
+SSA
+PHI
+
 ## Fase 1 — Estrutura Base
 
 ### [ ] 1.1 Tipos de instrução (`IRInstruction`)

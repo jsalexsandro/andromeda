@@ -1,0 +1,111 @@
+// ==========================================
+// 1. TIPOS ALIASES E STRUCTS (Domínio)
+// ==========================================
+
+typealias SKU = string
+typealias Moeda = float
+
+struct Dimensoes {
+    largura: float
+    altura:  float
+    profundidade: float
+
+    // Método para calcular o volume ocupado no estoque
+    func calcularVolume(): float {
+        return self.largura * self.altura * self.profundidade
+    }
+}
+
+struct Produto {
+    sku:       SKU
+    nome:      string
+    preco:     Moeda
+    dimensoes: Dimensoes? // Opcional: infere que pode ser null
+    mut estoque: int = 0  // Campo mutável com valor default
+}
+
+// Struct Genérico para encapsular respostas do sistema
+struct Resultado<T, E> {
+    sucesso: T?
+    erro:    E?
+
+    func isOk(): bool {
+        return self.erro == null
+    }
+}
+
+// ==========================================
+// 2. FUNÇÕES E LÓGICA DE NEGÓCIO
+// ==========================================
+
+// Função que simula a venda de um produto (Diminui estoque)
+func realizarVenda(prod: Produto, quantidade: int): Resultado<Produto, string> {
+    if (prod.estoque >= quantidade) {
+        prod.estoque = prod.estoque - quantidade
+        return Resultado<Produto, string> { sucesso: prod, error: null }
+    }
+    
+    return Resultado<Produto, string> { 
+        sucesso: null, 
+        erro: "Estoque insuficiente para o produto " + prod.nome 
+    }
+}
+
+// ==========================================
+// 3. PONTO DE ENTRADA (Execução do Teste)
+// ==========================================
+
+// Criando as dimensões usando o construtor automático (Auto-init)
+val tamCaixa = Dimensoes(largura: 10.5, altura: 20.0, profundidade: 15.0)
+
+// Criando produtos usando Struct Literals e o Shorthand de campos (se aplicável)
+var phone = Produto {
+    sku: "CEL-IPHONE-13",
+    nome: "iPhone 13 Pro",
+    preco: 4999.90,
+    dimensoes: tamCaixa,
+    estoque: 5 // Definindo estoque inicial
+}
+
+var capa = Produto {
+    sku: "ACC-CAPA-SILICONE",
+    nome: "Capa de Silicone Transparente",
+    preco: 99.00,
+    dimensoes: null // Produto sem dimensões cadastradas
+}
+
+// Testando o Desembrulho de Opcionais (Optional Binding) com o volume do Phone
+if val dim = phone.dimensoes {
+    // Aqui dentro 'dim' é do tipo 'Dimensoes' puro (unwrapped)
+    val vol: float = dim.calcularVolume()
+}
+
+// Simulando o processamento de vendas no estoque
+print("Estoque inicial do " + phone.nome + ": " + phone.estoque)
+
+// Venda 1: Sucesso esperado (5 - 2 = 3)
+val tentativa1 = realizarVenda(prod: phone, quantidade: 2)
+
+if (tentativa1.isOk()) {
+    // Bidirectional Inference: o compilador sabe desempacotar o opcional
+    if val produtoAtualizado = tentativa1.sucesso {
+        phone = produtoAtualizado
+        print("Venda realizada! Estoque atual: " + phone.estoque)
+    }
+}
+
+// Venda 2: Erro esperado (Estoque atual é 3, tentando vender 4)
+val tentativa2 = realizarVenda(prod: phone, quantidade: 4)
+
+if (tentativa2.isOk() == false) {
+    if val msgErro = tentativa2.erro {
+        print("Erro na venda: " + msgErro)
+    }
+}
+
+// Testando um loop para reposição de estoque em lote
+print("Iniciando reposição automática de estoque...")
+for (var i: int = 0; i < 3; i = i + 1) {
+    phone.estoque = phone.estoque + 1
+}
+print("Estoque final após reposição: " + phone.estoque)

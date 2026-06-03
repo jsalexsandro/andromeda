@@ -132,6 +132,8 @@ export function main() {
       console.log(`  MIR functions: ${mir.functions.length}`)
       console.log(``)
       console.log(printMIR(mir))
+
+   
     }
 
   } else if (isAst) {
