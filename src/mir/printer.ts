@@ -59,6 +59,8 @@ function printInstruction(inst: MIRInstruction): string {
       return `${inst.dest} = notNull ${inst.src}`
     case "call":
       return `${inst.dest} = call ${inst.callee}(${inst.args.join(", ")})`
+    case "callIndirect":
+      return `${inst.dest} = call ${inst.callee}(${inst.args.join(", ")})`
     case "callNamed":
       return `${inst.dest} = callNamed ${inst.callee}(${inst.args.map(a => `${a.name}: ${a.value}`).join(", ")})`
     case "alloc":
@@ -81,6 +83,10 @@ function printInstruction(inst: MIRInstruction): string {
       return `${inst.dest} = cellLoad ${inst.src}`
     case "cellStore":
       return `cellStore ${inst.cell} = ${inst.value}`
+    case "makeClosure":
+      return `${inst.dest} = makeClosure ${inst.callee} [${inst.cells.join(", ")}]`
+    case "callClosure":
+      return `${inst.dest} = callClosure ${inst.closure}(${inst.args.join(", ")})`
   }
 }
 

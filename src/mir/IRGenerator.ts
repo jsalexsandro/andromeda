@@ -101,6 +101,10 @@ export class IRGenerator {
     this.emit({ op: "callNamed", dest, callee, args })
   }
 
+  protected emitCallIndirect(dest: string, callee: string, args: string[]): void {
+    this.emit({ op: "callIndirect", dest, callee, args })
+  }
+
   protected emitAlloc(dest: string, structName: string): void {
     this.emit({ op: "alloc", dest, structName })
   }
@@ -139,5 +143,13 @@ export class IRGenerator {
 
   protected emitCellStore(cell: string, value: string): void {
     this.emit({ op: "cellStore", cell, value })
+  }
+
+  protected emitMakeClosure(dest: string, callee: string, cells: string[]): void {
+    this.emit({ op: "makeClosure", dest, callee, cells })
+  }
+
+  protected emitCallClosure(dest: string, closure: string, args: string[]): void {
+    this.emit({ op: "callClosure", dest, closure, args })
   }
 }

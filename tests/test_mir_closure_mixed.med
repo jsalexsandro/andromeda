@@ -1,0 +1,19 @@
+// Arrow captures both param AND block var
+var base: int = 10
+
+val makeAdder = (x: int): (int) => int => (y: int): int => x + y + base
+
+val add5 = makeAdder(5)
+val r1 = add5(3)
+
+// Also test capturing mutating block var
+var count: int = 0
+val makeCounter = (delta: int): () => int => (): int => {
+  count = count + delta
+  return count
+}
+
+val incBy2 = makeCounter(2)
+val r2a = incBy2()
+val r2b = incBy2()
+val r2c = incBy2()

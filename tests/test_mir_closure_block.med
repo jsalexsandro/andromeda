@@ -1,0 +1,15 @@
+// Arrow-within-arrow via block body (return)
+val makeAdder = (x: int): (int) => int => {
+  return (y: int): int => x + y
+}
+
+val add5 = makeAdder(5)
+val r1 = add5(3)
+
+// Named function returning arrow (via return)
+func makeMultiplier(factor: int): (int) => int {
+  return (x: int): int => x * factor
+}
+
+val triple = makeMultiplier(3)
+val r2 = triple(7)

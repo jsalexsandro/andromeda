@@ -53,8 +53,13 @@ export type MIRInstruction =
   | { op: "notNull";  dest: string; src: string }
 
   // Funções
-  | { op: "call";      dest: string; callee: string; args: string[] }
-  | { op: "callNamed"; dest: string; callee: string; args: { name: string; value: string }[] }
+  | { op: "call";         dest: string; callee: string; args: string[] }
+  | { op: "callIndirect"; dest: string; callee: string; args: string[] }
+  | { op: "callNamed";    dest: string; callee: string; args: { name: string; value: string }[] }
+
+  // Closures
+  | { op: "makeClosure";  dest: string; callee: string; cells: string[] }
+  | { op: "callClosure";  dest: string; closure: string; args: string[] }
 
   // Structs
   | { op: "alloc";     dest: string; structName: string }

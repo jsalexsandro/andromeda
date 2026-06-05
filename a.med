@@ -42,7 +42,7 @@ struct Resultado<T, E> {
 func realizarVenda(prod: Produto, quantidade: int): Resultado<Produto, string> {
     if (prod.estoque >= quantidade) {
         prod.estoque = prod.estoque - quantidade
-        return Resultado<Produto, string> { sucesso: prod, error: null }
+        return Resultado<Produto, string> { sucesso: prod, erro: null }
     }
     
     return Resultado<Produto, string> { 
@@ -81,7 +81,7 @@ if val dim = phone.dimensoes {
 }
 
 // Simulando o processamento de vendas no estoque
-print("Estoque inicial do " + phone.nome + ": " + phone.estoque)
+print("Estoque inicial do " + phone.nome + ": " + toString(phone.estoque))
 
 // Venda 1: Sucesso esperado (5 - 2 = 3)
 val tentativa1 = realizarVenda(prod: phone, quantidade: 2)
@@ -90,7 +90,7 @@ if (tentativa1.isOk()) {
     // Bidirectional Inference: o compilador sabe desempacotar o opcional
     if val produtoAtualizado = tentativa1.sucesso {
         phone = produtoAtualizado
-        print("Venda realizada! Estoque atual: " + phone.estoque)
+        print("Venda realizada! Estoque atual: " + toString(phone.estoque))
     }
 }
 
@@ -108,4 +108,4 @@ print("Iniciando reposição automática de estoque...")
 for (var i: int = 0; i < 3; i = i + 1) {
     phone.estoque = phone.estoque + 1
 }
-print("Estoque final após reposição: " + phone.estoque)
+print("Estoque final após reposição: " + toString(phone.estoque))

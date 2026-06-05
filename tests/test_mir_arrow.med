@@ -1,0 +1,44 @@
+// ========================================
+// Teste: Arrow Functions no MIR
+// ========================================
+
+// CASE 1: arrow simples (expressão)
+val double = (x: int): int => x * 2
+
+// CASE 2: arrow com corpo em bloco
+val triple = (x: int): int => {
+  return x * 3
+}
+
+// CASE 3: arrow com múltiplos parâmetros
+val add = (a: int, b: int): int => a + b
+
+// CASE 4: função que recebe arrow como argumento
+func applyFn(x: int, fn: (int) => int): int {
+  return fn(x)
+}
+
+// CASE 5: arrow passada como first-class value
+val r5 = applyFn(10, double)
+
+// CASE 6: arrow inline na chamada
+val r6 = applyFn(7, (x: int): int => x * 100)
+
+// CASE 7: arrow genérica
+val identity = <T>(x: T): T => x
+
+// CASE 8: arrow com string concat
+val greet = (name: string): string => "Hello, " + name
+
+// CASE 9: chamar arrow via variável
+val r9 = double(5)
+val r10 = add(10, 20)
+val r11 = greet("Andromeda")
+
+// CASE 10: arrow sem params
+val constVal = (): int => 42
+val r12 = constVal()
+
+// CASE 11: generic arrow com type args explicitos
+val r13 = identity<int>(42)
+val r14 = identity<string>("hi")

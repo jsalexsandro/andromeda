@@ -384,7 +384,7 @@ User(name: "Alice", age: 30)
    callNamed t2 User [{ name: "name", value: t0 }, { name: "age", value: t1 }]
 ``` (Implementado apenas o de funções)
 
-### [ ] 5.5 ArrowFunction
+'### [ ] 5.5 ArrowFunction
 
 Arrow atribuída a variável:
 
@@ -413,7 +413,7 @@ call t0 map [arr, double]
 
 `double` é apenas uma referência ao nome da `IRFunction`.
 
----
+'---
 
 ## Fase 6 — Structs
 

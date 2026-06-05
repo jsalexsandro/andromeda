@@ -1,0 +1,71 @@
+// ========================================
+// Teste: Concatenação de Strings
+// ========================================
+
+// CASE 1: string literal + string literal
+var c1 = "hello" + "world"
+
+// CASE 2: string var + string literal
+val s1: string = "hello"
+var c2 = s1 + "world"
+
+// CASE 3: string literal + string var
+var c3 = "hello" + s1
+
+// CASE 4: string var + string var
+val s2: string = "world"
+var c4 = s1 + s2
+
+// CASE 5: mesma variavel + ela mesma
+var c5 = s1 + s1
+
+// CASE 6: int + string (deve dar erro - tipos incompativeis)
+var c6 = 42 + s1
+
+// CASE 7: string + int (deve dar erro - tipos incompativeis)
+var c7 = s1 + 42
+
+// CASE 8: any + string
+val a1: any = "hello"
+var c8 = a1 + s1
+
+// CASE 9: string + any
+var c9 = s1 + a1
+
+// CASE 10: encadeamento: "a" + "b" + "c"
+var c10 = "a" + "b" + "c"
+
+// CASE 11: string? + string (nullable string)
+val ns: string? = "hello"
+var c11 = ns + "world"
+
+// CASE 12: type alias string + string
+typealias Str = string
+val alias: Str = "hello"
+var c12 = alias + "world"
+
+// CASE 13: concat dentro de funcao
+func greet(name: string): string {
+  return "Hello, " + name
+}
+
+// CASE 14: multiplas concatenacoes
+func fullName(first: string, last: string): string {
+  return first + " " + last
+}
+
+// CASE 15: string + float (deve dar erro)
+var c15 = s1 + 3.14
+
+// CASE 16: float + string (deve dar erro)
+var c16 = 3.14 + s1
+
+// CASE 17: string + bool (deve dar erro)
+var c17 = s1 + true
+
+// CASE 18: concat + assign
+var c18 = s1
+c18 = c18 + " - ok"
+
+// CASE 19: string result atribuido a int (deve dar erro)
+val c19: int = s1 + "test"

@@ -1,0 +1,42 @@
+// ========================================
+// Teste: Funções como first-class values
+// ========================================
+
+// CASE 1: arrow function passada como argumento
+val double = (x: int): int => x * 2
+
+func applyFn(x: int, fn: (int) => int): int {
+  return fn(x)
+}
+
+val r1 = applyFn(10, double)
+
+// CASE 2: arrow inline na chamada
+val r2 = applyFn(7, (x: int): int => x * 100)
+
+// CASE 3: arrow atribuída e chamada via variável
+val triple = (x: int): int => x * 3
+val r3 = triple(5)
+
+// CASE 4: arrow que captura variavel do escopo
+var count: int = 0
+val increment = (): int => {
+  count = count + 1
+  return count
+}
+val r4a = increment()
+val r4b = increment()
+
+// CASE 5: arrow sem params
+val constVal = (): int => 42
+val r5 = constVal()
+
+// CASE 6: corrente de arrows (composição)
+func compose(f: (int) => int, g: (int) => int, x: int): int {
+  return f(g(x))
+}
+val r6 = compose(double, triple, 2)
+
+// CASE 7: arrow com string
+val greet = (name: string): string => "Hello, " + name
+val r7 = greet("Andromeda")

@@ -1,0 +1,41 @@
+// ========================================
+// Teste: Closure — arrow dentro de arrow
+// ========================================
+
+// CASE 1: arrow captura param da arrow externa
+val makeAdder = (x: int): (int) => int => (y: int): int => x + y
+
+// CASE 2: usar o closure
+val add5 = makeAdder(5)
+val r1 = add5(3)
+
+// CASE 3: multiplos closures com estados diferentes
+val add10 = makeAdder(10)
+val r2a = add5(7)
+val r2b = add10(7)
+
+// CASE 4: arrow sem captura (deve continuar funcionando)
+val double = (x: int): int => x * 2
+val r3 = double(5)
+
+// CASE 5: arrow captura var do escopo (closure classico)
+var count: int = 0
+val inc = (): int => {
+  count = count + 1
+  return count
+}
+val r4a = inc()
+val r4b = inc()
+
+// CASE 6: HOF returning closure via named function
+func makeMultiplier(factor: int): (int) => int {
+  return (x: int): int => x * factor
+}
+val triple = makeMultiplier(3)
+val r5 = triple(7)
+
+// CASE 7: curry-like closure
+val makeAdder3 = (a: int): (int) => (int) => int => (b: int): (int) => int => (c: int): int => a + b + c
+val addABC = makeAdder3(1)
+val addBC = addABC(2)
+val r6 = addBC(3)

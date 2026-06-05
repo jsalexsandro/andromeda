@@ -1,6 +1,6 @@
 import { Stmt, Expr, TypeNode } from "../ast"
 import { VariableStmt, FunctionStmt, ReturnStmt, ExpressionStmt, BlockStmt, IfStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt } from "../ast"
-import { LiteralExpr, UnaryExpr, IdentifierExpr, BinaryExpr, GroupExpr, ConditionalExpr, NullishCoalescingExpr, AssignExpr, CallExpr, NamedArgumentExpr } from "../ast"
+import { LiteralExpr, UnaryExpr, IdentifierExpr, BinaryExpr, GroupExpr, ConditionalExpr, NullishCoalescingExpr, AssignExpr, CallExpr, NamedArgumentExpr, ArrowFunctionExpr } from "../ast"
 import { IRGenerator } from "./IRGenerator"
 import { MIRProgram, MIRFunction, MIRInstruction, IRValue, BinaryOp, UnaryOp } from "./types"
 
@@ -17,6 +17,10 @@ export class MIRBuilder extends IRGenerator {
   private capturedVars = new Map<string, Set<string>>()
   private cellForVar = new Map<string, string>()
   private currentCapturedVars = new Set<string>()
+  private arrowCaptureMap = new WeakMap<ArrowFunctionExpr, Set<string>>()
+  private arrowCount = 0
+  private functionRefs = new Map<string, string>()
+  private closureRefs = new Set<string>()
 
   constructor(program: Stmt[], resolvedTypes?: Map<Expr, TypeNode>) {
     super()
@@ -35,6 +39,13 @@ export class MIRBuilder extends IRGenerator {
     const srcVal = this.tempConstants.get(src)
     if (srcVal) {
       this.tempConstants.set(dest, srcVal)
+    }
+    const fnRef = this.functionRefs.get(src)
+    if (fnRef) {
+      this.functionRefs.set(dest, fnRef)
+    }
+    if (this.closureRefs.has(src)) {
+      this.closureRefs.add(dest)
     }
     super.emitCopy(dest, src)
   }
@@ -180,6 +191,7 @@ export class MIRBuilder extends IRGenerator {
   private initCaptureAnalysis(): void {
     this.capturedVars.clear()
     this.cellForVar.clear()
+    this.arrowCaptureMap = new WeakMap()
     const globalVars = new Set<string>()
     this.collectCaptures(this.program, globalVars)
     for (const [, vars] of this.capturedVars) {
@@ -189,6 +201,7 @@ export class MIRBuilder extends IRGenerator {
         }
       }
     }
+    this.collectArrowCaptures(this.program, globalVars)
   }
 
   private collectCaptures(stmts: Stmt[], scope: Set<string>): void {
@@ -235,6 +248,124 @@ export class MIRBuilder extends IRGenerator {
           scope,
         )
       }
+    }
+  }
+
+  private collectArrowCaptures(stmts: Stmt[], scope: Set<string>): void {
+    for (const stmt of stmts) {
+      if (stmt.kind === "VariableStmt") {
+        scope.add(stmt.name.value as string)
+        if (stmt.initializer) {
+          this.collectArrowCapturesInExpr(stmt.initializer, scope)
+        }
+      } else if (stmt.kind === "ExpressionStmt") {
+        this.collectArrowCapturesInExpr(stmt.expression, scope)
+      } else if (stmt.kind === "ReturnStmt") {
+        if (stmt.value) this.collectArrowCapturesInExpr(stmt.value, scope)
+      } else if (stmt.kind === "BlockStmt") {
+        const blockScope = new Set(scope)
+        this.collectArrowCaptures(stmt.statements, blockScope)
+      } else if (stmt.kind === "IfStmt") {
+        this.collectArrowCaptures(
+          stmt.thenBranch.kind === "BlockStmt" ? stmt.thenBranch.statements : [stmt.thenBranch],
+          scope,
+        )
+        if (stmt.elseBranch) {
+          this.collectArrowCaptures(
+            stmt.elseBranch.kind === "BlockStmt" ? stmt.elseBranch.statements : [stmt.elseBranch],
+            scope,
+          )
+        }
+      } else if (stmt.kind === "WhileStmt") {
+        this.collectArrowCaptures(
+          stmt.body.kind === "BlockStmt" ? stmt.body.statements : [stmt.body],
+          scope,
+        )
+      } else if (stmt.kind === "ForStmt") {
+        this.collectArrowCaptures(
+          stmt.body.kind === "BlockStmt" ? stmt.body.statements : [stmt.body],
+          scope,
+        )
+      } else if (stmt.kind === "FunctionStmt") {
+        const innerScope = new Set(scope)
+        for (const p of stmt.params) innerScope.add(p.name.value as string)
+        this.gatherVarDecls(stmt.body, innerScope)
+        this.collectArrowCaptures(stmt.body.statements, innerScope)
+      }
+    }
+  }
+
+  private collectArrowCapturesInExpr(expr: Expr, scope: Set<string>): void {
+    if (expr.kind === "ArrowFunction") {
+      const arrow = expr as ArrowFunctionExpr
+      const params = new Set(arrow.params.map(p => p.name.value as string))
+      const refs = new Set<string>()
+      if (arrow.body.kind === "BlockStmt") {
+        this.gatherRefsInStmt(arrow.body, refs)
+      } else {
+        this.gatherRefsInExpr(arrow.body as Expr, refs)
+      }
+      const localVars = new Set<string>()
+      if (arrow.body.kind === "BlockStmt") {
+        this.gatherVarDecls(arrow.body, localVars)
+      }
+      const captured = new Set([...refs].filter(r => scope.has(r) && !params.has(r) && !localVars.has(r)))
+      if (captured.size > 0) {
+        this.arrowCaptureMap.set(arrow, captured)
+        for (const v of captured) {
+          if (!this.cellForVar.has(v)) {
+            this.cellForVar.set(v, `${v}_cell`)
+          }
+        }
+      }
+      const innerScope = new Set(scope)
+      for (const p of arrow.params) innerScope.add(p.name.value as string)
+      if (arrow.body.kind === "BlockStmt") {
+        this.gatherVarDecls(arrow.body, innerScope)
+        this.collectArrowCaptures(arrow.body.statements, innerScope)
+      } else {
+        this.collectArrowCapturesInExpr(arrow.body as Expr, innerScope)
+      }
+      return
+    }
+    if (expr.kind === "Group") {
+      this.collectArrowCapturesInExpr((expr as any).expression, scope)
+    } else if (expr.kind === "Unary") {
+      this.collectArrowCapturesInExpr((expr as any).right, scope)
+    } else if (expr.kind === "Binary") {
+      this.collectArrowCapturesInExpr((expr as any).left, scope)
+      this.collectArrowCapturesInExpr((expr as any).right, scope)
+    } else if (expr.kind === "Assign") {
+      this.collectArrowCapturesInExpr((expr as any).name, scope)
+      this.collectArrowCapturesInExpr((expr as any).value, scope)
+    } else if (expr.kind === "Conditional") {
+      this.collectArrowCapturesInExpr((expr as any).condition, scope)
+      this.collectArrowCapturesInExpr((expr as any).consequent, scope)
+      this.collectArrowCapturesInExpr((expr as any).alternate, scope)
+    } else if (expr.kind === "NullishCoalescing") {
+      this.collectArrowCapturesInExpr((expr as any).left, scope)
+      this.collectArrowCapturesInExpr((expr as any).right, scope)
+    } else if (expr.kind === "Call") {
+      this.collectArrowCapturesInExpr((expr as any).callee, scope)
+      for (const a of (expr as any).args) this.collectArrowCapturesInExpr(a, scope)
+    } else if (expr.kind === "NamedArgument") {
+      this.collectArrowCapturesInExpr((expr as any).value, scope)
+    } else if (expr.kind === "Array") {
+      for (const e of (expr as any).elements) this.collectArrowCapturesInExpr(e, scope)
+    } else if (expr.kind === "Object") {
+      for (const p of (expr as any).properties) {
+        this.collectArrowCapturesInExpr(p.value, scope)
+      }
+    } else if (expr.kind === "Spread") {
+      this.collectArrowCapturesInExpr((expr as any).expr ?? (expr as any).argument, scope)
+    } else if (expr.kind === "Member") {
+      this.collectArrowCapturesInExpr((expr as any).object, scope)
+    } else if (expr.kind === "Index") {
+      this.collectArrowCapturesInExpr((expr as any).object, scope)
+      this.collectArrowCapturesInExpr((expr as any).index, scope)
+    } else if (expr.kind === "New") {
+      this.collectArrowCapturesInExpr((expr as any).callee, scope)
+      for (const a of (expr as any).args ?? []) this.collectArrowCapturesInExpr(a, scope)
     }
   }
 
@@ -287,6 +418,13 @@ export class MIRBuilder extends IRGenerator {
       for (const a of (expr as any).args) this.gatherRefsInExpr(a, refs)
     } else if (expr.kind === "NamedArgument") {
       this.gatherRefsInExpr((expr as any).value, refs)
+    } else if (expr.kind === "ArrowFunction") {
+      const arrow = expr as ArrowFunctionExpr
+      if (arrow.body.kind === "BlockStmt") {
+        this.gatherRefsInStmt(arrow.body, refs)
+      } else {
+        this.gatherRefsInExpr(arrow.body as Expr, refs)
+      }
     }
   }
 
@@ -717,6 +855,16 @@ export class MIRBuilder extends IRGenerator {
       params.push({ name: cell, type: "cell" })
     }
 
+    // Allocate cells for params captured by inner arrows
+    for (const p of stmt.params) {
+      const pName = p.name.value as string
+      if (this.isParamCapturedByBodyArrow(stmt.body, pName)) {
+        const cell = this.cellForVar.get(pName)!
+        this.emitCellAlloc(cell)
+        this.emitCellStore(cell, this.resolveSSA(pName))
+      }
+    }
+
     this.emitStmt(stmt.body)
 
     this.currentCapturedVars = new Set()
@@ -730,6 +878,82 @@ export class MIRBuilder extends IRGenerator {
     }
 
     return fn
+  }
+
+  private emitArrowFunction(node: ArrowFunctionExpr): string {
+    const state = this.saveFuncState()
+
+    this.instructions = []
+    this.tempCount = 0
+    this.labelCount = 0
+    this.ssaVersions = new Map()
+    this.ssaMax = new Map()
+    this.knownConstants = new Map()
+    this.tempConstants = new Map()
+    this.loopStack = []
+
+    const name = `__arrow_${this.arrowCount++}`
+
+    const params = node.params.map(p => ({
+      name: p.name.value as string,
+      type: p.type ? this.typeToString(p.type) : "unknown",
+    }))
+
+    const returnType = node.returnType
+      ? this.typeToString(node.returnType)
+      : "unknown"
+
+    this.currentCapturedVars = this.arrowCaptureMap.get(node) ?? new Set()
+    if (this.currentCapturedVars.size > 0) {
+      this.capturedVars.set(name, this.currentCapturedVars)
+    }
+    for (const cv of this.currentCapturedVars) {
+      const cell = this.cellForVar.get(cv)!
+      params.push({ name: cell, type: "cell" })
+    }
+
+    for (const p of params) {
+      this.ssaVersions.set(p.name, 0)
+      this.ssaMax.set(p.name, 0)
+    }
+
+    // Allocate cells for params captured by inner arrows
+    for (const p of node.params) {
+      const pName = p.name.value as string
+      if (this.isParamCapturedByBodyArrow(node.body, pName)) {
+        const cell = this.cellForVar.get(pName)!
+        this.emitCellAlloc(cell)
+        this.emitCellStore(cell, this.resolveSSA(pName))
+      }
+    }
+
+    if (node.body.kind === "BlockStmt") {
+      this.emitStmt(node.body)
+    } else {
+      const val = this.emitExpr(node.body as Expr)
+      const last = this.instructions[this.instructions.length - 1]
+      if (last?.op !== "return") {
+        this.emitReturn(val)
+      }
+    }
+
+    this.currentCapturedVars = new Set()
+
+    const fn: MIRFunction = {
+      name,
+      params,
+      returnType,
+      instructions: [...this.instructions],
+      isArrow: true,
+    }
+
+    this.restoreFuncState(state)
+
+    this.mirFunctions.push(fn)
+    this.paramNames.set(name, params.map(p => p.name))
+    this.functionRefs.set(name, name)
+
+    return name
   }
 
   // ─── Helpers ──────────────────────────────────────────────
@@ -962,6 +1186,18 @@ export class MIRBuilder extends IRGenerator {
       case "Call":       return this.emitCallExpr(node)
       case "NamedArgument":
         return this.emitExpr((node as NamedArgumentExpr).value)
+      case "ArrowFunction": {
+        const fnName = this.emitArrowFunction(node as ArrowFunctionExpr)
+        const captures = this.capturedVars.get(fnName)
+        if (captures && captures.size > 0) {
+          const cells = [...captures].map(c => this.cellForVar.get(c)!).filter(Boolean)
+          const closureTemp = this.freshTemp()
+          this.emitMakeClosure(closureTemp, fnName, cells)
+          this.closureRefs.add(closureTemp)
+          return closureTemp
+        }
+        return fnName
+      }
       default:
         return this.emitUnknown(node)
     }
@@ -1005,7 +1241,10 @@ export class MIRBuilder extends IRGenerator {
       this.emitCellLoad(dest, cell)
       return dest
     }
-    return this.resolveSSA(name)
+    const ssaName = this.resolveSSA(name)
+    const fnRef = this.functionRefs.get(ssaName)
+    if (fnRef) return fnRef
+    return ssaName
   }
 
   // ─── Unário ───────────────────────────────────────────────
@@ -1090,9 +1329,30 @@ export class MIRBuilder extends IRGenerator {
   // ─── CallExpression ────────────────────────────────────────
 
   private emitCallExpr(node: CallExpr): string {
-    const callee = node.callee.kind === "Identifier"
-      ? (node.callee as IdentifierExpr).name.value as string
-      : this.emitUnknown(node)
+    let callee: string
+    let isClosure = false
+    let isIndirect = false
+    if (node.callee.kind === "Identifier") {
+      const name = (node.callee as IdentifierExpr).name.value as string
+      const ssaName = this.resolveSSA(name)
+      const fnRef = this.functionRefs.get(ssaName)
+      if (fnRef) {
+        callee = fnRef
+      } else if (this.closureRefs.has(ssaName)) {
+        callee = ssaName
+        isClosure = true
+      } else if (this.paramNames.has(name)) {
+        callee = name
+      } else {
+        callee = this.emitIdentifierExpr(node.callee as IdentifierExpr)
+        isIndirect = true
+      }
+    } else if (node.callee.kind === "ArrowFunction") {
+      callee = this.emitArrowFunction(node.callee as ArrowFunctionExpr)
+    } else {
+      callee = this.emitExpr(node.callee)
+      isIndirect = true
+    }
 
     const baseArgs: string[] = []
     const namedArgs: { name: string; value: string }[] = []
@@ -1134,23 +1394,33 @@ export class MIRBuilder extends IRGenerator {
       }
     }
 
-    const captured = this.capturedVars.get(callee)
-    if (captured) {
-      for (const cv of captured) {
-        const cell = this.cellForVar.get(cv)!
-        if (hasNamed) {
-          namedArgs.push({ name: cell, value: cell })
-        } else {
-          baseArgs.push(cell)
+    // Append captured cell args only for non-closure direct calls
+    if (!isClosure && !isIndirect) {
+      const captured = this.capturedVars.get(callee)
+      if (captured) {
+        for (const cv of captured) {
+          const cell = this.cellForVar.get(cv)!
+          if (hasNamed) {
+            namedArgs.push({ name: cell, value: cell })
+          } else {
+            baseArgs.push(cell)
+          }
         }
       }
     }
 
     const dest = this.freshTemp()
-    if (hasNamed) {
+    if (isClosure || isIndirect) {
+      this.emitCallClosure(dest, callee, baseArgs)
+    } else if (hasNamed) {
       this.emitCallNamed(dest, callee, namedArgs)
     } else {
       this.emitCall(dest, callee, baseArgs)
+    }
+
+    const retType = this.resolvedTypes.get(node)
+    if (retType && retType.kind === "FunctionType") {
+      this.closureRefs.add(dest)
     }
     return dest
   }
@@ -1255,6 +1525,83 @@ export class MIRBuilder extends IRGenerator {
     return dest
   }
 
+  // ─── Helper: check if a param is captured by inner arrows in body ─
+
+  private isParamCapturedByBodyArrow(body: Stmt | Expr, paramName: string): boolean {
+    if (body.kind === "BlockStmt") {
+      for (const s of body.statements) {
+        if (this.stmtHasInnerArrowCapturing(s, paramName)) return true
+      }
+      return false
+    }
+    return this.exprHasInnerArrowCapturing(body as Expr, paramName)
+  }
+
+  private stmtHasInnerArrowCapturing(stmt: Stmt, paramName: string): boolean {
+    if (stmt.kind === "ExpressionStmt") {
+      return this.exprHasInnerArrowCapturing(stmt.expression, paramName)
+    }
+    if (stmt.kind === "ReturnStmt") {
+      return stmt.value ? this.exprHasInnerArrowCapturing(stmt.value, paramName) : false
+    }
+    if (stmt.kind === "VariableStmt") {
+      return stmt.initializer ? this.exprHasInnerArrowCapturing(stmt.initializer, paramName) : false
+    }
+    if (stmt.kind === "BlockStmt") {
+      for (const s of stmt.statements) {
+        if (this.stmtHasInnerArrowCapturing(s, paramName)) return true
+      }
+      return false
+    }
+    if (stmt.kind === "IfStmt") {
+      if (this.stmtHasInnerArrowCapturing(stmt.thenBranch, paramName)) return true
+      if (stmt.elseBranch && this.stmtHasInnerArrowCapturing(stmt.elseBranch, paramName)) return true
+      return false
+    }
+    if (stmt.kind === "WhileStmt" || stmt.kind === "ForStmt") {
+      return this.stmtHasInnerArrowCapturing(stmt.body, paramName)
+    }
+    return false
+  }
+
+  private exprHasInnerArrowCapturing(expr: Expr, paramName: string): boolean {
+    if (expr.kind === "ArrowFunction") {
+      const captures = this.arrowCaptureMap.get(expr as ArrowFunctionExpr)
+      if (captures?.has(paramName)) return true
+    }
+    if ("callee" in expr && expr.kind === "Call") {
+      if (this.exprHasInnerArrowCapturing((expr as any).callee, paramName)) return true
+      for (const a of (expr as any).args) {
+        if (this.exprHasInnerArrowCapturing(a, paramName)) return true
+      }
+    }
+    if ("left" in expr && expr.kind === "Binary") {
+      return this.exprHasInnerArrowCapturing((expr as any).left, paramName) ||
+             this.exprHasInnerArrowCapturing((expr as any).right, paramName)
+    }
+    if ("right" in expr && expr.kind === "Unary") {
+      return this.exprHasInnerArrowCapturing((expr as any).right, paramName)
+    }
+    if ("expression" in expr && expr.kind === "Group") {
+      return this.exprHasInnerArrowCapturing((expr as any).expression, paramName)
+    }
+    if ("consequent" in expr && expr.kind === "Conditional") {
+      return this.exprHasInnerArrowCapturing((expr as any).consequent, paramName) ||
+             this.exprHasInnerArrowCapturing((expr as any).alternate, paramName)
+    }
+    if ("elements" in expr && expr.kind === "Array") {
+      for (const e of (expr as any).elements) {
+        if (this.exprHasInnerArrowCapturing(e, paramName)) return true
+      }
+    }
+    if ("properties" in expr && expr.kind === "Object") {
+      for (const p of (expr as any).properties) {
+        if (this.exprHasInnerArrowCapturing(p.value, paramName)) return true
+      }
+    }
+    return false
+  }
+
   // ─── Dead code elimination ─────────────────────────────
 
   private eliminateDeadCode(insts: MIRInstruction[], preserved?: Set<string>): void {
@@ -1272,6 +1619,7 @@ export class MIRBuilder extends IRGenerator {
           case "jumpIf":  referenced.add(inst.cond); break
           case "return":  if (typeof inst.value === "string") referenced.add(inst.value); break
           case "call":    for (const a of inst.args) referenced.add(a); break
+          case "callIndirect": for (const a of inst.args) referenced.add(a); break
           case "callNamed": for (const a of inst.args) referenced.add(a.value); break
           case "getField": referenced.add(inst.object); break
           case "setField": referenced.add(inst.object); referenced.add(inst.value); break
@@ -1281,12 +1629,16 @@ export class MIRBuilder extends IRGenerator {
           case "spread":  referenced.add(inst.src); break
           case "cellLoad": referenced.add(inst.src); break
           case "cellStore": referenced.add(inst.cell); referenced.add(inst.value); break
+          case "makeClosure": for (const c of inst.cells) referenced.add(c); break
+          case "callClosure": referenced.add(inst.closure); for (const a of inst.args) referenced.add(a); break
         }
       }
 
       for (let i = insts.length - 1; i >= 0; i--) {
         const inst = insts[i]
-        if (inst.op === "call" || inst.op === "callNamed") continue
+        if (inst.op === "call" || inst.op === "callNamed" || inst.op === "callIndirect" || inst.op === "callClosure") continue
+        if (inst.op === "makeClosure") continue
+        if (inst.op === "copy" && this.functionRefs.has(inst.src)) continue
         const dest = (inst as any).dest
         if (dest !== undefined && !referenced.has(dest)) {
           if (preserved?.has(dest)) continue
