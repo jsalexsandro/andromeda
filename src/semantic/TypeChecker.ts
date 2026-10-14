@@ -99,6 +99,11 @@ export class TypeChecker {
    */
   private substitute(type: TypeNode, mapping: Map<string, TypeNode>): TypeNode {
     switch (type.kind) {
+      case "SelfType": {
+        const replacement = mapping.get("Self");
+        if (replacement) return replacement;
+        return type;
+      }
       case "NamedType": {
         const name = type.name.value as string;
         const replacement = mapping.get(name);
@@ -411,6 +416,9 @@ export class TypeChecker {
       case "TypeAliasStmt":
         this.checkTypeAliasStmt(stmt);
         break;
+      case "ProtocolStmt":
+        this.checkProtocolStmt(stmt);
+        break;
       case "ExpressionStmt":
         this.checkExpressionStmt(stmt);
         break;
@@ -566,6 +574,73 @@ export class TypeChecker {
     this.globalEnv.define(name, symbol);
   }
 
+  private checkProtocolStmt(stmt: Extract<Stmt, { kind: "ProtocolStmt" }>): void {
+    const name = stmt.name.value as string;
+
+    // Verificar redeclaração no escopo local
+    const existing = this.currentEnv.lookupLocal(name);
+    if (existing && existing.kind !== "builtin") {
+      this.errors.push(Errors.alreadyDeclared(name, stmt.name));
+      return;
+    }
+    if (existing?.kind === "builtin" && TypeChecker.PROTECTED_BUILTINS.has(name)) {
+      this.errors.push(Errors.cannotRedefineBuiltin(name, stmt.name));
+      return;
+    }
+
+    // Register type params in a temporary scope so the body can reference them
+    const prevEnv = this.currentEnv;
+    if (stmt.typeParameters) {
+      const tmpEnv = new Environment(this.currentEnv, false);
+      const seen = new Set<string>();
+      for (const tp of stmt.typeParameters) {
+        const tpName = tp.name.value as string;
+        if (seen.has(tpName)) {
+          this.errors.push(Errors.alreadyDeclared(tpName, tp.name));
+        } else {
+          seen.add(tpName);
+          tmpEnv.define(tpName, {
+            name: tpName,
+            type: { kind: "NamedType", name: tp.name } as TypeNode,
+            kind: "typeParam",
+            mutable: false,
+            initialized: true,
+            declarationToken: tp.name,
+            constraint: tp.constraint,
+          });
+        }
+      }
+      this.currentEnv = tmpEnv;
+    }
+
+    // Validar métodos do protocol (devem ter apenas assinatura, sem corpo)
+    const methodNames = new Set<string>();
+    for (const method of stmt.methods) {
+      const methodName = method.name.value as string;
+      if (methodNames.has(methodName)) {
+        this.errors.push(Errors.duplicateProtocolMethod(methodName, method.name));
+      } else {
+        methodNames.add(methodName);
+      }
+    }
+
+    if (stmt.typeParameters) this.currentEnv = prevEnv;
+
+    // Registrar no ambiente global como kind: "protocol"
+    const symbol = {
+      name,
+      type: { kind: "NamedType", name: stmt.name } as TypeNode,
+      kind: "protocol" as const,
+      mutable: false,
+      initialized: true,
+      declarationToken: stmt.name,
+      typeParameters: stmt.typeParameters,
+      methods: stmt.methods,
+    };
+
+    this.globalEnv.define(name, symbol);
+  }
+
   private checkStructStmt(stmt: Extract<Stmt, { kind: "StructStmt" }>): void {
     const name = stmt.name.value as string;
 
@@ -642,6 +717,26 @@ export class TypeChecker {
         structSymbol.init = stmt.init;
       }
       this.checkStructConstructor(stmt, stmt.init);
+    }
+
+    // ── Protocol Conformance Checking ─────────────────────
+    if (stmt.protocols && stmt.protocols.length > 0) {
+      for (const protocolToken of stmt.protocols) {
+        const protocolName = protocolToken.value as string;
+        const protocolSymbol = this.currentEnv.lookup(protocolName);
+
+        if (!protocolSymbol) {
+          this.errors.push(Errors.protocolNotFound(protocolName, protocolToken));
+          continue;
+        }
+        if (protocolSymbol.kind !== "protocol") {
+          this.errors.push(Errors.notAProtocol(protocolName, protocolToken));
+          continue;
+        }
+
+        // Verificar conformance: todos métodos do protocol implementados
+        this.checkProtocolConformance(stmt, protocolSymbol, protocolToken);
+      }
     }
 
     // Restaurar escopo
@@ -724,12 +819,49 @@ export class TypeChecker {
       if (err) this.errors.push(err);
     }
 
+    // Create selfType for this struct (for SelfType substitution in params/return)
+    let selfType: TypeNode;
+    if (structStmt.typeParameters && structStmt.typeParameters.length > 0) {
+      selfType = {
+        kind: "GenericType",
+        name: structStmt.name,
+        args: structStmt.typeParameters.map(tp => ({
+          kind: "NamedType",
+          name: tp.name
+        } as TypeNode))
+      };
+    } else {
+      selfType = { kind: "NamedType", name: structStmt.name } as TypeNode;
+    }
+
     const returnType = method.returnType || { kind: "PrimitiveType", name: "void" } as TypeNode;
+
+    // Substitute SelfType in param types and return type
+    const resolvedParamTypes = method.params.map(p => ({
+      ...p,
+      type: p.type ? this.substituteSelfType(p.type, selfType) : undefined
+    }));
+    const resolvedReturnType = method.returnType
+      ? this.substituteSelfType(method.returnType, selfType)
+      : undefined;
+
+    // Validate resolved param types
+    for (const param of resolvedParamTypes) {
+      if (param.type) {
+        const err = this.validateTypeNode(param.type, param.name);
+        if (err) this.errors.push(err);
+      }
+    }
+
+    if (resolvedReturnType) {
+      const err = this.validateTypeNode(resolvedReturnType, method.name);
+      if (err) this.errors.push(err);
+    }
 
     // Registrar params no fnEnv
     for (const param of method.params) {
       const paramName = param.name.value as string;
-      const paramType = param.type || { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+      const paramType = param.type ? this.substituteSelfType(param.type, selfType) : { kind: "PrimitiveType", name: "unknown" } as TypeNode;
       fnEnv.define(paramName, {
         name: paramName,
         type: paramType,
@@ -877,6 +1009,168 @@ export class TypeChecker {
           field.name,
         ));
       }
+    }
+  }
+
+  // ── Protocol Conformance Checking ──────────────────────
+  private checkProtocolConformance(
+    structStmt: Extract<Stmt, { kind: "StructStmt" }>,
+    protocolSymbol: Symbol,
+    protocolToken: Token
+  ): void {
+    const protocolMethods = protocolSymbol.methods ?? [];
+
+    // Coletar métodos do struct (incluindo herdados via type params)
+    const structMethods = new Map<string, StructMethod>();
+    if (structStmt.methods) {
+      for (const method of structStmt.methods) {
+        structMethods.set(method.name.value as string, method);
+      }
+    }
+
+    for (const protocolMethod of protocolMethods) {
+      const methodName = protocolMethod.name.value as string;
+      const structMethod = structMethods.get(methodName);
+
+      if (!structMethod) {
+        this.errors.push(Errors.missingProtocolMethod(methodName, protocolSymbol.name, protocolToken));
+        continue;
+      }
+
+      // Create Self type replacement: the struct type with its type args
+      let selfType: TypeNode | undefined;
+      if (structStmt.typeParameters && structStmt.typeParameters.length > 0) {
+        selfType = {
+          kind: "GenericType",
+          name: structStmt.name,
+          args: structStmt.typeParameters.map(tp => ({
+            kind: "NamedType",
+            name: tp.name
+          } as TypeNode))
+        };
+      } else {
+        selfType = { kind: "NamedType", name: structStmt.name } as TypeNode;
+      }
+
+      // Validar assinatura compatível
+      this.checkMethodSignature(structMethod, protocolMethod, protocolToken, selfType);
+    }
+  }
+
+  private checkMethodSignature(
+    structMethod: StructMethod,
+    protocolMethod: ProtocolMethod,
+    protocolToken: Token,
+    selfType?: TypeNode
+  ): void {
+    // Substitute SelfType in protocol method with actual struct type
+    const resolvedProtocolParams = protocolMethod.params.map(p => ({
+      ...p,
+      type: p.type ? this.substituteSelfType(p.type, selfType) : undefined
+    }));
+    const resolvedProtocolReturnType = protocolMethod.returnType
+      ? this.substituteSelfType(protocolMethod.returnType, selfType)
+      : undefined;
+
+    // Resolve SelfType in struct method params too
+    const resolvedStructParams = structMethod.params.map(p => ({
+      ...p,
+      type: p.type ? this.substituteSelfType(p.type, selfType) : undefined
+    }));
+    const resolvedStructReturnType = structMethod.returnType
+      ? this.substituteSelfType(structMethod.returnType, selfType)
+      : undefined;
+
+    // Verificar parâmetros
+    const structParams = resolvedStructParams;
+    const protocolParams = resolvedProtocolParams;
+
+    if (structParams.length !== protocolParams.length) {
+      this.errors.push(Errors.protocolMethodMismatch(
+        structMethod.name.value as string,
+        `(${protocolParams.map(p => p.type ? this.typeToString(p.type) : "unknown").join(", ")}) => ${resolvedProtocolReturnType ? this.typeToString(resolvedProtocolReturnType) : "void"}`,
+        `(${structParams.map(p => p.type ? this.typeToString(p.type) : "unknown").join(", ")}) => ${resolvedStructReturnType ? this.typeToString(resolvedStructReturnType) : "void"}`,
+        protocolToken
+      ));
+      return;
+    }
+
+    // Verificar tipo de cada parâmetro
+    for (let i = 0; i < structParams.length; i++) {
+      const structParamType = structParams[i].type ?? { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+      const protocolParamType = protocolParams[i].type ?? { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+
+      if (!this.areTypesCompatible(protocolParamType, structParamType)) {
+        this.errors.push(Errors.protocolMethodMismatch(
+          structMethod.name.value as string,
+          `param ${i}: ${this.typeToString(protocolParamType)}`,
+          `param ${i}: ${this.typeToString(structParamType)}`,
+          protocolToken
+        ));
+        return;
+      }
+    }
+
+    // Verificar return type
+    const structReturnType = resolvedStructReturnType ?? { kind: "PrimitiveType", name: "void" } as TypeNode;
+    const protocolReturnType = resolvedProtocolReturnType ?? { kind: "PrimitiveType", name: "void" } as TypeNode;
+
+    if (!this.areTypesCompatible(protocolReturnType, structReturnType)) {
+      this.errors.push(Errors.protocolMethodMismatch(
+        structMethod.name.value as string,
+        `return ${this.typeToString(protocolReturnType)}`,
+        `return ${this.typeToString(structReturnType)}`,
+        protocolToken
+      ));
+    }
+  }
+
+  private substituteSelfType(type: TypeNode, selfType?: TypeNode): TypeNode {
+    if (!selfType) return type;
+
+    switch (type.kind) {
+      case "SelfType":
+        return selfType;
+      case "NamedType":
+        return type;
+      case "PrimitiveType":
+        return type;
+      case "GenericType":
+        return {
+          ...type,
+          args: type.args.map(arg => this.substituteSelfType(arg, selfType))
+        };
+      case "ArrayType":
+        return {
+          ...type,
+          elementType: this.substituteSelfType(type.elementType, selfType)
+        };
+      case "NullableType":
+        return {
+          ...type,
+          type: this.substituteSelfType(type.type, selfType)
+        };
+      case "UnionType":
+        return {
+          ...type,
+          types: type.types.map(t => this.substituteSelfType(t, selfType))
+        };
+      case "FunctionType":
+        return {
+          ...type,
+          params: type.params.map(p => ({
+            ...p,
+            type: p.type ? this.substituteSelfType(p.type, selfType) : undefined
+          })),
+          returnType: this.substituteSelfType(type.returnType, selfType)
+        };
+      case "TupleType":
+        return {
+          ...type,
+          elements: type.elements.map(t => this.substituteSelfType(t, selfType))
+        };
+      default:
+        return type;
     }
   }
 
@@ -3503,7 +3797,10 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         // Try method resolution (7.3)
         if (symbol.methods) {
           const method = symbol.methods.find(m => m.name.value === propName);
-          if (method) return this.buildMethodType(method);
+          if (method) {
+        const nameToken = symbol.declarationToken ?? { type: 0, value: symbol.name, line: 0, column: 0 } as Token;
+        return this.buildMethodType(method, undefined, { kind: "NamedType", name: { type: 0, value: symbol.name, line: 0, column: 0 } as Token } as TypeNode);
+      }
         }
         this.errors.push(Errors.unknownProperty(propName, propToken));
         return { kind: "PrimitiveType", name: "unknown" };
@@ -3544,7 +3841,11 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
                 mapping.set(symbol.typeParameters[i].name.value as string, arg);
               }
             }
-            return this.buildMethodType(method, mapping);
+            return this.buildMethodType(method, mapping, {
+        kind: "GenericType",
+        name: objectType.name,
+        args: objectType.args
+      });
           }
         }
         this.errors.push(Errors.unknownProperty(propName, propToken));
@@ -3571,7 +3872,9 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     return { kind: "PrimitiveType", name: "any" };
   }
 
-  private buildMethodType(method: StructMethod, typeArgMapping?: Map<string, TypeNode>): FunctionTypeNode {
+  private buildMethodType(method: StructMethod, typeArgMapping?: Map<string, TypeNode>, selfType?: TypeNode): FunctionTypeNode {
+    console.log('[DEBUG buildMethodType] method:', method.name.value, 'selfType:', selfType?.kind);
+    
     // Proteger type params do método: se têm o mesmo nome que os do struct,
     // o type param do método deve sombrear o do struct nas assinaturas.
     const mapping = new Map(typeArgMapping ?? new Map());
@@ -3580,12 +3883,22 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         mapping.delete(tp.name.value as string);
       }
     }
+    
+    // Combine selfType into mapping for SelfType substitution
+    const fullMapping = new Map(mapping);
+    if (selfType) {
+      fullMapping.set("Self", selfType);
+      console.log('[DEBUG buildMethodType] selfType set:', selfType.kind, selfType.kind === 'NamedType' ? (selfType.name as any)?.value : '');
+    }
+    
     const paramTypes = method.params.map(p => {
-      const pt = p.type ? this.substitute(p.type, mapping) : { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+      console.log('[DEBUG buildMethodType] param:', p.name?.value, 'type:', p.type?.kind);
+      const pt = p.type ? this.substitute(p.type, fullMapping) : { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+      console.log('[DEBUG buildMethodType] param result:', pt.kind, pt.kind === 'NamedType' ? (pt.name as any)?.value : '');
       return { ...pt, paramName: p.name?.value as string, isRest: p.isRest || false } as TypeNode & { paramName?: string; isRest?: boolean };
     });
     const returnType = method.returnType
-      ? this.substitute(method.returnType, mapping)
+      ? this.substitute(method.returnType, fullMapping)
       : { kind: "PrimitiveType", name: "void" } as TypeNode;
     return {
       kind: "FunctionType",

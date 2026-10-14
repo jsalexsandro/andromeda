@@ -1,0 +1,21 @@
+protocol Printable {
+  func print(): void
+}
+
+protocol Serializable {
+  func serialize(): string
+}
+
+struct User implements Printable, Serializable {
+  name: string
+  func print(): void {
+    print(self.name)
+  }
+  func serialize(): string {
+    return self.name
+  }
+}
+
+val u = User { name: "Alice" }
+u.print()
+val s = u.serialize()

@@ -1,0 +1,14 @@
+protocol Equatable {
+  func equals(other: Self): bool
+}
+
+struct UserId implements Equatable {
+  value: int
+  func equals(other: Self): bool {
+    return self.value == other.value
+  }
+}
+
+val a = UserId { value: 1 }
+val b = UserId { value: 1 }
+val eq = a.equals(b)

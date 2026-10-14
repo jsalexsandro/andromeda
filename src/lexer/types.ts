@@ -71,6 +71,8 @@ export enum TokenType {
   ANY_TYPE = 'ANY_TYPE',
   UNKNOWN_TYPE = 'UNKNOWN_TYPE',
   OBJECT_TYPE = 'OBJECT_TYPE',
+  // === Self Type ===
+  SELF_TYPE = 'SELF_TYPE',
   // === Type Operators ===
   KEYOF = 'KEYOF',
   TYPEOF = 'TYPEOF',

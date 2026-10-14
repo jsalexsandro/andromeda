@@ -280,7 +280,12 @@ IfVariableExpr (if val x = y {})
     Estrutura Grande e Complexa veja @structs.md 
     Totalmente implementado
 
+
 # ATE AQUI FEITO
+
+### ProtocolsStmt
+├── ProtocolStatement
+    Estrutura Grande e Complexa veja @protocols.md 
 
 ### EnumStmt
 - [ ] Registrar `name` no escopo de tipos

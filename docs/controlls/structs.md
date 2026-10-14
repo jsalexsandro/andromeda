@@ -45,7 +45,6 @@ FASE 6.5 — CONTROL TYPES
        mut id: string = 'abcd1fg2h123'
        name: string = "Jonny"
 
-      # Ate aqui feito!
   
       ---FUTURE---
       Para o futuro modificadores de acesso para o struct
@@ -75,7 +74,7 @@ FASE 6.5 — CONTROL TYPES
 // val b2: string = Box<string> { value: "x" }.value  // "x", type string
 
 
-     # Ate aqui feito!
+
 
 ├── 5. Property Access
 │      5.1 Parser MemberExpression
@@ -104,14 +103,7 @@ FASE 6.5 — CONTROL TYPES
 
       
 
-        # Ate aqui feito!
 
-      ---FUTURE---
-      verificar modificadores de acesso para  Property Access
-      private 
-      public
-      protected
-      ---
         
 │
 ├── 6. Struct Generic
@@ -127,7 +119,6 @@ FASE 6.5 — CONTROL TYPES
 │      6.5 Detectar GENERIC_ARG_COUNT
 │      6.6 Detectar duplicate generic params
 
-        # Ate aqui feito!
 
 │
 ├── 7. Struct Methods
@@ -142,8 +133,6 @@ FASE 6.5 — CONTROL TYPES
 │      7.5 Resolver generics nos methods
 │      7.6 Detectar métodos duplicados
        7.7 informa para o compilador que tal função é mutável
-
-      # Ate aqui feito!
 
 
 ├── 10. Struct Constructors
@@ -184,11 +173,21 @@ FASE 6.5 — CONTROL TYPES
 │      11.1 Definir igualdade estrutural
 │      11.2 Comparação de fields
 │      11.3 Nullable comparison
-│
-       Custom Equality
+
+       
 
 
-# ATE AQUI FEITO
+###[ATE AQUI FEITO]
+
+    Custom Equality
+        # Ate aqui feito!
+
+      ---FUTURE---
+      verificar modificadores de acesso para  Property Access In Method Struct
+      private 
+      public
+      protected
+      ---
 
 │
 ├── 8. Extension Methods

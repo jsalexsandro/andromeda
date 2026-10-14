@@ -34,7 +34,12 @@ export type ErrorCode =
   | "NOT_GENERIC"
   | "GENERIC_INFERENCE_FAILED"
   | "CIRCULAR_TYPE_ALIAS"
-  | "CANNOT_REDEFINE_BUILTIN";
+  | "CANNOT_REDEFINE_BUILTIN"
+  | "PROTOCOL_NOT_FOUND"
+  | "NOT_A_PROTOCOL"
+  | "MISSING_PROTOCOL_METHOD"
+  | "PROTOCOL_METHOD_MISMATCH"
+  | "DUPLICATE_PROTOCOL_METHOD";
 
 export class SemanticError {
   constructor(
@@ -180,4 +185,19 @@ export const Errors = {
     createError("CANNOT_REDEFINE_BUILTIN",
       `Cannot redefine built-in type '${name}'`,
       token, "scope"),
+
+  protocolNotFound: (name: string, token: Token) =>
+    createError("PROTOCOL_NOT_FOUND", `protocol '${name}' not found`, token, "typecheck"),
+
+  notAProtocol: (name: string, token: Token) =>
+    createError("NOT_A_PROTOCOL", `'${name}' is not a protocol`, token, "typecheck"),
+
+  missingProtocolMethod: (method: string, protocol: string, token: Token) =>
+    createError("MISSING_PROTOCOL_METHOD", `missing method '${method}' required by protocol '${protocol}'`, token, "typecheck"),
+
+  protocolMethodMismatch: (method: string, expected: string, got: string, token: Token) =>
+    createError("PROTOCOL_METHOD_MISMATCH", `method '${method}' signature mismatch in protocol conformance: expected '${expected}', got '${got}'`, token, "typecheck"),
+
+  duplicateProtocolMethod: (method: string, token: Token) =>
+    createError("DUPLICATE_PROTOCOL_METHOD", `duplicate method '${method}' in protocol`, token, "typecheck"),
 };

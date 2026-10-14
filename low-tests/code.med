@@ -1,3 +1,22 @@
+val e: (e: int) => int = (e: int) => e * 2
+
+var name = 1
+
+if (name == 1){
+    name += 1
+}
+
+func app(s: int){}
+
+app(1)
+
+func multiple(value: int, x: int): int {
+    return value * x
+}   
+
+multiple(value:10, x: 2)
+
+
 // MIR test: SSA + var mutation + if/else phi
 val x: int = 42
 val y: int = 10
@@ -23,6 +42,8 @@ if (a > 50) {
 } else {
   acc = a - 1
 }
+
+print(toString(acc))
 
 var acc2: int = acc + 100
 if (a > 50) {

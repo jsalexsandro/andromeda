@@ -35,6 +35,7 @@ const TYPE_KEYWORDS: Record<string, TokenType> = {
   'void': TokenType.VOID_TYPE,
   'any': TokenType.ANY_TYPE,
   'unknown': TokenType.UNKNOWN_TYPE,
+  'Self': TokenType.SELF_TYPE,
 }
 
 const GENERIC_KEYWORDS = new Set(['func', 'typealias', 'struct', 'class', 'interface', 'enum'])
@@ -1041,7 +1042,7 @@ readNumber(): Token {
     let type = isKeyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
 
     // Check for type keywords
-    if (type === TokenType.IDENTIFIER && Object.hasOwn(TYPE_KEYWORDS, ident)) {
+    if ((type === TokenType.IDENTIFIER || type === TokenType.KEYWORD) && Object.hasOwn(TYPE_KEYWORDS, ident)) {
       type = TYPE_KEYWORDS[ident]
     }
 

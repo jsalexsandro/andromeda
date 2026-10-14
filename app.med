@@ -1,29 +1,20 @@
-// Type keywords agora aceitos como nome de campo: int, float, string, bool, void, any, unknown, undefined, object.
-struct Window {
-    mut size: string
-    unknown: string
-}
-val cfg: Config = Config { int: "x", unknown: "y" }
+protocol Container<T> {
 
-struct Window {
-    mut width: int
-    mut height: int
-    
-    func init(w: int, h: int){ // construtor não especifico
-        self.width = w
-        self.height = h
-    }
-    
+  func get(): T
+
 }
 
-const w = Window(1, 2)
 
-struct Window2 {
-    mut width: int
-    mut height: int
 
-    // to dizendo ei o init é aumatico
-    auto init
+struct Box<T> implements Container<T> {
+
+  mut value: T
+
+  func get(): T { return self.value }
+
 }
 
-const w2 = Window(width: 10, height: 20)
+
+
+val box = Box<int, string> { value: 42 }
+

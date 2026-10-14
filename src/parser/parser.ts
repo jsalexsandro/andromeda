@@ -1781,6 +1781,7 @@ export class Parser {
         TokenType.BOOLEAN,
         TokenType.LBRACKET, // Nested tuple: [[int, string], [bool, User]]
         TokenType.LPAREN, // Grouping type: (int | string)
+        TokenType.SELF_TYPE, // Self type in protocols
       ].includes(nextToken?.type);
 
       if (isTypeToken) {
@@ -1961,6 +1962,23 @@ export class Parser {
       return typeNode;
     }
 
+    // Self type (for protocol method signatures)
+    if (typeToken.type === TokenType.SELF_TYPE) {
+      this.advance();
+      let typeNode = { kind: "SelfType" as const };
+      if (this.check(TokenType.QUESTION)) {
+        typeNode = this.parseNullableSuffix(typeNode);
+      }
+      if (this.check(TokenType.LBRACKET)) {
+        typeNode = this.parseArrayType(typeNode);
+      }
+      if (this.check(TokenType.PIPE)) {
+        return this.parseUnionType(typeNode);
+      }
+      console.log(`DEBUG - [${this.getTypeNodeName(typeNode)}]`);
+      return typeNode;
+    }
+
     // NamedTypeNode - custom types (User, Product, Order, etc.)
     if (typeToken.type === TokenType.IDENTIFIER) {
       let baseType = this.parseNamedTypeNode();
@@ -2048,6 +2066,13 @@ export class Parser {
   private parseAnnotationType(): TypeNode | undefined {
     const typeToken = this.peek();
 
+    // Handle Self type (for protocol method signatures)
+    if (typeToken.type === TokenType.SELF_TYPE ||
+        (typeToken.type === TokenType.KEYWORD && typeToken.value === 'Self') ||
+        (typeToken.type === TokenType.IDENTIFIER && typeToken.value === 'Self')) {
+      this.advance();
+      return { kind: "SelfType" };
+    }
 
     // ========================================
     // Object literal type not supported in nominal type system
@@ -2122,6 +2147,12 @@ export class Parser {
     } else if (typeToken.type === TokenType.UNDEFINED_TYPE) {
       this.advance();
       baseType = { kind: "PrimitiveType", name: "undefined" };
+    } else if (typeToken.type === TokenType.OBJECT_TYPE) {
+      this.advance();
+      baseType = { kind: "PrimitiveType", name: "object" };
+    } else if (typeToken.type === TokenType.SELF_TYPE) {
+      this.advance();
+      baseType = { kind: "SelfType" };
     }
 
     // Named + Generic: User, Array<T>, Map<K, V>
@@ -2650,6 +2681,36 @@ export class Parser {
       typeParameters = this.parseGenericTypeParameters();
     }
 
+    // Optional implements clause: struct User implements Printable, Comparable
+    const protocols: Token[] = [];
+    if (this.check(TokenType.KEYWORD) && this.peek().value === "implements") {
+      this.advance(); // consume 'implements'
+      while (!this.isAtEnd()) {
+        const protocolName = this.advance();
+        if (protocolName.type !== TokenType.IDENTIFIER) {
+          this.error("Expected protocol name after 'implements'", protocolName);
+          break;
+        }
+        protocols.push(protocolName);
+
+        // Optional generic type arguments: Container<T>
+        if (this.check(TokenType.LESS_THAN)) {
+          this.advance(); // consume '<'
+          const typeArgs = this.tryParseCallTypeArgs();
+          // Just consume them; we store protocol name only for now
+          if (!typeArgs) {
+            this.error("Expected type arguments after protocol name", this.peek());
+          }
+        }
+
+        if (this.check(TokenType.COMMA)) {
+          this.advance(); // consume ','
+        } else {
+          break;
+        }
+      }
+    }
+
     if (this.peek().type !== TokenType.LBRACE) {
       this.error("Expected '{' after struct name", this.peek());
       return { kind: "BlockStmt", statements: [] };
@@ -2779,7 +2840,7 @@ export class Parser {
       this.error("Expected '}' to close struct", this.peek());
     }
 
-    return { kind: "StructStmt", name: nameToken, fields, methods, typeParameters, init: stmtInit };
+    return { kind: "StructStmt", name: nameToken, fields, methods, typeParameters, init: stmtInit, protocols };
   }
 
   // ── Struct method (7.1 / 7.2) ──────────────────────────
@@ -2873,7 +2934,8 @@ export class Parser {
       type === TokenType.VOID_TYPE ||
       type === TokenType.ANY_TYPE ||
       type === TokenType.UNKNOWN_TYPE ||
-      type === TokenType.OBJECT_TYPE;
+      type === TokenType.OBJECT_TYPE ||
+      type === TokenType.SELF_TYPE;
   }
 
   private skipToNextStructField(): void {
@@ -2896,6 +2958,12 @@ export class Parser {
     if (nameToken.type !== TokenType.IDENTIFIER) {
       this.error("Expected protocol name", nameToken);
       return { kind: "BlockStmt", statements: [] };
+    }
+
+    // Optional generic type parameters: protocol Container<T>
+    let typeParameters: TypeParameterNode[] | undefined;
+    if (this.check(TokenType.LESS_THAN)) {
+      typeParameters = this.parseGenericTypeParameters();
     }
 
     if (this.peek().type !== TokenType.LBRACE) {
@@ -2926,6 +2994,7 @@ export class Parser {
     return {
       kind: "ProtocolStmt",
       name: nameToken,
+      typeParameters,
       methods,
     };
   }
@@ -2941,6 +3010,12 @@ export class Parser {
     if (nameToken.type !== TokenType.IDENTIFIER) {
       this.error("Expected method name", nameToken);
       return null;
+    }
+
+    // Optional generic type parameters: func foo<T, U>()
+    let typeParameters: TypeParameterNode[] | undefined;
+    if (this.check(TokenType.LESS_THAN)) {
+      typeParameters = this.parseGenericTypeParameters();
     }
 
     const params: FunctionStmtParam[] = [];
@@ -2981,8 +3056,15 @@ export class Parser {
       returnType = this.parseAnnotationType();
     }
 
+    // Protocol methods must not have a body - validate no '{'
+    if (this.check(TokenType.LBRACE)) {
+      this.error("Protocol methods cannot have a body", this.peek());
+      return null;
+    }
+
     return {
       name: nameToken,
+      typeParameters,
       params,
       returnType,
     };

@@ -36,6 +36,15 @@
     - [Nominal Typing](#169-nominal-typing)
     - [Struct Equality](#1610-struct-equality)
     - [Complete Examples](#1611-exemplos-completos)
+17. [Protocols](#17-protocols)
+    - [Declaration](#171-declaração)
+    - [Protocol Methods](#172-protocol-methods)
+    - [Struct implements Protocol](#173-struct-implements-protocol)
+    - [Protocol Conformance](#174-protocol-conformance)
+    - [Protocol as Type](#175-protocol-as-type)
+    - [Protocol Generics](#176-protocol-generics)
+    - [Self Type](#177-self-type)
+    - [Error Cases](#178-error-cases)
 
 ---
 
@@ -902,6 +911,233 @@ val result: int = double(5)
 
 Structs são tipos nominais com campos nomeados (similar a `struct` em Rust, `data class` em Kotlin, ou `record` em Java).
 
+---
+
+## 17. Protocols
+
+Protocols definem contratos de comportamento que structs podem implementar (similar a `protocol` em Swift, `interface` em Kotlin/Java, ou `trait` em Rust).
+
+### 17.1 Declaração
+
+```
+protocol Nome {
+  func metodo(): TipoRetorno
+  func metodoComParam(param: Tipo): TipoRetorno
+}
+```
+
+#### Exemplos
+
+```typescript
+// Protocol básico
+protocol Printable {
+  func print(): void
+}
+
+// Protocol com parâmetros e retorno
+protocol Equatable {
+  func equals(other: Self): bool
+}
+
+// Protocol genérico
+protocol Container<T> {
+  func get(): T
+  func set(value: T): void
+}
+
+// Protocol com múltiplos métodos
+protocol Comparable {
+  func compare(other: Self): int
+  func equals(other: Self): bool
+}
+```
+
+**Regras:**
+- Apenas assinaturas de métodos (sem corpo)
+- Tipos de parâmetros e retorno obrigatórios
+- `Self` type refere-se ao tipo que implementa o protocol
+- Type parameters permitidos: `protocol Container<T>`
+
+### 17.2 Protocol Methods
+
+Methods em protocols são **apenas assinaturas** — não têm corpo.
+
+```typescript
+protocol Printable {
+  func print(): void                    // método sem parâmetros
+  func printPrefix(prefix: string): void  // com parâmetro
+  func format(): string                  // com retorno
+  
+  // Self type — refere-se ao tipo implementador
+  func equals(other: Self): bool
+  
+  // Type parameters no método
+  func map<U>(fn: (T) => U): U
+}
+```
+
+**Regras:**
+- Não pode ter corpo `{ ... }` — erro de parse se tentar
+- Parâmetros requerem type annotation
+- Return type annotation obrigatório se não `void`
+- `Self` type válido apenas em protocols
+- Type parameters permitidos: `func metodo<T>(x: T): T`
+
+### 17.3 Struct implements Protocol
+
+Structs implementam protocols com `implements`:
+
+```typescript
+protocol Printable {
+  func print(): void
+}
+
+struct User implements Printable {
+  name: string
+  
+  func print(): void {
+    print(self.name)
+  }
+}
+```
+
+**Múltiplos protocols:**
+```typescript
+protocol Printable { func print(): void }
+protocol Serializable { func serialize(): string }
+
+struct User implements Printable, Serializable {
+  name: string
+  
+  func print(): void { print(self.name) }
+  func serialize(): string { return self.name }
+}
+```
+
+**Struct genérico implementa protocol genérico:**
+```typescript
+protocol Container<T> {
+  func get(): T
+  func set(value: T): void
+}
+
+struct Box<T> implements Container<T> {
+  mut value: T
+  
+  func get(): T { return self.value }
+  func set(value: T): void { self.value = value }
+}
+
+val box = Box<int> { value: 42 }
+val v = box.get()  // int
+```
+
+**Regras:**
+- Todos métodos do protocol devem ser implementados
+- Assinaturas devem ser compatíveis (params + return type)
+- Struct genérico pode implementar protocol genérico com mesmos type params
+- Múltiplos protocols separados por vírgula
+
+### 17.4 Protocol Conformance (Type Checker)
+
+O type checker valida conformance automaticamente:
+
+```typescript
+protocol Printable { func print(): void }
+
+struct User implements Printable {
+  name: string
+  // ERROR: missing method 'print'
+}
+```
+
+**Erros detectados:**
+- `MISSING_PROTOCOL_METHOD` — método requerido não implementado
+- `PROTOCOL_METHOD_MISMATCH` — assinatura incompatível
+- `PROTOCOL_NOT_FOUND` — protocol não existe
+- `DUPLICATE_PROTOCOL_METHOD` — método duplicado no protocol
+
+### 17.5 Protocol as Type
+
+Protocols podem ser usados como tipos:
+
+```typescript
+protocol Printable { func print(): void }
+
+struct User implements Printable { ... }
+struct Logger implements Printable { ... }
+
+val p: Printable = User { name: "Alice" }  // upcast implícito
+p.print()
+
+val items: Printable[] = [User { name: "A" }, Logger { ... }]
+for item in items { item.print() }
+```
+
+**Upcast implícito:** struct → protocol é automático quando struct implementa o protocol.
+
+### 17.6 Protocol Generics
+
+```typescript
+protocol Container<T> {
+  func get(): T
+  func set(value: T): void
+}
+
+struct Box<T> implements Container<T> {
+  mut value: T
+  func get(): T { return self.value }
+  func set(value: T): void { self.value = value }
+}
+
+val box = Box<int> { value: 42 }
+val v: int = box.get()
+box.set(10)
+```
+
+**Type args na declaração:**
+```typescript
+val box: Container<int> = Box<int> { value: 42 }
+val box2: Container<string> = Box<string> { value: "hi" }
+```
+
+### 17.7 Self Type
+
+`Self` refere-se ao tipo concreto que implementa o protocol:
+
+```typescript
+protocol Equatable {
+  func equals(other: Self): bool
+}
+
+struct UserId implements Equatable {
+  value: int
+  
+  func equals(other: Self): bool {  // Self = UserId
+    return self.value == other.value
+  }
+}
+
+val a = UserId { value: 1 }
+val b = UserId { value: 1 }
+val eq = a.equals(b)  // Self resolvido para UserId
+```
+
+### 17.8 Error Cases
+
+| Error | Exemplo | Mensagem |
+|-------|---------|----------|
+| `PROTOCOL_NOT_FOUND` | `struct X implements NonExistent` | `protocol 'NonExistent' not found` |
+| `MISSING_PROTOCOL_METHOD` | Faltando método | `missing method 'print' required by protocol 'Printable'` |
+| `PROTOCOL_METHOD_MISMATCH` | Assinatura errada | `method 'print' signature mismatch: expected '() => void', got '(string) => void'` |
+| `DUPLICATE_PROTOCOL_METHOD` | Duplicado no protocol | `duplicate method 'print' in protocol` |
+| `GENERIC_ARG_COUNT` | Type args errados | `Generic protocol 'Container' expects 1 type argument(s), got 2` |
+| `ALREADY_DECLARED` | Type param duplicado | `'T' is already declared` |
+
+---
+
+## 18. Structs
+
 ### 16.1 Declaração
 
 ```
@@ -1005,6 +1241,31 @@ struct Profile {
 val p = Profile { email: null }
 p.email = "alice@example.com"       // atribuição em mut field
 val e: string? = p.email            // leitura — tipo é string?
+```
+
+### Error Cases
+
+**UNKNOWN_PROPERTY** — propriedade não existe no struct:
+```typescript
+struct User { name: string }
+val u = User { name: "Alice" }
+val x = u.age
+// ERROR: property 'age' does not exist
+```
+
+**INVALID_MEMBER_ACCESS** — acesso a campo em tipo não-struct:
+```typescript
+val n: int = 42
+val x = n.name
+// ERROR: cannot access property on non-struct type 'int'
+```
+
+**Nullability** — acesso a campo em nullable struct (futuro):
+```typescript
+struct User { name: string }
+val u: User? = null
+val x = u.name
+// ERROR: cannot access property 'name' on nullable type 'User?' — use optional binding or nullish coalescing
 ```
 
 ### 16.4 Mutable Fields
@@ -1154,6 +1415,34 @@ struct Wrapper<T> { inner: Box<T> }
 val w = Wrapper { inner: Box { value: 10 } }  // inferência encadeada
 ```
 
+### Error Cases
+
+**Wrong type arg count:**
+```typescript
+val bad = Box<int, string> { value: 10 }
+// ERROR: Generic struct 'Box' expects 1 type argument(s), got 2
+```
+
+**Duplicate type param:**
+```typescript
+struct Dup<T, T> { value: T }
+// ERROR: 'T' is already declared
+```
+
+**Unresolvable type param (T not used in fields):**
+```typescript
+struct Ghost<T> { label: string }
+val bad = Ghost(label: "x")
+// ERROR: cannot infer type parameter 'T' for 'Ghost' — provide an explicit annotation: Ghost<Type>(...)
+```
+
+**Partial inference (some type params not inferable):**
+```typescript
+struct Half<A, B> { a: A; meta: string }
+val bad = Half(a: 1, meta: "x")
+// ERROR: cannot infer type parameter 'B' for 'Half' — provide an explicit annotation
+```
+
 ### 16.8 Type Aliases com Structs
 
 Alias de struct é transparente — o alias e o original são o mesmo tipo:
@@ -1292,7 +1581,8 @@ val okCheck: bool = ok.isOk()
 - [x] **Multi-Type-Param Arrow Inference** - `swap(<A,B>(...)=>..., 1, "hello")` infers A→int, B→string
 - [x] **Bidirectional Type Inference** - contextual type participates in generic inference
 - [x] **Optional Binding** - `if val x = expr`, `if (val x = expr)`, and chained binding `if val x = a, val y = b`
-
+- [x] **Protocols** - Declaration, methods, generics, Self type, struct implements, conformance checking, upcast
+- [x] **Protocol Generics** - Generic protocols, nested generics, type param validation
 
 ## Planned Features (Not Yet Implemented)
 

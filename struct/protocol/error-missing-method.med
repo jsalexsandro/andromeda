@@ -1,0 +1,12 @@
+protocol Printable {
+  func print(): void
+  func debug(): void
+}
+
+struct User implements Printable {
+  name: string
+  func print(): void {
+    print(self.name)
+  }
+  // Missing debug()
+}

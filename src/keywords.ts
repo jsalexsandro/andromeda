@@ -27,6 +27,8 @@ export const KEYWORDS = [
   'break',
   'continue',
   'protocol',
+  'implements',
+  'Self',
   'typealias',  // Tipos nomeados - nominal type aliases
   'struct',
   'mut',

@@ -2,8 +2,6 @@ import * as fs from 'fs'
 import { Lexer } from './lexer/lexer'
 import { Parser } from './parser/parser'
 import { analyze } from './semantic/TypeChecker'
-import { MIRBuilder } from './mir/MIRBuilder'
-import { printMIR } from './mir/printer'
 
 function showHelp() {
   console.log(`Andromeda Language CLI v1.0.0`)
@@ -11,7 +9,6 @@ function showHelp() {
   console.log('')
   console.log('Commands:')
   console.log('  run <file>          Run an andromeda file (syntax + semantic)')
-  console.log('    --gen, -g         Also generate JavaScript output')
   console.log('  compile <file>      Compile (lexer + parser + semantic)')
   console.log('  tokens <file>       Print the token stream of a file')
   console.log('  ast <file>          Print AST of a file')
@@ -44,17 +41,6 @@ export function main() {
   let isCompile = command === 'compile'
   let isTokens = command === 'tokens'
   let isAst = command === 'ast' || command === 'parse'
-  let genJs = false
-
-  if (isRun || isCompile) {
-    const extraArgs = args.slice(2)
-    genJs = extraArgs.includes('--gen') || extraArgs.includes('-g')
-    if (extraArgs.length > 0 && !genJs) {
-      console.error(`Error: Unknown option '${extraArgs[0]}'`)
-      showHelp()
-      process.exit(1)
-    }
-  }
 
   if (!isRun && !isCompile && !isTokens && !isAst) {
     if (fs.existsSync(command)) {
@@ -122,19 +108,8 @@ export function main() {
       process.exit(1)
     }
 
-    console.log(`[Compilation successful!]`)
+console.log(`[Compilation successful!]`)
     console.log(`  Symbols registered: ${symbolCount}`)
-
-    // ── MIR generation ───────────────────────────
-    if (genJs) {
-      const builder = new MIRBuilder(ast, resolvedTypes)
-      const mir = builder.build()
-      console.log(`  MIR functions: ${mir.functions.length}`)
-      console.log(``)
-      console.log(printMIR(mir))
-
-   
-    }
 
   } else if (isAst) {
     console.log(`[Andromeda] Parsing ${filename}...`)

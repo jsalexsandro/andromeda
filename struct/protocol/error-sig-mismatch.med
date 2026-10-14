@@ -1,0 +1,10 @@
+protocol Printable {
+  func print(): void
+}
+
+struct User implements Printable {
+  name: string
+  func print(msg: string): void {
+    print(msg)
+  }
+}

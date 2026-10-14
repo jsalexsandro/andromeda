@@ -359,11 +359,17 @@ export type TypeNode =
   | FunctionTypeNode
   | UnionTypeNode
   | GroupingTypeNode
+  | SelfTypeNode
 
 // int, float, string, bool, void, null, any, unknown
 export interface PrimitiveTypeNode {
   kind: "PrimitiveType"
   name: PrimitiveTypes
+}
+
+// Self type - refers to the implementing type in protocols
+export interface SelfTypeNode {
+  kind: "SelfType"
 }
 
 // User, Product, Status — tipos com nome
@@ -528,6 +534,7 @@ export interface ProtocolStmt {
 
 export interface ProtocolMethod {
   name: Token
+  typeParameters?: TypeParameterNode[]
   params: FunctionStmtParam[]
   returnType?: TypeNode
 }

@@ -1,0 +1,4 @@
+protocol Printable {
+  func print(): void
+  func print(): string
+}

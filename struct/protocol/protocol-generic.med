@@ -1,0 +1,15 @@
+protocol Container<T> {
+  func get(): T
+  func set(value: T): void
+}
+
+struct Box<T> implements Container<T> {
+  mut value: T
+  func get(): T { return self.value }
+  func set(value: T): void { self.value = value }
+}
+
+val box = Box<int> { value: 42 }
+val v = box.get()
+box.set(10)
+val v2 = box.get()

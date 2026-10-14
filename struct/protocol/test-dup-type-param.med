@@ -1,0 +1,3 @@
+protocol Container<T, T> {
+  func get(): T
+}

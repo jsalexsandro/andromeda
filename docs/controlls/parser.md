@@ -57,7 +57,7 @@ FASE 3 — EXPRESSÕES COMPOSTAS
 FASE 4 — FUNÇÕES
 │   -> suporte a tipagem reaproveitar o ParserTypeAnotation, tanto para tipagem de parametos e funções
     funções sem nomeação que usam o nome da varivel
-    const pow = func(x: int): int = { return x * x }
+    const pow = func(x: int): int = { return x * x } // [fututo]
     
 ├── 20. ArgumentList            (a: int, b: string)
 ├── 21. FunctionStatement       func foo() {}
@@ -140,8 +140,14 @@ FASE 6.5 — CONTROL TYPES
 
 # ATE AQUI IMPLEMENTADO
 
-FASE 7 — CLASSES
+Fase 6.6 Protocols
 │
+├── Protocols Statement
+    Estrutura Grande e Complexa veja @protocols.md 
+   
+
+
+FASE 7 — CLASSES
 ├── 30. ClassStatement          class Foo {}
 ├── 31. ThisExpression          this.x
 ├── 32. SuperExpression         super()
