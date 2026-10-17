@@ -1,0 +1,52 @@
+// casos de erro de extend em primitive
+//
+// Espera:
+// [EXTENSION_CONFLICT] colide com metodo builtin
+// [EXTENSION_CONFLICT] duplicado dentro do mesmo extend
+// [EXTENSION_CONFLICT] duplicado entre dois extends
+// [EXTEND_TARGET_INVALID] alvo que nao e primitivo de valor
+
+// 1. colide com metodo builtin
+extend String {
+  func upper(): string {
+    return "nao deveria"
+  }
+}
+
+// 2. duplicado dentro do mesmo extend
+extend String {
+  func dup(): int {
+    return 1
+  }
+
+  func dup(): int {
+    return 2
+  }
+}
+
+// 3. duplicado entre dois extends do mesmo primitivo
+extend String {
+  func shared(): int {
+    return 1
+  }
+}
+
+extend String {
+  func shared(): int {
+    return 2
+  }
+}
+
+// 4. Void resolve para void, que nao e primitivo de valor
+extend Void {
+  func x(): int {
+    return 0
+  }
+}
+
+// 5. Any tambem nao e primitivo de valor
+extend Any {
+  func x(): int {
+    return 0
+  }
+}

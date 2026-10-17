@@ -1,0 +1,42 @@
+// extend em primitive — metodos do usuario, sem patchear o prototype global
+
+extend String {
+  func shout(): string {
+    return self.upper() + "!"
+  }
+
+  func has(text: string): bool {
+    return self.contains(text)
+  }
+
+  func wordCount(): int {
+    return self.trim().length
+  }
+}
+
+extend Integer {
+  func isPositive(): bool {
+    return self > 0
+  }
+}
+
+// metodo builtin continua funcionando junto
+print("ana".upper())
+print("ana".shout())
+print("andromeda".has("rome"))
+print("um dois tres".wordCount())
+
+// extend em Integer
+val n: int = 5
+print(n.isPositive())
+print((-5).isPositive())
+
+// metodo de extend usa metodo builtin dentro
+val s: string = "  teste  "
+print(s.trim().shout())
+
+// encadeamento entre metodo de extend e builtin
+print(s.trim().has("teste"))
+
+// o prototype global NAO foi tocado
+print("comum".length)

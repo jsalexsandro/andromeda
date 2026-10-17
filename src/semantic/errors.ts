@@ -131,6 +131,11 @@ export const Errors = {
       `cannot extend '${target}': expected a struct, but it is ${found}`,
       token, "typecheck"),
 
+  extendNotExtensible: (target: string, resolved: string, token: Token) =>
+    createError("EXTEND_TARGET_INVALID",
+      `cannot extend '${target}': '${resolved}' is not an extendable type`,
+      token, "typecheck"),
+
   extensionConflict: (method: string, target: string, token: Token) =>
     createError("EXTENSION_CONFLICT",
       `method '${method}' already exists in '${target}'`,

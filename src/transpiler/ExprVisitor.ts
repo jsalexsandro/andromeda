@@ -135,15 +135,15 @@ export class ExprVisitor {
     }).join(", ");
 
 // Metodo de primitivo: o checker anotou o template JS no no Member.
-    // $self = receiver, $ARGS = lista de argumentos (sem parenteses — o
-    // template ja traz os parenteses).
+    // $self = receiver, $ARGS = argumentos ja formatados, com a virgula
+    // inicial (o template traz os parenteses).
     if (expr.callee.kind === "Member") {
       const template = (expr.callee as any).jsTemplate;
       if (typeof template === "string") {
         const self = this.visit(expr.callee.object);
         return template
           .split("$self").join(self)
-          .split("$ARGS").join(args);
+          .split("$ARGS").join(args.length > 0 ? `, ${args}` : "");
       }
     }
 

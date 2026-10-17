@@ -1784,7 +1784,64 @@ Vários `extend` no mesmo tipo são permitidos desde que não repitam nome.
 Método adicionado por `extend` **não** conta para `implements` — a conformance é
 verificada quando o `struct` é declarado.
 
-Ainda não funciona em primitive (`extend Integer`) nem em `Array<T>`.
+#### extend em primitivos
+
+`extend` também funciona nos primitivos de valor (`int`, `float`, `string`,
+`bool`), e o alias capitalizado é aceito:
+
+```typescript
+extend String {
+  func shout(): string {
+    return self.upper() + "!"
+  }
+
+  func has(text: string): bool {
+    return self.contains(text)
+  }
+}
+
+print("ana".shout())        // "ANA!"
+print("andromeda".has("rome"))  // true
+```
+
+Funciona em `int`, `float`, `string` e `bool`. `void`, `null`, `any` e
+`unknown` não são extensíveis.
+
+Os métodos **não** vão para `String.prototype` — patchear o prototype global
+poluiria todo string vindo de qualquer biblioteca, sem como desfazer. Eles ficam
+num registro:
+
+```javascript
+$ext["string"] = Object.assign($ext["string"] || {}, {
+  shout: function (self) { return self.toUpperCase() + "!"; },
+});
+```
+
+e a chamada é reescrita: `s.shout()` → `$ext["string"].shout(s)`.
+
+Nomes de método embutidos são protegidos:
+
+```typescript
+extend String {
+  func upper(): string { return "nao deveria" }
+}
+// ERROR: [EXTENSION_CONFLICT] method 'upper' already exists in 'string'
+```
+
+Métodos de `extend` convivem com os embutidos, e uns chamam os outros:
+
+```typescript
+extend Integer {
+  func isPositive(): bool { return self > 0 }
+}
+
+val n: int = 5
+print(n.isPositive())              // true
+print("texto".shout())             // methods do usuario + builtin
+print("  x  ".trim().shout())      // encadeamento
+```
+
+Ainda não funciona em `Array<T>`.
 
 ### Aliases globais de primitivos
 
@@ -1895,6 +1952,7 @@ Strings no topo saem sem aspas; strings aninhadas saem com aspas
 - [x] **Métodos de float e bool** - só conversão: `float.toString/toInt`, `bool.toString`
 - [x] **Aliases globais** - `Integer`, `Float`, `String`, `Boolean`, `Void`, `Null`, `Any`, `Unknown` (transparentes e protegidos)
 - [x] **extend em struct** - métodos adicionados após a declaração, com detecção de conflito
+- [x] **extend em primitivos** - `extend String`, `extend Integer`, etc., via registro `$ext` sem tocar no prototype global
 - [x] **Divisão inteira** - `int / int` trunca em direção a zero, cumprindo o tipo prometido
 - [x] **Divisão por zero** - `int` por zero é erro (`DIVISION_BY_ZERO` ou exceção em runtime); `float` segue IEEE-754
 - [x] **Concatenação** - `string + primitivo` e o simétrico

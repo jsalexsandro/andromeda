@@ -233,22 +233,40 @@ export class Codegen {
   }
 
   /**
-   * extend User { func m() {} }
+   * extend User { func m() {} }   →  prototype
+   * extend String { func m() {} }  →  registro $ext
    *
-   * Vai para o prototype. Nao usamos enterStructMethod() porque ali `self`
-   * vira `this` no texto — aqui `self` precisa continuar sendo `self` no
-   * corpo. Como `u.m()` so passa `this` (e nao argumentos), `self` nao pode
-   * ser parametro: viria undefined. Injetamos `const self = this;` no corpo.
+   * O alvo decide: struct vai para o prototype (metodo de verdade), primitivo
+   * vai para `$ext` porque patchear `String.prototype` poluiria o prototype
+   * global de todo string vindo de qualquer biblioteca. Quem sabe qual e o
+   * caso e o checker, que marca o no com `extendTargetKind`.
    */
   private transpileExtendStmt(stmt: any): string {
     const target = stmt.targetName.value;
-    const lines = (stmt.methods || []).map((m: any) => {
+
+if ((stmt as any).extendTargetKind === "primitive") {
+      // chave pelo nome PRIMITIVO resolvido: o jsTemplate do Member ja usa
+      // esse, e os dois precisam casar
+      const key = JSON.stringify((stmt as any).extendPrimitiveName ?? target);
+      // `self` aqui E parametro: a chamada reescrita e `$ext.String.m(s)`,
+      // entao o receiver chega como primeiro argumento.
+      const methods = (stmt.methods || []).map((m: any) => {
+        const params = ["self", ...m.params.map((p: any) => p.name.value)].join(", ");
+        const body = this.transpileBlockStmt(m.body);
+        return `  ${m.name.value}: function (${params}) ${body}`;
+      });
+      const body = methods.length > 0 ? `{\n${methods.join(",\n")}\n}` : "{}";
+      return `$ext[${key}] = Object.assign($ext[${key}] || {}, ${body});`;
+    }
+
+    return (stmt.methods || []).map((m: any) => {
       const params = m.params.map((p: any) => p.name.value).join(", ");
       const body = this.transpileBlockStmt(m.body);
+      // `self` nao pode ser parametro: `u.m()` so passa `this`, entao um
+      // parametro `self` viria undefined. Injetamos do `this` real.
       const injected = body.replace(/^\{/, "{\n  const self = this;");
       return `${target}.prototype.${m.name.value} = function (${params}) ${injected};`;
-    });
-    return lines.join("\n");
+    }).join("\n");
   }
 
   private typeToString(type: any): string {

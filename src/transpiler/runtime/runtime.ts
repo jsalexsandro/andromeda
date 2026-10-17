@@ -112,4 +112,11 @@ const AndromedaAPI = (() => {
     },
   };
 })();
+
+// ── Registro de extensoes ───────────────────────────────────────────────
+//
+// extend String { ... } nao pode patchear String.prototype: poluiria o
+// prototype global de todo string vindo de qualquer biblioteca. Os metodos
+// ficam aqui, e o codegen reescreve s.shout() para $ext.String.shout(s).
+const $ext = {};
 `;

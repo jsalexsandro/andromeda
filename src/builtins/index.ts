@@ -93,7 +93,7 @@ export const BUILTIN_TYPES: BuiltinType[] = [
 // declaracao no JavaScript gerado.
 // ============================================================
 
-export const BUILTIN_NAMESPACES: string[] = ["AndromedaAPI"];
+export const BUILTIN_NAMESPACES: string[] = ["AndromedaAPI", "$ext"];
 
 /** Tipo de um namespace: objeto, logo chamar emite INVALID_CALL. */
 export function builtinNamespaceType(name: string): TypeNode {

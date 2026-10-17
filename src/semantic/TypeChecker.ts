@@ -22,6 +22,8 @@ export class TypeChecker {
   private hasReturn: boolean = false;
   /** Metodo de primitivo resolvido em checkMemberExpr, aguardando confirmacao de call */
   private pendingPrimitiveMethod: { node: Expr; method: PrimitiveMethodDecl } | null = null;
+  /** Metodos de `extend` por primitivo, preenchidos por checkExtendStmt */
+  private primitiveExtensions = new Map<string, Map<string, PrimitiveMethodDecl>>();
   private currentFunctionReturnType: TypeNode | null = null;
   private contextualType: TypeNode | null = null;
   private resolvedTypes = new Map<Expr, TypeNode>();
@@ -683,6 +685,24 @@ export class TypeChecker {
  */
   private checkExtendStmt(stmt: Extract<Stmt, { kind: "ExtendStmt" }>): void {
     const target = stmt.targetName.value as string;
+
+    // alias global (Integer, String, ...) resolve para o primitivo real
+    const resolvedTarget = this.resolveAlias({ kind: "NamedType", name: stmt.targetName });
+    const primitiveName =
+      resolvedTarget.kind === "PrimitiveType" ? (resolvedTarget.name as string) : null;
+
+    if (primitiveName && isValuePrimitive(primitiveName)) {
+      this.checkPrimitiveExtend(stmt, primitiveName);
+      return;
+    }
+
+    // resolveu para um primitivo, mas nao para um de valor (void, null,
+    // any, unknown): a mensagem precisa dizer isso, e nao "e um builtin"
+    if (primitiveName) {
+      this.errors.push(Errors.extendNotExtensible(target, primitiveName, stmt.targetName));
+      return;
+    }
+
     const symbol = this.currentEnv.lookup(target);
 
     if (!symbol) {
@@ -722,6 +742,102 @@ export class TypeChecker {
       // substituicao de Self, params, retorno e corpo
       this.checkStructMethodBody(structStmt, method);
     }
+  }
+
+  /**
+   * extend String { func shout(): string { ... } }
+   *
+   * Nao patcheia String.prototype: os metodos vao para o registro `$ext`, e o
+   * checker anota o Member com jsTemplate — o mesmo mecanismo que faz
+   * `s.trim()` virar `s.trim()`.
+   */
+  private checkPrimitiveExtend(stmt: Extract<Stmt, { kind: "ExtendStmt" }>, primitiveName: string): void {
+    let registry = this.primitiveExtensions.get(primitiveName);
+    if (!registry) {
+      registry = new Map();
+      this.primitiveExtensions.set(primitiveName, registry);
+    }
+    const builtins = getPrimitiveMethods(primitiveName) ?? [];
+
+    for (const method of stmt.methods) {
+      const methodName = method.name.value;
+
+      if (builtins.some((m) => m.name === methodName) || registry.has(methodName)) {
+        this.errors.push(Errors.extensionConflict(methodName, primitiveName, method.name));
+        continue;
+      }
+
+      const decl: PrimitiveMethodDecl = {
+        name: methodName,
+        params: method.params.map((p) => ({
+          name: p.name.value as string,
+          type: p.type ?? ({ kind: "PrimitiveType", name: "unknown" } as TypeNode),
+        })),
+        returnType: method.returnType ?? { kind: "PrimitiveType", name: "void" },
+        js: `$ext[${JSON.stringify(primitiveName)}].${methodName}($self$ARGS)`,
+      };
+      registry.set(methodName, decl);
+
+      this.checkPrimitiveMethodBody(primitiveName, method);
+    }
+
+    // o codegen usa isso para decidir entre prototype (struct) e $ext (primitivo).
+    // O nome resolvido vai junto: `extend String` gera $ext["string"], nao
+    // $ext["String"] — o jsTemplate do Member ja usa o nome primitivo.
+    (stmt as any).extendTargetKind = "primitive";
+    (stmt as any).extendPrimitiveName = primitiveName;
+  }
+
+  /**
+   * Versao enxuta de checkStructMethodBody para `self` ser um primitivo.
+   * Sem type params de struct, sem substituicao de Self — nada disso se aplica.
+   */
+  private checkPrimitiveMethodBody(primitiveName: string, method: StructMethod): void {
+    const fnEnv = new Environment(this.currentEnv, false);
+    const selfType: TypeNode = { kind: "PrimitiveType", name: primitiveName } as TypeNode;
+    fnEnv.define("self", {
+      name: "self",
+      type: selfType,
+      kind: "parameter",
+      mutable: false,
+      initialized: true,
+      declarationToken: method.name,
+    });
+
+    const returnType = method.returnType ?? { kind: "PrimitiveType", name: "void" } as TypeNode;
+
+    for (const param of method.params) {
+      if (param.type) {
+        const err = this.validateTypeNode(param.type, param.name);
+        if (err) this.errors.push(err);
+      }
+      fnEnv.define(param.name.value as string, {
+        name: param.name.value as string,
+        type: param.type ?? ({ kind: "PrimitiveType", name: "unknown" } as TypeNode),
+        kind: "parameter",
+        mutable: false,
+        initialized: true,
+        declarationToken: param.name,
+      });
+    }
+
+    if (method.returnType) {
+      const err = this.validateTypeNode(returnType, method.name);
+      if (err) this.errors.push(err);
+    }
+
+    const prevEnv = this.currentEnv;
+    this.currentEnv = fnEnv;
+    this.functionDepth++;
+    this.currentFunctionReturnType = returnType;
+    this.hasReturn = false;
+    this.checkBlockStmt(method.body);
+    if (returnType.kind !== "PrimitiveType" || returnType.name !== "void") {
+      if (!this.hasReturn) this.errors.push(Errors.missingReturn(method.name));
+    }
+    this.currentEnv = prevEnv;
+    this.currentFunctionReturnType = null;
+    this.functionDepth--;
   }
 
   private checkStructStmt(stmt: Extract<Stmt, { kind: "StructStmt" }>): void {
@@ -4132,6 +4248,17 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
           kind: "FunctionType",
           params: member.params.map((p) => ({ ...p.type, paramName: p.name })),
           returnType: member.returnType,
+        };
+      }
+
+      // metodo adicionado por `extend`
+      const extension = this.primitiveExtensions.get(objectType.name)?.get(propName);
+      if (extension) {
+        this.pendingPrimitiveMethod = { node: expr, method: extension };
+        return {
+          kind: "FunctionType",
+          params: extension.params.map((p) => ({ ...p.type, paramName: p.name })),
+          returnType: extension.returnType,
         };
       }
       if (isValuePrimitive(objectType.name)) {

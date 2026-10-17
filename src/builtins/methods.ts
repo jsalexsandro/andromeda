@@ -1,4 +1,4 @@
-﻿import { TypeNode } from "../ast";
+import { TypeNode } from "../ast";
 import type { PrimitiveTypes } from "../types";
 
 export interface PrimitiveMethodDecl {
@@ -8,7 +8,8 @@ export interface PrimitiveMethodDecl {
   /**
    * Template de emissao em JavaScript.
    *   $self  = receiver (ex.: a variavel que teve o metodo chamado)
-   *   $ARGS  = lista de argumentos, sem os parenteses (o template ja traz)
+   *   $ARGS  = argumentos ja formatados, com a virgula inicial (o template
+ *           traz os parenteses)
    * Metodos sem parametro nao usam $ARGS.
    * Propriedades ignoram o template: o nome ja e o do JavaScript.
    */
@@ -68,13 +69,13 @@ export const STRING_METHODS: PrimitiveMethodDecl[] = [
     name: "contains",
     params: [{ name: "value", type: primitive("string") }],
     returnType: primitive("bool"),
-    js: "$self.includes($ARGS)",
+    js: "$self.includes$ARGS",
   },
   {
     name: "indexOf",
     params: [{ name: "value", type: primitive("string") }],
     returnType: primitive("int"),
-    js: "$self.indexOf($ARGS)",
+    js: "$self.indexOf$ARGS",
   },
   {
     name: "substring",
@@ -83,13 +84,13 @@ export const STRING_METHODS: PrimitiveMethodDecl[] = [
       { name: "to", type: primitive("int") },
     ],
     returnType: primitive("string"),
-    js: "$self.substring($ARGS)",
+    js: "$self.substring$ARGS",
   },
   {
     name: "split",
     params: [{ name: "separator", type: primitive("string") }],
     returnType: arrayOf("string"),
-    js: "$self.split($ARGS)",
+    js: "$self.split$ARGS",
   },
   {
     name: "replace",
@@ -98,7 +99,7 @@ export const STRING_METHODS: PrimitiveMethodDecl[] = [
       { name: "new", type: primitive("string") },
     ],
     returnType: primitive("string"),
-    js: "$self.replaceAll($ARGS)",
+    js: "$self.replaceAll$ARGS",
   },
   { name: "toInt", params: [], returnType: nullable("int"), js: "AndromedaAPI.toInt($self)" },
   { name: "toFloat", params: [], returnType: nullable("float"), js: "AndromedaAPI.toFloat($self)" },
