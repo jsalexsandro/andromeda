@@ -1,0 +1,48 @@
+// extend: metodos adicionados depois da declaracao do struct
+
+struct User {
+  name: string
+  age: int
+
+  func isAdult(): bool {
+    return self.age >= 18
+  }
+}
+
+extend User {
+  func greeting(): string {
+    return "Oi, " + self.name
+  }
+
+  func label(): string {
+    return self.greeting() + " (" + self.isAdult().toString() + ")"
+  }
+}
+
+val u = User { name: "Ana", age: 20 }
+
+print(u.greeting())
+print(u.label())
+print(u.isAdult())
+
+// metodo do struct continua acessivel junto com os de extend
+print(User { name: "Bia", age: 10 }.greeting())
+
+// dois extends no mesmo type
+extend User {
+  func initials(): string {
+    return self.name.substring(0, 1)
+  }
+}
+
+print(u.initials())
+
+// metodo de extend com parametro e return explicito
+extend User {
+  func olderThan(age: int): bool {
+    return self.age > age
+  }
+}
+
+print(u.olderThan(18))
+print(u.olderThan(30))

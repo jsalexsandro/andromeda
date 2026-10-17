@@ -40,7 +40,9 @@ export type ErrorCode =
   | "NOT_A_PROTOCOL"
   | "MISSING_PROTOCOL_METHOD"
   | "PROTOCOL_METHOD_MISMATCH"
-  | "DUPLICATE_PROTOCOL_METHOD";
+  | "DUPLICATE_PROTOCOL_METHOD"
+  | "EXTEND_TARGET_INVALID"
+  | "EXTENSION_CONFLICT";
 
 export class SemanticError {
   constructor(
@@ -123,6 +125,16 @@ export const Errors = {
 
   undefinedType: (name: string, token: Token) =>
     createError("UNDEFINED_TYPE", `type '${name}' is not found`, token, "typecheck"),
+
+  extendTargetInvalid: (target: string, found: string, token: Token) =>
+    createError("EXTEND_TARGET_INVALID",
+      `cannot extend '${target}': expected a struct, but it is ${found}`,
+      token, "typecheck"),
+
+  extensionConflict: (method: string, target: string, token: Token) =>
+    createError("EXTENSION_CONFLICT",
+      `method '${method}' already exists in '${target}'`,
+      token, "typecheck"),
 
   divisionByZero: (operator: string, token: Token) =>
     createError("DIVISION_BY_ZERO",

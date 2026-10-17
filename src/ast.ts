@@ -136,6 +136,7 @@ export type Stmt =
   | StructStmt      // ← Fase 4
   | EnumStmt        // ← Fase 5
   | ProtocolStmt    // ← Fase 6
+  | ExtendStmt      // extend: metodos em um type ja declarado
   | IfVariableStmt  // ← Fase 6.4
 
 export interface ExpressionStmt {
@@ -491,6 +492,18 @@ export interface StructStmt {
   methods?: StructMethod[]     // 7.1 — struct methods
   protocols?: Token[]          // implements Printable, Comparable
   init?: StructConstructor    // 10.0 — custom constructor (desativa auto-init)
+}
+
+/**
+ * extend User { func greeting(): string { ... } }
+ *
+ * Declara metodos em um type ja declarado. O target precisa existir antes —
+ * nao ha hoisting, entao `extend` vem depois da declaracao.
+ */
+export interface ExtendStmt {
+  kind: "ExtendStmt"
+  targetName: Token
+  methods: StructMethod[]
 }
 
 // 10.0 — custom init inside a struct

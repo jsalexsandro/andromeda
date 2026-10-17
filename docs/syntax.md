@@ -1737,6 +1737,55 @@ const n = ''
 print(n.length.isEven())                   // "" → 0 → 0 é par → true
 ```
 
+### extend
+
+`extend` adiciona métodos a um tipo já declarado. Precisa vir **depois** do
+`struct` — não há hoisting:
+
+```typescript
+struct User {
+  name: string
+  age: int
+
+  func isAdult(): bool {
+    return self.age >= 18
+  }
+}
+
+extend User {
+  func greeting(): string {
+    return "Oi, " + self.name
+  }
+
+  func olderThan(age: int): bool {
+    return self.age > age
+  }
+}
+
+val u = User { name: "Ana", age: 20 }
+print(u.greeting())          // "Oi, Ana"
+print(u.isAdult())           // true
+print(u.olderThan(18))       // true
+```
+
+Métodos do `struct` e do `extend` convivem, e um método de `extend` pode chamar
+outro do mesmo `extend` ou do próprio struct.
+
+Vários `extend` no mesmo tipo são permitidos desde que não repitam nome.
+
+| Regra | Erro |
+|-------|------|
+| método já existe no struct | `[EXTENSION_CONFLICT] method 'isAdult' already exists in 'User'` |
+| nome repetido dentro do mesmo `extend` | `[EXTENSION_CONFLICT]` |
+| nome repetido em outro `extend` do mesmo tipo | `[EXTENSION_CONFLICT]` |
+| alvo não existe | `[UNDEFINED_TYPE] type 'Ghost' is not found` |
+| alvo não é struct | `[EXTEND_TARGET_INVALID] cannot extend 'Integer': expected a struct, but it is a built-in type` |
+
+Método adicionado por `extend` **não** conta para `implements` — a conformance é
+verificada quando o `struct` é declarado.
+
+Ainda não funciona em primitive (`extend Integer`) nem em `Array<T>`.
+
 ### Aliases globais de primitivos
 
 Todo primitivo tem alias capitalizado, sem precisar declarar `typealias`:
@@ -1845,6 +1894,7 @@ Strings no topo saem sem aspas; strings aninhadas saem com aspas
 - [x] **Métodos de string** - `length` (propriedade), `upper`, `lower`, `trim`, `contains`, `indexOf`, `substring`, `split`, `replace` (todas), `toInt`/`toFloat` (Optional)
 - [x] **Métodos de float e bool** - só conversão: `float.toString/toInt`, `bool.toString`
 - [x] **Aliases globais** - `Integer`, `Float`, `String`, `Boolean`, `Void`, `Null`, `Any`, `Unknown` (transparentes e protegidos)
+- [x] **extend em struct** - métodos adicionados após a declaração, com detecção de conflito
 - [x] **Divisão inteira** - `int / int` trunca em direção a zero, cumprindo o tipo prometido
 - [x] **Divisão por zero** - `int` por zero é erro (`DIVISION_BY_ZERO` ou exceção em runtime); `float` segue IEEE-754
 - [x] **Concatenação** - `string + primitivo` e o simétrico

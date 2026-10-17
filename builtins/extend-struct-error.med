@@ -1,0 +1,58 @@
+// casos de erro de extend
+//
+// Espera:
+// [EXTEND_TARGET_INVALID] extend em builtin e em type inexistente
+// [EXTENSION_CONFLICT] metodo duplicado, no mesmo extend ou contra o struct
+
+struct User {
+  name: string
+
+  func isAdult(): bool {
+    return true
+  }
+}
+
+// 1. metodo que ja existe no struct
+extend User {
+  func isAdult(): bool {
+    return false
+  }
+}
+
+// 2. duplicado dentro do mesmo extend
+extend User {
+  func dup(): string {
+    return "a"
+  }
+
+  func dup(): string {
+    return "b"
+  }
+}
+
+// 3. conflict entre dois extends no mesmo type
+extend User {
+  func shared(): int {
+    return 1
+  }
+}
+
+extend User {
+  func shared(): int {
+    return 2
+  }
+}
+
+// 4. target nao existe
+extend Ghost {
+  func x(): int {
+    return 0
+  }
+}
+
+// 5. target e builtin, nao struct
+extend Integer {
+  func x(): int {
+    return 0
+  }
+}

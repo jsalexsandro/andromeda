@@ -91,6 +91,8 @@ export class Codegen {
         return "";
       case "ProtocolStmt":
         return "";
+      case "ExtendStmt":
+        return this.transpileExtendStmt(stmt);
       default:
         return `/* unhandled stmt: ${stmt.kind} */`;
     }
@@ -228,6 +230,25 @@ export class Codegen {
     }).join("\n  ");
 
     return `class ${name} {\n  ${ctorCode}\n  ${methodCode}\n}`;
+  }
+
+  /**
+   * extend User { func m() {} }
+   *
+   * Vai para o prototype. Nao usamos enterStructMethod() porque ali `self`
+   * vira `this` no texto — aqui `self` precisa continuar sendo `self` no
+   * corpo. Como `u.m()` so passa `this` (e nao argumentos), `self` nao pode
+   * ser parametro: viria undefined. Injetamos `const self = this;` no corpo.
+   */
+  private transpileExtendStmt(stmt: any): string {
+    const target = stmt.targetName.value;
+    const lines = (stmt.methods || []).map((m: any) => {
+      const params = m.params.map((p: any) => p.name.value).join(", ");
+      const body = this.transpileBlockStmt(m.body);
+      const injected = body.replace(/^\{/, "{\n  const self = this;");
+      return `${target}.prototype.${m.name.value} = function (${params}) ${injected};`;
+    });
+    return lines.join("\n");
   }
 
   private typeToString(type: any): string {

@@ -1030,10 +1030,6 @@ readNumber(): Token {
       return { type: TokenType.READONLY, value: 'readonly', line: this.line, column: startColumn }
     }
 
-    if (ident === 'extends') {
-      return { type: TokenType.EXTENDS_KW, value: 'extends', line: this.line, column: startColumn }
-    }
-
     // ========================================
     // Regular Keywords and Identifiers
     // ========================================

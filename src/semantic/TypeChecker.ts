@@ -425,6 +425,9 @@ export class TypeChecker {
       case "ProtocolStmt":
         this.checkProtocolStmt(stmt);
         break;
+      case "ExtendStmt":
+        this.checkExtendStmt(stmt);
+        break;
       case "ExpressionStmt":
         this.checkExpressionStmt(stmt);
         break;
@@ -666,6 +669,59 @@ export class TypeChecker {
     };
 
     this.globalEnv.define(name, symbol);
+  }
+
+  /**
+ * extend User { func greeting(): string { ... } }
+ *
+ * Nao ha hoisting: o target precisa ja existir, senao o lookup falha. Isso
+ * sai de graca — `extend` antes do `struct` da erro de alvo invalido.
+ *
+ * Os metodos vao para symbol.methods, e por isso a resolucao de membro e a
+ * geracao de codigo ja funcionam sem caminho especial: `p.greeting()` resolve
+ * pela branch de struct de checkMemberExpr e sai como `p.greeting()` no JS.
+ */
+  private checkExtendStmt(stmt: Extract<Stmt, { kind: "ExtendStmt" }>): void {
+    const target = stmt.targetName.value as string;
+    const symbol = this.currentEnv.lookup(target);
+
+    if (!symbol) {
+      this.errors.push(Errors.undefinedType(target, stmt.targetName));
+      return;
+    }
+    if (symbol.kind !== "struct") {
+      const found = symbol.kind === "builtin" ? "a built-in type" : `a ${symbol.kind}`;
+      this.errors.push(Errors.extendTargetInvalid(target, found, stmt.targetName));
+      return;
+    }
+
+    const structStmt = symbol.stmt as Extract<Stmt, { kind: "StructStmt" }> | undefined;
+    if (!structStmt) return;
+
+    // Cuidado com aliasing: `symbol.methods` e a MESMA referencia de
+    // `structStmt.methods`. Empurrar no simbolo ensuciaria o AST e o
+    // codegen emitiria o metodo duas vezes — dentro da classe e no
+    // prototype. Copia antes de escrever.
+    const working = [...(symbol.methods ?? [])];
+    symbol.methods = working;
+
+    const declared = new Set<string>();
+
+    for (const method of stmt.methods) {
+      const methodName = method.name.value;
+
+      if (working.some((m) => m.name.value === methodName) || declared.has(methodName)) {
+        this.errors.push(Errors.extensionConflict(methodName, target, method.name));
+        continue;
+      }
+      declared.add(methodName);
+      // visivel para os corpos seguintes deste mesmo extend
+      working.push(method);
+
+      // reusa o checker de metodo de struct: registra `self`, type params,
+      // substituicao de Self, params, retorno e corpo
+      this.checkStructMethodBody(structStmt, method);
+    }
   }
 
   private checkStructStmt(stmt: Extract<Stmt, { kind: "StructStmt" }>): void {

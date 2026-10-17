@@ -1117,6 +1117,9 @@ export class Parser {
       if (keyword === "struct") {
         return this.parseStructStatement();
       }
+      if (keyword === "extend") {
+        return this.parseExtendStatement();
+      }
     }
 
     const expr = this.parseExpression(Precedence.LOWEST);
@@ -2759,6 +2762,35 @@ export class Parser {
   // struct User { }
   // struct Empty { }
   // ========================================
+  private parseExtendStatement(): Stmt {
+    this.advance(); // consume 'extend'
+
+    const nameToken = this.advance();
+    if (nameToken.type !== TokenType.IDENTIFIER) {
+      this.error("Expected type name after 'extend'", nameToken);
+      return { kind: "BlockStmt", statements: [] };
+    }
+
+    if (this.peek().type !== TokenType.LBRACE) {
+      this.error("Expected '{' after extended type name", this.peek());
+      return { kind: "BlockStmt", statements: [] };
+    }
+    this.advance(); // consume '{'
+
+    const methods: StructMethod[] = [];
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      methods.push(this.parseStructMethod(false));
+    }
+
+    if (this.check(TokenType.RBRACE)) {
+      this.advance();
+    } else {
+      this.error("Expected '}' to close extend block", this.peek());
+    }
+
+    return { kind: "ExtendStmt", targetName: nameToken, methods };
+  }
+
   private parseStructStatement(): Stmt {
     this.advance(); // consume 'struct'
 

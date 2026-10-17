@@ -31,6 +31,7 @@ export const KEYWORDS = [
   'Self',
   'typealias',  // Tipos nomeados - nominal type aliases
   'struct',
+  'extend',
   'mut',
   'init',
 ]
