@@ -1773,6 +1773,31 @@ outro do mesmo `extend` ou do próprio struct.
 
 Vários `extend` no mesmo tipo são permitidos desde que não repitam nome.
 
+`mut func` funciona igual dentro do `extend`, e em primitivos também:
+
+```typescript
+struct Counter { mut value: int }
+
+extend Counter {
+  mut func increment(step: int): int {
+    self.value = self.value + step
+    return self.value
+  }
+}
+
+extend Integer {
+  mut func times(factor: int): int { return self * factor }
+}
+
+val c = Counter { value: 10 }
+print(c.increment(5))    // 15
+print(7.times(6))         // 42
+```
+
+O corpo do `extend` aceita **só métodos**. Campo solto é erro de parse com
+mensagem explícita: `Only methods are allowed in extend — expected 'func' or
+'mut func'`.
+
 | Regra | Erro |
 |-------|------|
 | método já existe no struct | `[EXTENSION_CONFLICT] method 'isAdult' already exists in 'User'` |

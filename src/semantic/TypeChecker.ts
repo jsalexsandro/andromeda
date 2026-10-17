@@ -848,7 +848,9 @@ export class TypeChecker {
       declarationToken: method.name,
     });
 
-    const returnType = method.returnType ?? { kind: "PrimitiveType", name: "void" } as TypeNode;
+    const returnType = method.returnType
+      ? this.resolveAlias(method.returnType)
+      : ({ kind: "PrimitiveType", name: "void" } as TypeNode);
 
     for (const param of method.params) {
       if (param.type) {
@@ -1087,7 +1089,10 @@ export class TypeChecker {
       selfType = { kind: "NamedType", name: structStmt.name } as TypeNode;
     }
 
-    const returnType = method.returnType || { kind: "PrimitiveType", name: "void" } as TypeNode;
+    // resolve alias: `Void` e o mesmo que `void`
+    const returnType = method.returnType
+      ? this.resolveAlias(method.returnType)
+      : ({ kind: "PrimitiveType", name: "void" } as TypeNode);
 
     // Substitute SelfType in param types and return type
     const resolvedParamTypes = method.params.map(p => ({

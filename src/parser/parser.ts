@@ -2779,7 +2779,31 @@ export class Parser {
 
     const methods: StructMethod[] = [];
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
-      methods.push(this.parseStructMethod(false));
+      const next = this.peek();
+
+      // mut func — igual ao corpo do struct
+      if (next.type === TokenType.KEYWORD && next.value === "mut") {
+        if (this.current + 1 < this.tokens.length &&
+            this.tokens[this.current + 1].type === TokenType.KEYWORD &&
+            this.tokens[this.current + 1].value === "func") {
+          this.advance(); // consume 'mut'
+          methods.push(this.parseStructMethod(true));
+          continue;
+        }
+        this.error("Expected 'func' after 'mut' in extend block", next);
+        this.advance();
+        continue;
+      }
+
+      if (next.type === TokenType.KEYWORD && next.value === "func") {
+        methods.push(this.parseStructMethod(false));
+        continue;
+      }
+
+      // qualquer outra coisa (campo, por exemplo) nao e metodo
+      this.error("Only methods are allowed in extend — expected 'func' or 'mut func'", next);
+      this.advance();
+      this.skipToExtendMemberEnd();
     }
 
     if (this.check(TokenType.RBRACE)) {
@@ -2789,6 +2813,18 @@ export class Parser {
     }
 
     return { kind: "ExtendStmt", targetName: nameToken, methods };
+  }
+
+  /**
+   * Consome o resto de um membro invalido no corpo do extend, parando no
+   * proximo `func`/`mut` ou no `}` — senao o erro vira cascata.
+   */
+  private skipToExtendMemberEnd(): void {
+    while (!this.isAtEnd() && !this.check(TokenType.RBRACE)) {
+      const next = this.peek();
+      if (next.type === TokenType.KEYWORD && (next.value === "func" || next.value === "mut")) return;
+      this.advance();
+    }
   }
 
   private parseStructStatement(): Stmt {

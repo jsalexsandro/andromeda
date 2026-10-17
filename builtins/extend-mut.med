@@ -1,0 +1,72 @@
+// mut func dentro de extend — em struct e em primitivo
+
+struct Counter {
+  mut value: int
+}
+
+extend Counter {
+  mut func increment(step: int): int {
+    self.value = self.value + step
+    return self.value
+  }
+
+  // Void como retorno: o alias precisa contar como void
+  mut func reset(): Void {
+    self.value = 0
+  }
+
+  func doubled(): int {
+    return self.value * 2
+  }
+}
+
+val c = Counter { value: 10 }
+
+print(c.value)
+print(c.increment(5))
+print(c.value)
+print(c.doubled())
+print(c.reset())
+print(c.value)
+
+extend Integer {
+  mut func shout(): string {
+    return self.toString() + "!"
+  }
+
+  mut func times(factor: int): int {
+    return self * factor
+  }
+}
+
+print(7.shout())
+print(7.times(6))
+
+struct Point {
+  mut x: float
+  mut y: float
+
+  mut func scale(factor: float) {
+    self.x = self.x * factor
+    self.y = self.y * factor
+  }
+}
+
+extend Point {
+  mut func move(dx: float, dy: float) {
+    self.x = self.x + dx
+    self.y = self.y + dy
+  }
+
+  func squared(): float {
+    return self.x * self.x + self.y * self.y
+  }
+}
+
+val p = Point { x: 3.0, y: 4.0 }
+print(p.squared())
+p.scale(2.0)
+print(p.squared())
+p.move(1.0, 1.0)
+print(p.x)
+print(p.y)
