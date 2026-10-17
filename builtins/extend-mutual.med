@@ -1,0 +1,84 @@
+// extend: metodo do struct chamando metodo do extend
+//
+// Antes exigia um check em duas fases; agora o struct olha adiante e
+// registra os metodos de extend que vem depois dele.
+
+struct Greeter {
+  who: string
+
+  func hi(): string {
+    return self.hello() + "!"
+  }
+
+  func formal(): string {
+    return self.hello() + ", " + self.who
+  }
+}
+
+extend Greeter {
+  func hello(): string {
+    return "Oi " + self.who
+  }
+}
+
+val g = Greeter { who: "Ana" }
+print(g.hi())
+print(g.hello())
+print(g.formal())
+
+// extend chamando extend, ambos em blocos separados
+struct Chain {
+  seed: int
+}
+
+extend Chain {
+  func a(): int {
+    return self.seed + 1
+  }
+}
+
+extend Chain {
+  func b(): int {
+    return self.a() * 2
+  }
+}
+
+val ch = Chain { seed: 3 }
+print(ch.a())
+print(ch.b())
+
+// metodo do struct E do extend no mesmo struct, mutuamente chamando
+struct Ping {
+  value: int
+
+  func pong(): int {
+    return self.ping() + 1
+  }
+}
+
+extend Ping {
+  func ping(): int {
+    return self.value * 10
+  }
+}
+
+val p = Ping { value: 4 }
+print(p.ping())
+print(p.pong())
+
+// conflito continua detectado mesmo com pre-registro
+struct Dup {
+  x: int
+}
+
+extend Dup {
+  func twice(): int {
+    return self.x * 2
+  }
+}
+
+extend Dup {
+  func twice(): int {
+    return self.x * 3
+  }
+}

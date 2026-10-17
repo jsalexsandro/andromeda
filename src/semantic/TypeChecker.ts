@@ -24,6 +24,10 @@ export class TypeChecker {
   private pendingPrimitiveMethod: { node: Expr; method: PrimitiveMethodDecl } | null = null;
   /** Metodos de `extend` por primitivo, preenchidos por checkExtendStmt */
   private primitiveExtensions = new Map<string, Map<string, PrimitiveMethodDecl>>();
+  /** Statements de topo, para o struct olhar `extend` que vem depois dele */
+  private programStmts: Stmt[] = [];
+  /** Metodos de extend ja registrados por preRegisterExtends */
+  private preRegisteredMethods = new Set<StructMethod>();
   private currentFunctionReturnType: TypeNode | null = null;
   private contextualType: TypeNode | null = null;
   private resolvedTypes = new Map<Expr, TypeNode>();
@@ -384,6 +388,7 @@ export class TypeChecker {
 
   public check(program: Stmt[]): SemanticError[] {
     this.errors = [];
+    this.programStmts = program;
 
     for (const stmt of program) {
       this.checkStatement(stmt);
@@ -683,6 +688,38 @@ export class TypeChecker {
  * geracao de codigo ja funcionam sem caminho especial: `p.greeting()` resolve
  * pela branch de struct de checkMemberExpr e sai como `p.greeting()` no JS.
  */
+  /**
+ * Registra no symbol os metodos de `extend` que aparecem DEPOIS deste struct.
+ *
+ * Sem isso ha um deadlock de ordem: o corpo de um metodo do struct e checado
+ * na declaracao do struct, mas o `extend` so e processado depois — e o
+ * `extend` antes do struct nao acha o alvo. Olhando adiante no programa na
+ * hora de declarar o struct, os dois lados resolvem.
+ *
+ * O corpo do metodo de extend ainda e validado depois, em checkExtendStmt.
+ */
+  private preRegisterExtends(structName: string, symbol: Symbol | null | undefined): void {
+    if (!symbol || this.programStmts.length === 0) return;
+
+    // copia: symbol.methods pode ser a mesma referencia do AST
+    const methods = [...(symbol.methods ?? [])];
+    symbol.methods = methods;
+
+    for (const stmt of this.programStmts) {
+      if (stmt.kind !== "ExtendStmt") continue;
+      if ((stmt.targetName.value as string) !== structName) continue;
+
+      const seen = new Set<string>();
+      for (const method of stmt.methods) {
+        const methodName = method.name.value;
+        if (methods.some((m) => m.name.value === methodName) || seen.has(methodName)) continue;
+        seen.add(methodName);
+        methods.push(method);
+        this.preRegisteredMethods.add(method);
+      }
+    }
+  }
+
   private checkExtendStmt(stmt: Extract<Stmt, { kind: "ExtendStmt" }>): void {
     const target = stmt.targetName.value as string;
 
@@ -729,6 +766,13 @@ export class TypeChecker {
 
     for (const method of stmt.methods) {
       const methodName = method.name.value;
+
+      // ja registrado por preRegisterExtends quando o struct foi declarado:
+      // conflictos ja foram avaliados, falta so validar o corpo
+      if (this.preRegisteredMethods.has(method)) {
+        this.checkStructMethodBody(structStmt, method);
+        continue;
+      }
 
       if (working.some((m) => m.name.value === methodName) || declared.has(methodName)) {
         this.errors.push(Errors.extensionConflict(methodName, target, method.name));
@@ -901,13 +945,18 @@ export class TypeChecker {
 
     // ── 7.3–7.7 Processar struct methods ─────────────────
     if (stmt.methods) {
-      // Guardar methods no symbol do struct
+      // Copia: symbol.methods e a MESMA referencia do AST, e o extend
+      // empurra metodos nessa lista.
       const structSymbol = prevEnv.lookupLocal(name);
       if (structSymbol) {
-        structSymbol.methods = stmt.methods;
+        structSymbol.methods = [...stmt.methods];
       }
 
-      // Verificar corpos dos métodos
+      // Registra antes os metodos de extend que vem DEPOIS deste struct.
+      // Sem isso o corpo de um metodo do struct nao acha metodo de extend:
+      // o extend so e processado mais tarde, e o caminho inverso nao existe.
+      this.preRegisterExtends(name, structSymbol);
+
       for (const method of stmt.methods) {
         this.checkStructMethodBody(stmt, method);
       }

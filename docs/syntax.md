@@ -1843,29 +1843,36 @@ print("  x  ".trim().shout())      // encadeamento
 
 Ainda não funciona em `Array<T>`.
 
-#### Limitações conhecidas de `extend`
+#### Métodos do struct e do extend se enxergam
 
-**Um método do struct não consegue chamar um método do extend.** O `extend`
-precisa vir depois do `struct` (não há hoisting), mas o corpo dos métodos do
-struct é checado no momento da declaração do struct — antes do `extend`:
+O corpo de um método do `struct` **pode** chamar métodos do `extend`, mesmo que o
+`extend` venha depois:
 
 ```typescript
 struct Greeter {
   who: string
 
   func hi(): string {
-    return self.hello()   // ERROR: property 'hello' does not exist
+    return self.hello() + "!"   // ok, `hello` vem do extend abaixo
   }
 }
 
 extend Greeter {
-  func hello(): string { return "Oi " + self.who }
+  func hello(): string {
+    return "Oi " + self.who
+  }
 }
+
+print(Greeter { who: "Ana" }.hi())   // "Oi Ana!"
 ```
 
-Não é contornável reordenando: o `extend` antes do struct não acha o alvo. O
-caminho seria um check em duas fases (registrar structs, registrar extends, só
-então checar corpos).
+Nos dois sentidos: método do `extend` chama método do `struct`, e um método do
+`extend` pode chamar outro `extend` do mesmo tipo.
+
+O `extend` ainda precisa vir **depois** do `struct` — ele não acha o alvo antes
+da declaração. O que funciona é o caminho inverso.
+
+#### Limitações conhecidas de `extend`
 
 **`struct { }` literal não vale em struct com `init` custom.** O literal é a
 forma de auto-init; com init custom o construtor é posicional:
@@ -1991,6 +1998,7 @@ Strings no topo saem sem aspas; strings aninhadas saem com aspas
 - [x] **extend em struct** - métodos adicionados após a declaração, com detecção de conflito
 - [x] **extend em primitivos** - `extend String`, `extend Integer`, etc., via registro `$ext` sem tocar no prototype global
 - [x] **Construtor de struct com `new`** - `Nome(...)` e `Nome(campo: valor)` emitem `new`; literal rejeitado em struct com init custom
+- [x] **Método do struct chama método do extend** - pré-registro no momento da declaração do struct
 - [x] **Divisão inteira** - `int / int` trunca em direção a zero, cumprindo o tipo prometido
 - [x] **Divisão por zero** - `int` por zero é erro (`DIVISION_BY_ZERO` ou exceção em runtime); `float` segue IEEE-754
 - [x] **Concatenação** - `string + primitivo` e o simétrico
