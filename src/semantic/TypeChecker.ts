@@ -3957,6 +3957,17 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         this.errors.push(Errors.unknownProperty(propName, propToken));
         return { kind: "PrimitiveType", name: "unknown" };
       }
+      // Allow member access on protocol types
+      if (symbol?.kind === "protocol") {
+        if (!symbol.methods) return { kind: "PrimitiveType", name: "unknown" };
+        const method = symbol.methods.find(m => m.name.value === propName);
+        if (method) {
+          const selfType = { kind: "NamedType", name: { type: 0, value: symbol.name, line: propToken.line, column: propToken.column } as Token };
+          return this.buildMethodType(method, undefined, selfType as TypeNode);
+        }
+        this.errors.push(Errors.unknownProperty(propName, propToken));
+        return { kind: "PrimitiveType", name: "unknown" };
+      }
       this.errors.push(Errors.invalidMemberAccess(
         `cannot access member on non-struct type '${typeName}'`,
         propToken
