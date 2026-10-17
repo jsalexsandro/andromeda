@@ -1,0 +1,183 @@
+// STRESS: struct + extend em combinacoes dificeis
+
+// ── 1. extend em struct generico ────────────────────────────────
+struct Box<T> {
+  value: T
+
+  func get(): T {
+    return self.value
+  }
+}
+
+extend Box {
+  func describe(): string {
+    return "Box"
+  }
+
+  func wrapped<U>(inner: U): Box<U> {
+    return Box { value: inner }
+  }
+}
+
+val bi = Box { value: 42 }
+val bs = Box { value: "texto" }
+
+print(bi.describe())
+print(bs.describe())
+print(bi.get())
+
+// generic dentro de generic
+struct Pair<A, B> {
+  first: A
+  second: B
+}
+
+extend Pair {
+  func swapped(): Pair<B, A> {
+    return Pair { first: self.second, second: self.first }
+  }
+}
+
+val p = Pair { first: 1, second: "x" }
+print(p.first)
+print(p.second)
+print(p.swapped().second)
+
+// ── 2. extend com init custom (construtor posicional) ───────────
+struct Token {
+  mut value: string
+
+  init(raw: string) {
+    self.value = raw.trim()
+  }
+
+  func size(): int {
+    return self.value.length
+  }
+}
+
+extend Token {
+  func prefixed(): Token {
+    return Token("[tok] " + self.value)
+  }
+
+  func longerThan(n: int): bool {
+    return self.size() > n
+  }
+}
+
+val t = Token("  hello  ")
+print(t.value)
+print(t.size())
+print(t.prefixed().value)
+print(t.prefixed().size())
+print(t.longerThan(3))
+print(t.prefixed().longerThan(8))
+
+// ── 3. recursao entre metodo do struct e metodo do extend ──────
+struct Node {
+  mut next: Node?
+  label: string
+
+  func depth(): int {
+    if val n = self.next {
+      return 1 + n.depth()
+    }
+    return 1
+  }
+}
+
+extend Node {
+  func total(): int {
+    if val n = self.next {
+      return self.label.length + n.total()
+    }
+    return self.label.length
+  }
+
+  func walk(): string {
+    if val n = self.next {
+      return self.label + ">" + n.walk()
+    }
+    return self.label
+  }
+}
+
+val n3 = Node { next: null, label: "c" }
+val n2 = Node { next: n3, label: "b" }
+val n1 = Node { next: n2, label: "a" }
+
+print(n1.depth())
+print(n1.total())
+print(n1.walk())
+
+// ── 4. varios extends encadeando no mesmo tipo ──────────────────
+struct Counter {
+  mut value: int
+}
+
+extend Counter {
+  func step(): int {
+    return self.value + 1
+  }
+}
+
+extend Counter {
+  func stepped(n: int): int {
+    return self.step() * n
+  }
+}
+
+extend Counter {
+  func chained(): int {
+    return self.stepped(2) + self.step()
+  }
+}
+
+val c = Counter { value: 10 }
+print(c.step())
+print(c.stepped(3))
+print(c.chained())
+
+// ── 5. struct com protocol E extend ─────────────────────────────
+protocol Stringable {
+  func toString(): string
+}
+
+struct Money implements Stringable {
+  cents: int
+
+  func toString(): string {
+    return "$" + self.cents.toString()
+  }
+}
+
+extend Money {
+  func doubled(): Money {
+    return Money { cents: self.cents * 2 }
+  }
+}
+
+val m = Money { cents: 50 }
+print(m.toString())
+print(m.doubled().toString())
+print(m.doubled().doubled().toString())
+
+// ── 6. extend em struct sem metodo proprio ──────────────────────
+struct Tag {
+  text: string
+}
+
+extend Tag {
+  func shout(): string {
+    return self.text.upper() + "#" + self.text.length.toString()
+  }
+
+  func twice(): string {
+    return self.shout() + self.shout()
+  }
+}
+
+val tg = Tag { text: "br" }
+print(tg.shout())
+print(tg.twice())

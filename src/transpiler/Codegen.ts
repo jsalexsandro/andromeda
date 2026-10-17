@@ -15,6 +15,7 @@ export class Codegen {
     const lines: string[] = [];
 
     this.exprVisitor.shadowBuiltins(this.collectShadowedBuiltins(ast));
+    this.exprVisitor.setStructs(this.collectStructs(ast));
 
     lines.push(RUNTIME_JS);
     lines.push("");
@@ -27,6 +28,32 @@ export class Codegen {
     }
 
     return lines.join("\n");
+  }
+
+  /**
+   * Mapeia struct -> tem init custom? O visitor precisa disso para emitting
+   * `new`: auto-init recebe objeto nomeado, init custom recebe posicional.
+   */
+  private collectStructs(ast: Stmt[]): Map<string, { hasInit: boolean }> {
+    const structs = new Map<string, { hasInit: boolean }>();
+
+    const visit = (node: any): void => {
+      if (!node || typeof node !== "object") return;
+      if (node.kind === "StructStmt" && node.name) {
+        structs.set(node.name.value as string, { hasInit: !!node.init });
+      }
+      for (const key of Object.keys(node)) {
+        const value = node[key];
+        if (Array.isArray(value)) {
+          value.forEach(visit);
+        } else if (value && typeof value === "object" && typeof value.kind === "string") {
+          visit(value);
+        }
+      }
+    };
+
+    ast.forEach(visit);
+    return structs;
   }
 
   /**

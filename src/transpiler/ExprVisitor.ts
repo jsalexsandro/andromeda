@@ -7,6 +7,8 @@ export class ExprVisitor {
   private inStructMethod: boolean = false;
   /** Builtins redefinidos pelo usuario no programa — nao devem ser reescritos */
   private shadowedBuiltins: Set<string> = new Set();
+  /** Structs do programa — para emitir `new` em chamadas de construtor */
+  private structs = new Map<string, { hasInit: boolean }>();
 
   enterStructMethod(): void {
     this.inStructMethod = true;
@@ -18,6 +20,11 @@ export class ExprVisitor {
 
   shadowBuiltins(names: Iterable<string>): void {
     this.shadowedBuiltins = new Set(names);
+  }
+
+  /** Structs declarados no programa, para emitir `new` em chamadas */
+  setStructs(structs: Map<string, { hasInit: boolean }>): void {
+    this.structs = structs;
   }
 
   visit(expr: Expr): string {
@@ -135,15 +142,33 @@ export class ExprVisitor {
     }).join(", ");
 
 // Metodo de primitivo: o checker anotou o template JS no no Member.
-    // $self = receiver, $ARGS = argumentos ja formatados, com a virgula
-    // inicial (o template traz os parenteses).
+    // $self = receiver; $ARGS = lista nua (metodo nativo, receiver e `this`);
+    // $REST = lista com virgula inicial (registro de extend, receiver e arg 0).
     if (expr.callee.kind === "Member") {
       const template = (expr.callee as any).jsTemplate;
       if (typeof template === "string") {
         const self = this.visit(expr.callee.object);
         return template
           .split("$self").join(self)
-          .split("$ARGS").join(args.length > 0 ? `, ${args}` : "");
+          .split("$ARGS").join(args)
+          .split("$REST").join(args.length > 0 ? `, ${args}` : "");
+      }
+    }
+
+    // Construtor de struct: sem `new` o JS chama a classe sem instanciar.
+    // Auto-init usa argumento nomeado e o construtor destructura; init
+    // custom e posicional. O literal `Nome { }` ja e outro no de AST.
+    if (expr.callee.kind === "Identifier") {
+      const structName = expr.callee.name.value;
+      const struct = this.structs.get(structName);
+      if (struct) {
+        if (struct.hasInit) {
+          return `new ${structName}(${args})`;
+        }
+        const named = expr.args
+          .filter((a: any) => a.kind === "NamedArgument")
+          .map((a: any) => `${a.key}: ${this.visit(a.value)}`);
+        return `new ${structName}({ ${named.join(", ")} })`;
       }
     }
 
@@ -239,8 +264,15 @@ export class ExprVisitor {
   }
 
 private visitMember(expr: MemberExpr): string {
-    const obj = this.visit(expr.object);
+    let obj = this.visit(expr.object);
     const prop = expr.property.name.value;
+
+    // `10.isEven()` e JS invalido — o parser le `10.` como literal. Parentese
+    // quando o receiver e um literal numerico.
+    if (expr.object.kind === "Literal" && typeof expr.object.value === "number") {
+      obj = `(${obj})`;
+    }
+
     // self.prop inside a struct method  this.prop
     if (this.inStructMethod && expr.object.kind === "Identifier" && expr.object.name.value === "self") {
       return `this.${prop}`;

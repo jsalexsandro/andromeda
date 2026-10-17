@@ -1,0 +1,111 @@
+// STRESS: extend em primitivos
+
+// ── 1. float e bool, que nunca tinham sido testados ─────────────
+extend Float {
+  func squared(): Float {
+    return self * self
+  }
+
+  func isZero(): bool {
+    return self == 0.0
+  }
+}
+
+extend Boolean {
+  func xor(other: Boolean): Boolean {
+    return self != other
+  }
+}
+
+val f: float = 1.5
+print(f.squared())
+print(f.isZero())
+print((0.0).isZero())
+
+val b: bool = true
+print(b.xor(false))
+print(b.xor(true))
+
+// ── 2. mesmo nome de metodo em primitivos diferentes ─────────────
+extend String {
+  func describe(): string {
+    return "S:" + self
+  }
+}
+
+extend Integer {
+  func describe(): string {
+    return "I:" + self.toString()
+  }
+}
+
+extend Boolean {
+  func describe(): string {
+    return "B:" + self.toString()
+  }
+}
+
+print("x".describe())
+print(5.describe())
+print(true.describe())
+
+// ── 3. metodo de extend chamando outro extend ────────────────────
+extend String {
+  func initials(): string {
+    return self.trim().substring(0, 1)
+  }
+
+  func tag(): string {
+    return self.initials().upper() + "-" + self.length
+  }
+}
+
+print("  andromeda  ".initials())
+print("  andromeda  ".tag())
+
+// ── 4. metodo de extend em valor literal e em expressao ─────────
+print("oi".initials())
+print("ab" + "cd".initials())
+print(10.describe())
+print((-3).isEven())
+
+// ── 5. extend com metodo que recebe e devolve o proprio tipo ────
+extend String {
+  func surroundedBy(mark: string): string {
+    return mark + self + mark
+  }
+
+  func padTo(n: int): string {
+    return self + self + self
+  }
+}
+
+print("x".surroundedBy("*"))
+print("ab".padTo(2))
+
+// ── 6. metodo de extend em campo de struct ──────────────────────
+struct Item {
+  label: string
+  qty: int
+}
+
+extend Item {
+  func summary(): string {
+    return self.qty.toString() + "x " + self.label.upper()
+  }
+}
+
+val it = Item { label: "preto", qty: 3 }
+print(it.summary())
+
+// ── 7. metodo de extend usando optional binding ──────────────────
+extend String {
+  func firstWord(): string? {
+    return self.split(" ")[0]
+  }
+}
+
+val fw: string? = "ola mundo".firstWord()
+if val w = fw {
+  print(w.upper())
+}

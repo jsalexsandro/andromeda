@@ -774,7 +774,7 @@ export class TypeChecker {
           type: p.type ?? ({ kind: "PrimitiveType", name: "unknown" } as TypeNode),
         })),
         returnType: method.returnType ?? { kind: "PrimitiveType", name: "void" },
-        js: `$ext[${JSON.stringify(primitiveName)}].${methodName}($self$ARGS)`,
+        js: `$ext[${JSON.stringify(primitiveName)}].${methodName}($self$REST)`,
       };
       registry.set(methodName, decl);
 
@@ -3353,6 +3353,18 @@ export class TypeChecker {
 
     if (!symbol) {
       this.errors.push(Errors.undefinedType(name, expr.structName));
+      return { kind: "PrimitiveType", name: "unknown" };
+    }
+
+    // Literal `Nome { campo: valor }` e a forma de auto-init. Num struct com
+    // `init` custom o construtor e posicional, entao o literal nao se aplica —
+    // e gerar `new Nome({...})` na frente de `constructor(raw)` quebraria em
+    // runtime com "raw.trim is not a function".
+    if (symbol.kind === "struct" && symbol.init) {
+      this.errors.push(Errors.typeMismatch(
+        `struct '${name}' has a custom init and takes positional arguments — use '${name}(...)'`,
+        expr.structName
+      ));
       return { kind: "PrimitiveType", name: "unknown" };
     }
 

@@ -5,12 +5,18 @@ export interface PrimitiveMethodDecl {
   name: string;
   params: { name: string; type: TypeNode }[];
   returnType: TypeNode;
-  /**
-   * Template de emissao em JavaScript.
-   *   $self  = receiver (ex.: a variavel que teve o metodo chamado)
-   *   $ARGS  = argumentos ja formatados, com a virgula inicial (o template
- *           traz os parenteses)
-   * Metodos sem parametro nao usam $ARGS.
+/**
+   * Template de emissao em JavaScript. Dois formatos, porque o receiver e
+   * ligado de jeitos diferentes:
+   *
+   *   $self = o receiver
+   *   $ARGS = lista de argumentos, sem parenteses e sem virgula.
+   *           Use em metodo NATIVO, onde o receiver e `this`:
+   *             "$self.substring($ARGS)"
+   *   $REST = argumentos com a virgula inicial. Use quando o receiver e
+   *           ARGUMENTO 0, como no registro de extend:
+   *             "$ext[\"String\"].m($self$REST)"
+   *
    * Propriedades ignoram o template: o nome ja e o do JavaScript.
    */
   js: string;
@@ -69,13 +75,13 @@ export const STRING_METHODS: PrimitiveMethodDecl[] = [
     name: "contains",
     params: [{ name: "value", type: primitive("string") }],
     returnType: primitive("bool"),
-    js: "$self.includes$ARGS",
+    js: "$self.includes($ARGS)",
   },
   {
     name: "indexOf",
     params: [{ name: "value", type: primitive("string") }],
     returnType: primitive("int"),
-    js: "$self.indexOf$ARGS",
+    js: "$self.indexOf($ARGS)",
   },
   {
     name: "substring",
@@ -84,13 +90,13 @@ export const STRING_METHODS: PrimitiveMethodDecl[] = [
       { name: "to", type: primitive("int") },
     ],
     returnType: primitive("string"),
-    js: "$self.substring$ARGS",
+    js: "$self.substring($ARGS)",
   },
   {
     name: "split",
     params: [{ name: "separator", type: primitive("string") }],
     returnType: arrayOf("string"),
-    js: "$self.split$ARGS",
+    js: "$self.split($ARGS)",
   },
   {
     name: "replace",
@@ -99,7 +105,7 @@ export const STRING_METHODS: PrimitiveMethodDecl[] = [
       { name: "new", type: primitive("string") },
     ],
     returnType: primitive("string"),
-    js: "$self.replaceAll$ARGS",
+    js: "$self.replaceAll($ARGS)",
   },
   { name: "toInt", params: [], returnType: nullable("int"), js: "AndromedaAPI.toInt($self)" },
   { name: "toFloat", params: [], returnType: nullable("float"), js: "AndromedaAPI.toFloat($self)" },

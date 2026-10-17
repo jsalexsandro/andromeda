@@ -1843,6 +1843,43 @@ print("  x  ".trim().shout())      // encadeamento
 
 Ainda não funciona em `Array<T>`.
 
+#### Limitações conhecidas de `extend`
+
+**Um método do struct não consegue chamar um método do extend.** O `extend`
+precisa vir depois do `struct` (não há hoisting), mas o corpo dos métodos do
+struct é checado no momento da declaração do struct — antes do `extend`:
+
+```typescript
+struct Greeter {
+  who: string
+
+  func hi(): string {
+    return self.hello()   // ERROR: property 'hello' does not exist
+  }
+}
+
+extend Greeter {
+  func hello(): string { return "Oi " + self.who }
+}
+```
+
+Não é contornável reordenando: o `extend` antes do struct não acha o alvo. O
+caminho seria um check em duas fases (registrar structs, registrar extends, só
+então checar corpos).
+
+**`struct { }` literal não vale em struct com `init` custom.** O literal é a
+forma de auto-init; com init custom o construtor é posicional:
+
+```typescript
+struct Token { mut value: string; init(raw: string) { self.value = raw.trim() } }
+
+Token("  x  ")          // ok
+Token { value: "x" }   // ERROR: has a custom init and takes positional arguments
+```
+
+**Não há narrowing** depois de `if (x == null)` — use `if val` (ver
+[Optional Binding](#optional-binding-if-val--if-var)).
+
 ### Aliases globais de primitivos
 
 Todo primitivo tem alias capitalizado, sem precisar declarar `typealias`:
@@ -1953,6 +1990,7 @@ Strings no topo saem sem aspas; strings aninhadas saem com aspas
 - [x] **Aliases globais** - `Integer`, `Float`, `String`, `Boolean`, `Void`, `Null`, `Any`, `Unknown` (transparentes e protegidos)
 - [x] **extend em struct** - métodos adicionados após a declaração, com detecção de conflito
 - [x] **extend em primitivos** - `extend String`, `extend Integer`, etc., via registro `$ext` sem tocar no prototype global
+- [x] **Construtor de struct com `new`** - `Nome(...)` e `Nome(campo: valor)` emitem `new`; literal rejeitado em struct com init custom
 - [x] **Divisão inteira** - `int / int` trunca em direção a zero, cumprindo o tipo prometido
 - [x] **Divisão por zero** - `int` por zero é erro (`DIVISION_BY_ZERO` ou exceção em runtime); `float` segue IEEE-754
 - [x] **Concatenação** - `string + primitivo` e o simétrico
