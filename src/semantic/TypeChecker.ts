@@ -1612,9 +1612,7 @@ export class TypeChecker {
   ): TypeNode {
     const structName = structSymbol.name;
     const callName = expr.callee.kind === "Identifier" ? expr.callee.name.value as string : structName;
-    const token = expr.callee.kind === "Identifier"
-      ? expr.callee.name
-      : { line: 0, column: 0, type: 0, value: "" } as Token;
+    const token = this.getExprToken(expr.callee) ?? ({ line: 0, column: 0, type: 0, value: "" } as Token);
 
     // Determine mode: auto-init vs custom init
     const structFields = structSymbol.fields as StructField[] | undefined;
@@ -3696,9 +3694,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         expr.args.forEach(arg => this.checkExpression(arg));
         return { kind: "PrimitiveType", name: "any" };
       }
-      const token = expr.callee.kind === "Identifier"
-        ? expr.callee.name
-        : { line: 0, column: 0, type: 0, value: "" } as Token;
+      const token = this.getExprToken(expr.callee) ?? ({ line: 0, column: 0, type: 0, value: "" } as Token);
       this.errors.push(Errors.invalidCall(token));
       return { kind: "PrimitiveType", name: "any" };
     }
@@ -3713,9 +3709,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         // Chamada com type args explícitos: add<int>(1, 2)
         const typeArgs = expr.typeArgs;
         if (typeArgs.length !== typeParams.length) {
-          const token = expr.callee.kind === "Identifier"
-            ? expr.callee.name
-            : { line: 0, column: 0, type: 0, value: "" } as Token;
+          const token = this.getExprToken(expr.callee) ?? ({ line: 0, column: 0, type: 0, value: "" } as Token);
           this.errors.push(Errors.genericArgCount(
             expr.callee.kind === "Identifier" ? (expr.callee.name.value as string) : "",
             typeParams.length, typeArgs.length, token, "function"
@@ -3734,7 +3728,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
           // Validar cada type arg
           let valid = true;
           for (const ta of typeArgs) {
-            const err = this.validateTypeNode(ta, expr.callee.kind === "Identifier" ? expr.callee.name : { line: 0, column: 0, type: 0, value: "" } as Token);
+            const err = this.validateTypeNode(ta, this.getExprToken(expr.callee) ?? ({ line: 0, column: 0, type: 0, value: "" } as Token));
             if (err) {
               this.errors.push(err);
               valid = false;
@@ -3786,9 +3780,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
           // Type params que ainda não foram inferidos → erro + unknown para recovery
           const missingParams = typeParams.filter(tp => !mapping.has(tp.name.value as string));
           if (missingParams.length > 0) {
-            const token = expr.callee.kind === "Identifier"
-              ? expr.callee.name
-              : { line: 0, column: 0, type: 0, value: "" } as Token;
+            const token = this.getExprToken(expr.callee) ?? ({ line: 0, column: 0, type: 0, value: "" } as Token);
             for (const tp of missingParams) {
               this.errors.push(Errors.genericInferenceFailed(tp.name.value as string, token));
               mapping.set(tp.name.value as string, { kind: "PrimitiveType", name: "unknown" });
@@ -3805,9 +3797,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       }
     } else if (expr.typeArgs && expr.typeArgs.length > 0) {
       // Chamada com type args mas função não é genérica
-      const token = expr.callee.kind === "Identifier"
-        ? expr.callee.name
-        : { line: 0, column: 0, type: 0, value: "" } as Token;
+      const token = this.getExprToken(expr.callee) ?? ({ line: 0, column: 0, type: 0, value: "" } as Token);
       this.errors.push(Errors.notGeneric(
         expr.callee.kind === "Identifier" ? (expr.callee.name.value as string) : "",
         token, "function"
@@ -3840,17 +3830,13 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     if (hasRest) {
       const minArgs = restIndex;
       if (totalPositional < minArgs) {
-        const token = expr.callee.kind === "Identifier"
-          ? expr.callee.name
-          : { line: 0, column: 0, type: 0, value: "" } as Token;
+        const token = this.getExprToken(expr.callee) ?? ({ line: 0, column: 0, type: 0, value: "" } as Token);
         this.errors.push(Errors.argumentCountMismatch(minArgs, totalPositional, token));
       }
     } else if (totalNamed === 0) {
       // All positional: exact arity
       if (params.length !== totalPositional) {
-        const token = expr.callee.kind === "Identifier"
-          ? expr.callee.name
-          : { line: 0, column: 0, type: 0, value: "" } as Token;
+        const token = this.getExprToken(expr.callee) ?? ({ line: 0, column: 0, type: 0, value: "" } as Token);
         this.errors.push(Errors.argumentCountMismatch(params.length, totalPositional, token));
       }
     }
@@ -3962,24 +3948,6 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     }
 
     return effectiveReturnType;
-  }
-
-  private getExprToken(expr: Expr): Token {
-    switch (expr.kind) {
-      case "Identifier": return expr.name;
-      case "Literal": return expr.value;
-      case "Unary": return expr.operator;
-      case "Binary": return expr.operator;
-      case "Call": return this.getExprToken(expr.callee);
-      case "Member": return expr.property;
-      case "Group": return this.getExprToken(expr.expression);
-      case "Spread": return this.getExprToken(expr.argument);
-      case "ArrowFunction":
-        if (expr.params.length > 0) return expr.params[0].name;
-        return { line: 0, column: 0, type: 0, value: "" } as Token;
-      default:
-        return { line: 0, column: 0, type: 0, value: "" } as Token;
-    }
   }
 
   /**
@@ -4250,6 +4218,10 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
           return null;
         case "Index":
           return this.getExprToken(expr.object) ?? this.getExprToken(expr.index) ?? null;
+        case "Member":
+          // sem este caso, `s.trim(1)` perdia a posicao: o Call desce para
+          // o callee, que e Member, e caia no default null
+          return expr.property.name;
         case "Call":
           return this.getExprToken(expr.callee) ?? null;
       default: return null;
