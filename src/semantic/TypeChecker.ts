@@ -3,11 +3,15 @@ import { Stmt, Expr, TypeNode, GenericTypeNode, FunctionTypeNode, IfVariableStmt
 import { Symbol, createSymbol } from "./types";
 import { SemanticError, Errors } from "./errors";
 import { Environment } from "./Environment";
+import { BUILTIN_NAMESPACES, BUILTIN_TYPE_ALIASES, BUILTIN_TYPES, BUILTIN_VALUES } from "../builtins";
+import { getPrimitiveMethods, isValuePrimitive, PrimitiveMethodDecl } from "../builtins/methods";
 
 export class TypeChecker {
   private static readonly PROTECTED_BUILTINS = new Set([
-    "Array",
-    "Optional",
+    ...BUILTIN_TYPES.map((builtin) => builtin.name),
+    ...BUILTIN_VALUES.map((builtin) => builtin.name),
+    ...BUILTIN_NAMESPACES,
+    ...BUILTIN_TYPE_ALIASES.map((alias) => alias.name),
   ]);
 
   private errors: SemanticError[] = [];
@@ -16,6 +20,8 @@ export class TypeChecker {
   private loopDepth: number = 0;
   private functionDepth: number = 0;
   private hasReturn: boolean = false;
+  /** Metodo de primitivo resolvido em checkMemberExpr, aguardando confirmacao de call */
+  private pendingPrimitiveMethod: { node: Expr; method: PrimitiveMethodDecl } | null = null;
   private currentFunctionReturnType: TypeNode | null = null;
   private contextualType: TypeNode | null = null;
   private resolvedTypes = new Map<Expr, TypeNode>();
@@ -441,6 +447,10 @@ export class TypeChecker {
     const existing = this.currentEnv.lookupLocal(name);
 
     if (existing) {
+      if (existing.kind === "builtin" && TypeChecker.PROTECTED_BUILTINS.has(name)) {
+        this.errors.push(Errors.cannotRedefineBuiltin(name, stmt.name));
+        return;
+      }
       this.errors.push(Errors.alreadyDeclared(name, stmt.name));
       return;
     }
@@ -663,6 +673,10 @@ export class TypeChecker {
 
     const existing = this.currentEnv.lookupLocal(name);
     if (existing) {
+      if (existing.kind === "builtin" && TypeChecker.PROTECTED_BUILTINS.has(name)) {
+        this.errors.push(Errors.cannotRedefineBuiltin(name, stmt.name));
+        return;
+      }
       this.errors.push(Errors.alreadyDeclared(name, stmt.name));
       return;
     }
@@ -2289,7 +2303,12 @@ export class TypeChecker {
     const symbol = this.globalEnv.lookup(name);
 
     // Só expande se for alias (kind: "type") — structs/enums não expandem
-    if (symbol?.kind === "type") {
+    // Aliases globais de primitivo (Integer → int) tambem sao builtin, e
+    // precisam expandir. A guarda em PrimitiveType e precisa: Array e
+    // Optional tambem sao builtin, mas com GenericType, e ficam de fora.
+    const isPrimitiveAlias =
+      symbol?.kind === "builtin" && symbol.type.kind === "PrimitiveType";
+    if (symbol?.kind === "type" || isPrimitiveAlias) {
       if (symbol.typeParameters && symbol.typeParameters.length > 0) {
         // Generic alias used without type args — use defaults or leave as-is
         return type;
@@ -2489,6 +2508,10 @@ export class TypeChecker {
     const existing = this.currentEnv.lookupLocal(name);
 
     if (existing) {
+      if (existing.kind === "builtin" && TypeChecker.PROTECTED_BUILTINS.has(name)) {
+        this.errors.push(Errors.cannotRedefineBuiltin(name, stmt.name));
+        return;
+      }
       this.errors.push(Errors.alreadyDeclared(name, stmt.name));
       return;
     }
@@ -2609,7 +2632,9 @@ export class TypeChecker {
     this.currentEnv = previousEnv;
     this.currentFunctionReturnType = null;
 
-    if (returnType.kind !== "PrimitiveType" || returnType.name !== "void") {
+    // resolve alias antes: `Void` é o mesmo que `void`
+    const resolvedReturn = this.resolveAlias(returnType);
+    if (resolvedReturn.kind !== "PrimitiveType" || resolvedReturn.name !== "void") {
       if (!this.hasReturn) {
         this.errors.push(Errors.missingReturn(stmt.name));
       }
@@ -3475,6 +3500,15 @@ export class TypeChecker {
         if (leftType.name === "string" && rightType.name === "string") {
           return { kind: "PrimitiveType", name: "string" };
         }
+        // concatenacao: string + primitivo, e o simetrico
+        const isText = (t: TypeNode) =>
+          t.kind === "PrimitiveType" &&
+          (t.name === "string" || t.name === "int" || t.name === "float" || t.name === "bool");
+        const leftIsString = leftType.kind === "PrimitiveType" && leftType.name === "string";
+        const rightIsString = rightType.kind === "PrimitiveType" && rightType.name === "string";
+        if ((leftIsString && isText(rightType)) || (rightIsString && isText(leftType))) {
+          return { kind: "PrimitiveType", name: "string" };
+        }
       }
       this.errors.push(Errors.typeMismatch(`invalid operands for operator '${op}'`, expr.operator));
       return { kind: "PrimitiveType", name: "string" };
@@ -3487,7 +3521,13 @@ export class TypeChecker {
         (leftType.name === "int" || leftType.name === "float") &&
         (rightType.name === "int" || rightType.name === "float")
       ) {
-        return leftType.name === "int" && rightType.name === "int"
+        const bothInt = leftType.name === "int" && rightType.name === "int";
+        // int / int e inteiro na linguagem: o runtime precisa truncar,
+        // senao o tipo promete int e entrega float
+        if (op === "/" && bothInt) {
+          (expr as any).truncateDivision = true;
+        }
+        return bothInt
           ? { kind: "PrimitiveType", name: "int" }
           : { kind: "PrimitiveType", name: "float" };
       }
@@ -3615,6 +3655,7 @@ export class TypeChecker {
   }
 
 private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
+    this.pendingPrimitiveMethod = null;
     // ── Struct constructor call detection ──────────────────────
     // Se o callee é um identificador que resolve para struct ou type alias de struct
     if (expr.callee.kind === "Identifier") {
@@ -3638,6 +3679,8 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const calleeType = this.resolveAlias(
       this.unwrapGrouping(this.checkExpression(expr.callee))
     );
+
+    this.consumePendingPrimitiveMethod(expr.callee);
 
     // callee não é função
     if (calleeType.kind !== "FunctionType") {
@@ -3933,6 +3976,19 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     }
   }
 
+  /**
+   * O codegen nao tem informacao de tipo, entao o checker anota o no da AST
+   * com o template JS quando o metodo de primitivo e de fato chamado.
+   * Usar o metodo como valor (`val f = age.abs`) nao anota nada: o JS gerado
+   * quebra alto em runtime em vez de devolver silenciosamente um valor.
+   */
+  private consumePendingPrimitiveMethod(callee: Expr): void {
+    const pending = this.pendingPrimitiveMethod;
+    this.pendingPrimitiveMethod = null;
+    if (!pending || pending.node !== callee) return;
+    (callee as any).jsTemplate = pending.method.js;
+  }
+
   private checkMemberExpr(expr: Extract<Expr, { kind: "Member" }>): TypeNode {
     const rawType = this.checkExpression(expr.object);
     const objectType = this.resolveAlias(rawType);
@@ -4023,6 +4079,40 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         propToken
       ));
       return { kind: "PrimitiveType", name: "any" };
+    }
+
+    if (objectType.kind === "PrimitiveType") {
+      // `any` e escape hatch: aceita qualquer membro e devolve `any`.
+      // O dispatch acontece em runtime, no valor real.
+      // `unknown` NAO entra aqui — ele exige estreitamento.
+      if (objectType.name === "any") {
+        return { kind: "PrimitiveType", name: "any" };
+      }
+
+      const methods = getPrimitiveMethods(objectType.name) ?? [];
+      const member = methods.find((m) => m.name === propName);
+      if (member) {
+        // propriedade: o codegen ja emite `obj.prop` naturalmente
+        if (member.property) {
+          return member.returnType;
+        }
+        // metodo: receiver e implicito, a assinatura comeca nos params
+        this.pendingPrimitiveMethod = { node: expr, method: member };
+        return {
+          kind: "FunctionType",
+          params: member.params.map((p) => ({ ...p.type, paramName: p.name })),
+          returnType: member.returnType,
+        };
+      }
+      if (isValuePrimitive(objectType.name)) {
+        this.errors.push(Errors.unknownMethod(
+          propName,
+          objectType.name,
+          methods.map((m) => m.name),
+          propToken
+        ));
+        return { kind: "PrimitiveType", name: "unknown" };
+      }
     }
 
     if (objectType.kind !== "Object") {

@@ -1,0 +1,48 @@
+// print — Stringable, ciclos e shadowing
+
+protocol Stringable {
+  func toString(): string
+}
+
+struct User implements Stringable {
+  name: string
+
+  // toString e honrado pelo runtime em print() e em valores aninhados
+  func toString(): string {
+    return "User(" + self.name + ")"
+  }
+}
+
+struct City {
+  name: string
+}
+
+struct Address {
+  city: City
+  zip: string?
+}
+
+struct Node {
+  mut next: Node?
+  label: string
+}
+
+// Stringable: o runtime chama toString()
+val u = User { name: "Alice" }
+print(u)
+
+// Struct comum: formatacao estrutural com o nome do tipo
+val addr = Address { city: City { name: "Recife" }, zip: null }
+print(addr)
+
+// Strings aninhadas ficam entre aspas, no topo ficam cruas
+print("cidade:", addr.city)
+
+// Ciclo
+val n = Node { next: null, label: "n1" }
+n.next = n
+print(n)
+
+// Struct dentro de array
+val users: User[] = [User { name: "Ana" }, User { name: "Bia" }]
+print(users)

@@ -1,0 +1,19 @@
+// Integer continua sendo int: os erros sao os mesmos
+//
+// Espera:
+// [TYPE_MISMATCH] string em Integer
+// [TYPE_MISMATCH] float em Integer
+// [UNKNOWN_METHOD] metodo que existe em String mas nao em Integer
+// [TYPE_MISMATCH] Integer em String
+
+val a: Integer = "texto"          // string -> Integer: errado
+val b: Integer = 3.14             // float -> Integer: errado
+val c: Integer = "texto".upper()  // metodo de string
+val d: String = 42                // int -> String: errado
+
+// float tambem nao entra em int, mesmo com o alias
+val e: Integer = b
+
+// Any aceita, Unknown nao
+val f: Any = 42
+val g: Any = "texto"

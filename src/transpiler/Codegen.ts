@@ -1,5 +1,7 @@
 import { Stmt, Expr, Program } from "../ast";
 import { ExprVisitor } from "./ExprVisitor";
+import { RUNTIME_JS } from "./runtime/runtime";
+import { isBuiltinValue } from "../builtins";
 import { Token, TokenType } from "../lexer/types";
 
 export class Codegen {
@@ -12,7 +14,9 @@ export class Codegen {
   transpile(ast: Stmt[]): string {
     const lines: string[] = [];
 
-    lines.push(this.getRuntimeHeader());
+    this.exprVisitor.shadowBuiltins(this.collectShadowedBuiltins(ast));
+
+    lines.push(RUNTIME_JS);
     lines.push("");
 
     for (const stmt of ast) {
@@ -25,30 +29,36 @@ export class Codegen {
     return lines.join("\n");
   }
 
-  private getRuntimeHeader(): string {
-    return `// Andromeda Runtime (minimal)
-const $equals = (a, b) => {
-  if (a === b) return true;
-  if (a === null || b === null) return a === b;
-  if (typeof a !== "object" || typeof b !== "object") return a === b;
-  const ka = Object.keys(a), kb = Object.keys(b);
-  if (ka.length !== kb.length) return false;
-  return ka.every(k => $equals(a[k], b[k]));
-};
+  /**
+   * Um builtin pode ser redefinido pelo usuario (`func print(...)`). Nesse caso
+   * o nome passa a pertencer ao programa e nao pode ser reescrito para o
+   * simbolo do runtime.
+   */
+  private collectShadowedBuiltins(ast: Stmt[]): string[] {
+    const shadowed: string[] = [];
 
-const $andromeda = {
-  equals: (a, b) => {
-    if (a === b) return true;
-    if (a === null || b === null) return a === b;
-    if (typeof a !== "object" || typeof b !== "object") return a === b;
-    const ka = Object.keys(a), kb = Object.keys(b);
-    if (ka.length !== kb.length) return false;
-    return ka.every(k => $equals(a[k], b[k]));
-  },
-  struct: { create: (n, f) => f },
-  protocol: { registry: new Map(), register: () => {}, check: () => true },
-  generic: { erase: (t) => t }
-};`;
+    const visitStmt = (stmt: any): void => {
+      if (!stmt || typeof stmt !== "object") return;
+
+      if (stmt.kind === "FunctionStmt" && stmt.name?.value) {
+        const name = stmt.name.value;
+        if (isBuiltinValue(name) && !shadowed.includes(name)) {
+          shadowed.push(name);
+        }
+      }
+
+      for (const key of Object.keys(stmt)) {
+        const value = (stmt as any)[key];
+        if (Array.isArray(value)) {
+          value.forEach(visitStmt);
+        } else if (value && typeof value === "object" && typeof value.kind === "string") {
+          visitStmt(value);
+        }
+      }
+    };
+
+    ast.forEach(visitStmt);
+    return shadowed;
   }
 
   transpileStmt(stmt: any): string {

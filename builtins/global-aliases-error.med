@@ -1,0 +1,16 @@
+// os aliases globais sao protegidos: nao podem ser redefinidos
+//
+// Espera:
+// [CANNOT_REDEFINE_BUILTIN] em typealias, struct e protocol
+
+typealias Integer = int
+
+struct String { nome: string }
+
+protocol Boolean { func algo(): Void }
+
+val Float = 1.5
+
+func Void(): Void { }
+
+typealias Any = string

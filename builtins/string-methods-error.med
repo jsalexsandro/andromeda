@@ -1,0 +1,27 @@
+// casos de erro dos metodos de string
+//
+// Espera:
+// [UNKNOWN_METHOD] type 'string' has no method 'charAt' — available: length, upper, ...
+// [UNKNOWN_METHOD] type 'string' has no method 'repeat'
+// [TYPE_MISMATCH] ao passar int onde se espera string
+// [ARGUMENT_COUNT_MISMATCH] ao chamar com parametros a mais ou a menos
+// [INVALID_CALL] ao chamar uma propriedade como metodo
+
+val s: string = "texto"
+
+// charAt foi adiado
+val a: string = s.charAt(0)
+
+// repeat foi adiado
+val b: string = s.repeat(3)
+
+// argumento errado
+val c: bool = s.contains(42)
+val d: string[] = s.split(7)
+
+// aridade
+val e: string = s.substring(0)
+val f: string = s.trim("x")
+
+// length e propriedade, nao metodo
+val g: int = s.length()

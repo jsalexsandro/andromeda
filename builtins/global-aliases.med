@@ -1,0 +1,43 @@
+// aliases globais de primitivo — nao precisa declarar nada
+
+// anotacoes
+val i: Integer = 42
+val f: Float = 3.14
+val s: String = "Andromeda"
+val b: Boolean = true
+val n: Null = null
+val a: Any = 7
+val u: Unknown = "texto"
+
+print(i)
+print(f)
+print(s)
+print(b)
+print(n)
+print(a)
+
+// metodos via alias — resolve para o primitivo
+print(i.isEven())
+print(s.length)
+print(s.upper())
+print(f.toInt())
+
+// transparente nos dois sentidos
+val volta: int = i
+val volta2: Integer = 42
+print(volta)
+print(volta2)
+
+// em assinatura de funcao
+func escreve(mensagem: String): Void {
+  print(mensagem)
+}
+
+escreve("ok")
+
+// receiver inferido com alias
+val contador: Integer = 7
+print(contador.isOdd())
+
+// Any e escape hatch, Unknown nao
+print(a.toString())

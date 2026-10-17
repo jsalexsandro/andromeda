@@ -45,6 +45,7 @@
     - [Protocol Generics](#176-protocol-generics)
     - [Self Type](#177-self-type)
     - [Error Cases](#178-error-cases)
+18. [Builtins](#18-builtins)
 
 ---
 
@@ -746,7 +747,7 @@ for (var k: int = 0; k < 2; k = k + 1) {
 | `+` | Addition | `a + b` |
 | `-` | Subtraction | `a - b` |
 | `*` | Multiplication | `a * b` |
-| `/` | Division | `a / b` |
+| `/` | Division | `a / b` — `int / int` é inteira (truncada), ver [divisão inteira](#divisão-inteira) |
 | `%` | Modulo | `a % b` |
 | `-` (unary) | Negation | `-a` |
 
@@ -930,8 +931,8 @@ protocol Nome {
 
 ```typescript
 // Protocol básico
-protocol Printable {
-  func print(): void
+protocol Stringable {
+  func toString(): string
 }
 
 // Protocol com parâmetros e retorno
@@ -963,14 +964,14 @@ protocol Comparable {
 Methods em protocols são **apenas assinaturas** — não têm corpo.
 
 ```typescript
-protocol Printable {
-  func print(): void                    // método sem parâmetros
-  func printPrefix(prefix: string): void  // com parâmetro
+protocol Stringable {
+  func toString(): string               // método sem parâmetros
+  func toStringWith(prefix: string): string  // com parâmetro
   func format(): string                  // com retorno
-  
+
   // Self type — refere-se ao tipo implementador
   func equals(other: Self): bool
-  
+
   // Type parameters no método
   func map<U>(fn: (T) => U): U
 }
@@ -988,28 +989,30 @@ protocol Printable {
 Structs implementam protocols com `implements`:
 
 ```typescript
-protocol Printable {
-  func print(): void
+protocol Stringable {
+  func toString(): string
 }
 
-struct User implements Printable {
+struct User implements Stringable {
   name: string
-  
-  func print(): void {
-    print(self.name)
+
+  func toString(): string {
+    return "User(" + self.name + ")"
   }
 }
+
+print(User { name: "Alice" })   // User(Alice)
 ```
 
 **Múltiplos protocols:**
 ```typescript
-protocol Printable { func print(): void }
+protocol Stringable { func toString(): string }
 protocol Serializable { func serialize(): string }
 
-struct User implements Printable, Serializable {
+struct User implements Stringable, Serializable {
   name: string
-  
-  func print(): void { print(self.name) }
+
+  func toString(): string { return "User(" + self.name + ")" }
   func serialize(): string { return self.name }
 }
 ```
@@ -1043,11 +1046,11 @@ val v = box.get()  // int
 O type checker valida conformance automaticamente:
 
 ```typescript
-protocol Printable { func print(): void }
+protocol Stringable { func toString(): string }
 
-struct User implements Printable {
+struct User implements Stringable {
   name: string
-  // ERROR: missing method 'print'
+  // ERROR: missing method 'toString'
 }
 ```
 
@@ -1062,16 +1065,16 @@ struct User implements Printable {
 Protocols podem ser usados como tipos:
 
 ```typescript
-protocol Printable { func print(): void }
+protocol Stringable { func toString(): string }
 
-struct User implements Printable { ... }
-struct Logger implements Printable { ... }
+struct User implements Stringable { ... }
+struct Logger implements Stringable { ... }
 
-val p: Printable = User { name: "Alice" }  // upcast implícito
-p.print()
+val p: Stringable = User { name: "Alice" }  // upcast implícito
+p.toString()
 
-val items: Printable[] = [User { name: "A" }, Logger { ... }]
-for item in items { item.print() }
+val items: Stringable[] = [User { name: "A" }, Logger { ... }]
+for item in items { item.toString() }
 ```
 
 **Upcast implícito:** struct → protocol é automático quando struct implementa o protocol.
@@ -1081,19 +1084,19 @@ for item in items { item.print() }
 Quando uma variável é declarada com o tipo de um protocolo, o type checker resolve chamadas de método contra os métodos declarados no protocolo (não no struct subjacente):
 
 ```typescript
-protocol Printable {
-  func print(): void
+protocol Stringable {
+  func toString(): string
 }
 
-struct User implements Printable {
+struct User implements Stringable {
   name: string
-  func print(): void {
-    // body
+  func toString(): string {
+    return "User(" + self.name + ")"
   }
 }
 
-val p: Printable = User { name: "Alice" }
-p.print()  // OK - resolve 'print' do protocolo Printable
+val p: Stringable = User { name: "Alice" }
+p.toString()  // OK - resolve 'toString' do protocolo Stringable
 ```
 
 **Regras:**
@@ -1154,9 +1157,9 @@ val eq = a.equals(b)  // Self resolvido para UserId
 | Error | Exemplo | Mensagem |
 |-------|---------|----------|
 | `PROTOCOL_NOT_FOUND` | `struct X implements NonExistent` | `protocol 'NonExistent' not found` |
-| `MISSING_PROTOCOL_METHOD` | Faltando método | `missing method 'print' required by protocol 'Printable'` |
-| `PROTOCOL_METHOD_MISMATCH` | Assinatura errada | `method 'print' signature mismatch: expected '() => void', got '(string) => void'` |
-| `DUPLICATE_PROTOCOL_METHOD` | Duplicado no protocol | `duplicate method 'print' in protocol` |
+| `MISSING_PROTOCOL_METHOD` | Faltando método | `missing method 'toString' required by protocol 'Stringable'` |
+| `PROTOCOL_METHOD_MISMATCH` | Assinatura errada | `method 'toString' signature mismatch: expected '() => string', got '(string) => void'` |
+| `DUPLICATE_PROTOCOL_METHOD` | Duplicado no protocol | `duplicate method 'toString' in protocol` |
 | `GENERIC_ARG_COUNT` | Type args errados | `Generic protocol 'Container' expects 1 type argument(s), got 2` |
 | `ALREADY_DECLARED` | Type param duplicado | `'T' is already declared` |
 | `UNKNOWN_PROPERTY` | Método não existe no protocolo | `property 'foo' does not exist` (acessando método inexistente em variável tipada como protocolo) |
@@ -1597,6 +1600,219 @@ val okCheck: bool = ok.isOk()
 
 ---
 
+## 18. Builtins
+
+Builtins são funções disponíveis em qualquer escopo sem declaração. A referência
+completa da API está em [`docs/controlls/api-bultins.md`](controlls/api-bultins.md).
+
+### print
+
+```typescript
+print(...values: any[]): void
+```
+
+Escreve os argumentos em stdout separados por um espaço, sempre com quebra de
+linha no final:
+
+```typescript
+print("Andromeda")            // Andromeda
+print(42)                     // 42
+print("cidade:", "Recife")    // cidade: Recife
+print()                       // (linha vazia)
+
+val nums: int[] = [1, 2, 3]
+print(nums)                   // [1, 2, 3]
+```
+
+`print` aceita qualquer valor, nunca lança exceção e não pode ser redefinida
+(`CANNOT_REDEFINE_BUILTIN`).
+
+### Formatação de structs
+
+Structs são formatados como `Nome { campo: valor }`:
+
+```typescript
+struct User { name: string; age: int }
+print(User { name: "Alice", age: 30 })   // User { name: "Alice", age: 30 }
+```
+
+### Métodos de `int`
+
+Primitivos têm métodos, com receiver explícito ou inferido:
+
+```typescript
+val age: int = -10
+age.toString()          // "-10"
+age.isEven()            // true
+age.toFloat()           // -10.0
+
+val test = 1
+test.isOdd()            // true  — receiver inferido do literal
+```
+
+| Método | Retorno |
+|--------|---------|
+| `toString()` | `string` |
+| `toFloat()` | `float` |
+| `isEven()` | `bool` |
+| `isOdd()` | `bool` |
+
+O receiver é implícito e só existe método quando **não há operador** para a
+operação — por isso não existe `age.isPositive()` (use `age > 0`) nem
+`age.abs()`. Método inexistente gera `UNKNOWN_METHOD` com a lista do que existe.
+
+### Métodos de `string`
+
+```typescript
+val nome: string = "  Ana Silva  "
+
+nome.trim()                    // "Ana Silva"
+nome.trim().upper()            // "ANA SILVA"
+nome.trim().lower()            // "ana silva"
+nome.trim().length             // 9 — propriedade, sem ()
+nome.contains("Silva")         // true
+nome.indexOf("Ana")            // 2
+nome.trim().substring(0, 3)    // "Ana"
+"a,b,c".split(",")             // ["a", "b", "c"]
+"banana".replace("an", "X")    // "bXXa" — todas as ocorrências
+```
+
+| Entrada | Params | Retorno |
+|---------|--------|---------|
+| `length` | — | `int` |
+| `upper()` / `lower()` | — | `string` |
+| `trim()` | — | `string` |
+| `isEmpty()` | — | `bool` |
+| `contains(value)` | `string` | `bool` |
+| `indexOf(value)` | `string` | `int` |
+| `substring(from, to)` | `int, int` | `string` |
+| `split(separator)` | `string` | `string[]` |
+| `replace(old, new)` | `string, string` | `string` |
+| `toInt()` | — | `int?` |
+| `toFloat()` | — | `float?` |
+
+`length` é **propriedade**: chamar `s.length()` dá `INVALID_CALL`. `isEmpty()`
+existe porque a forma com operador exige parênteses ao negar — `!(s == "")`
+contra o `!s.isEmpty()` direto.
+
+### Conversão com Optional
+
+`toInt()` e `toFloat()` devolvem `int?` / `float?`, com `null` quando a string
+não é número — em vez de `NaN` com tipo `int`:
+
+```typescript
+val n: int? = "42".toInt()
+if val v = n {
+  print(v.isEven())     // v já é int — Optional desembrulhado
+} else {
+  print("não era número")
+}
+
+"".toInt()               // null, não 0
+"3.7".toInt()            // 3 — trunca, não arredonda
+```
+
+### Métodos de `float` e `bool`
+
+`float` e `bool` só convertem — matemática de `float` fica com os operadores.
+
+| Tipo | Método | Retorno |
+|------|--------|---------|
+| `float` | `toString()` | `string` |
+| `float` | `toInt()` | `int` (trunca: `3.14 → 3`) |
+| `bool` | `toString()` | `string` |
+
+`float.toInt()` devolve `int` direto, sem `Optional`: um float **é** um número,
+nunca "não é número" — ao contrário de `string.toInt()`.
+
+### Interconexão entre primitivos
+
+Como os métodos devolvem primitivos, as cadeias fluem entre os tipos:
+
+```typescript
+"  Ana  ".trim().lower().length.isEven()   // string → string → int → bool
+42.toString().upper().length.isEven()      // int → string → string → int → bool
+2.toFloat().toString().length.isEven()     // int → float → string → int → bool
+const n = ''
+print(n.length.isEven())                   // "" → 0 → 0 é par → true
+```
+
+### Aliases globais de primitivos
+
+Todo primitivo tem alias capitalizado, sem precisar declarar `typealias`:
+
+```typescript
+val i: Integer = 42
+val s: String = "Andromeda"
+val b: Boolean = true
+val f: Float = 3.14
+
+print(i.isEven())          // true — Integer resolve para int
+print(s.upper())           // "ANDROMEDA"
+
+func escreve(m: String): Void {
+  print(m)
+}
+```
+
+| Alias | Tipo | Alias | Tipo |
+|-------|------|-------|------|
+| `Integer` | `int` | `Void` | `void` |
+| `Float` | `float` | `Null` | `null` |
+| `String` | `string` | `Any` | `any` |
+| `Boolean` | `bool` | `Unknown` | `unknown` |
+
+São **transparentes** — `Integer` **é** `int`, e `val j: int = i` funciona. Os 8
+nomes são reservados: `struct String` ou `typealias Integer` dão
+`CANNOT_REDEFINE_BUILTIN`.
+
+### Divisão inteira
+
+`int / int` é divisão **inteira**, truncada em direção a zero:
+
+```typescript
+val a: int = 10
+val b: int = 3
+val c: int = a / b      // 3     (não 3.333)
+val d: int = -10 / 3    // -3
+val e: int = 10 % 3     // 1
+val f: float = 10.0 / 3 // 3.333 — float em qualquer lado devolve float
+```
+
+### Concatenação
+
+`string + primitivo` concatena, e o simétrico também:
+
+```typescript
+val age: int = 10
+val s: string = "idade: " + age   // "idade: 10"
+val t: string = age + " anos"     // "10 anos"
+```
+
+### Stringable
+
+Um struct controla a própria formatação implementando `Stringable`:
+
+```typescript
+protocol Stringable {
+  func toString(): string
+}
+
+struct User implements Stringable {
+  name: string
+  func toString(): string {
+    return "User(" + self.name + ")"
+  }
+}
+
+print(User { name: "Alice" })   // User(Alice)
+```
+
+Strings no topo saem sem aspas; strings aninhadas saem com aspas
+(`print(["a"])` → `["a"]`). Ciclos viram `[Circular]`.
+
+---
+
 ## Implemented Features (✓)
 
 - [x] **Structs** - Declaração, literais, métodos, construtores, genéricos, equality
@@ -1611,6 +1827,13 @@ val okCheck: bool = ok.isOk()
 - [x] **Protocols** - Declaration, methods, generics, Self type, struct implements, conformance checking, upcast
 - [x] **Protocol Generics** - Generic protocols, nested generics, type param validation
 - [x] **Protocol as Type** - Use protocol as variable type, implicit upcast from struct, method resolution on protocol-typed variables
+- [x] **Builtins** - `print` variádica com formatação total, `Stringable` para formatação de structs, proteção contra redefinição
+- [x] **Métodos de primitivos** - `int.toString/toFloat/isEven/isOdd` com receiver explícito ou inferido
+- [x] **Métodos de string** - `length` (propriedade), `upper`, `lower`, `trim`, `contains`, `indexOf`, `substring`, `split`, `replace` (todas), `toInt`/`toFloat` (Optional)
+- [x] **Métodos de float e bool** - só conversão: `float.toString/toInt`, `bool.toString`
+- [x] **Aliases globais** - `Integer`, `Float`, `String`, `Boolean`, `Void`, `Null`, `Any`, `Unknown` (transparentes e protegidos)
+- [x] **Divisão inteira** - `int / int` trunca em direção a zero, cumprindo o tipo prometido
+- [x] **Concatenação** - `string + primitivo` e o simétrico
 
 ## Planned Features (Not Yet Implemented)
 
@@ -1620,6 +1843,7 @@ val okCheck: bool = ok.isOk()
 - [ ] **Template Literals** - String interpolation
 - [ ] **Async/Await** - Asynchronous programming
 - [ ] **Generic type aliases** - `typealias Container<T> = T`
+- [ ] **Demais builtins** - `printErr`, `toString`, `len`, `readLine` (ver [API](controlls/api-bultins.md))
 
 ---
 

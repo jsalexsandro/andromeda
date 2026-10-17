@@ -1,0 +1,14 @@
+// casos de erro dos metodos de int
+//
+// Espera:
+// [UNKNOWN_METHOD] type 'int' has no method 'sqrt' — available: toString, toFloat, isEven, isOdd
+// [UNKNOWN_METHOD] type 'bool' has no method 'isEven'
+
+val age: int = 10
+
+// metodo inexistente em int
+val x: int = age.sqrt()
+
+// bool ainda nao tem metodos
+val b: bool = age.isEven()
+val y: bool = b.isEven()

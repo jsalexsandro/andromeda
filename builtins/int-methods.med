@@ -1,0 +1,30 @@
+// metodos de int
+
+val age: int = -10
+
+print(age.toString())
+print(age.isEven())
+print(age.isOdd())
+
+val n: int = 7
+print(n.isOdd())
+print(n.isEven())
+
+// receiver inferido (sem anotacao de tipo)
+val test = 1
+print(test.isOdd())
+print(test.toString())
+print(test.toFloat())
+
+// dentro de expressao
+if (n.isOdd()) {
+  print("impar:", n.toString())
+}
+
+// retorno de funcao
+func getAge(): int {
+  return 42
+}
+
+print(getAge().isEven())
+print(getAge().toString())

@@ -1,0 +1,81 @@
+// metodos de string
+
+val nome: string = "  Ana Silva  "
+
+// trim
+print(nome.trim())
+
+// caixa
+print(nome.trim().upper())
+print(nome.trim().lower())
+
+// length e propriedade
+print(nome.length)          // 13 — com espacos
+print(nome.trim().length)   // 9
+
+// isEmpty
+print(nome.trim().isEmpty())
+print("".isEmpty())
+print("x".isEmpty())
+if (!(nome.trim().isEmpty())) {
+  print("tem conteudo")
+}
+
+// busca
+print(nome.contains("Silva"))
+print(nome.contains("João"))
+print(nome.indexOf("Ana"))
+print(nome.indexOf("zzz"))  // -1
+
+// substring
+print(nome.trim().substring(0, 3))
+print(nome.trim().substring(4, 9))
+
+// split
+print("a,b,c".split(","))
+val partes: string[] = "1|2|3".split("|")
+print(partes)
+print(partes[0])
+
+// replace troca todas as ocorrencias
+print("aa-bb".replace("-", "+"))
+print("banana".replace("an", "X"))
+
+// toInt devolve Optional: nao ha mentira de NaN
+val raw: string = "42"
+val n: int? = raw.toInt()
+if val v = n {
+  print(v.isEven())        // true — v ja e int, int? desembrulha
+} else {
+  print("nao era numero")
+}
+
+val ruim: string = "abc"
+val m: int? = ruim.toInt()
+if (m == null) {
+  print("toInt devolveu null")
+}
+
+// toFloat tambem
+val pi: float? = "3.14".toFloat()
+if val v = pi {
+  print(v)                 // 3.14
+}
+
+val inteiro: string = "3.7"
+val truncado: int? = inteiro.toInt()
+if val v = truncado {
+  print(v)                 // 3 — trunca, nao arredonda
+}
+
+// string vazia e null em vez de 0
+val vazio: int? = "".toInt()
+print(vazio)
+
+// receiver inferido
+val s = "  oi  "
+print(s.trim())
+print(s.trim().upper())
+
+// encadeamento
+print("  Hello Andromeda  ".trim().lower().length)

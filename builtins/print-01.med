@@ -1,0 +1,27 @@
+// print — builtins da lang (passo 1)
+
+print("Andromeda")
+print(42)
+print(3.14)
+print(true)
+print(null)
+print()
+
+print("multiplos", "argumentos", 1, true, null)
+
+val nums: int[] = [1, 2, 3]
+print(nums)
+
+val nomes: string[] = ["Ana", "Bia"]
+print(nomes)
+
+val aninhado: int[][] = [[1, 2], [3, 4]]
+print(aninhado)
+
+struct User {
+  name: string
+  age: int
+}
+
+val u = User { name: "Alice", age: 30 }
+print(u)

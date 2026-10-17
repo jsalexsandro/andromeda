@@ -1,9 +1,12 @@
 import { Expr, LiteralExpr, IdentifierExpr, GroupExpr, UnaryExpr, BinaryExpr, LogicalExpr, ArrayExpr, AssignExpr, CallExpr, ArrowFunctionExpr, SpreadExpr, StructLiteralExpr, MemberExpr, NamedArgumentExpr, ConditionalExpr, NullishCoalescingExpr, IndexExpr, FunctionExpr } from "../ast";
 import { Token, TokenType } from "../lexer/types";
+import { getBuiltinValue, isBuiltinValue } from "../builtins";
 
 // Expression visitor - converts Andromeda AST expressions to JavaScript strings
 export class ExprVisitor {
   private inStructMethod: boolean = false;
+  /** Builtins redefinidos pelo usuario no programa — nao devem ser reescritos */
+  private shadowedBuiltins: Set<string> = new Set();
 
   enterStructMethod(): void {
     this.inStructMethod = true;
@@ -11,6 +14,10 @@ export class ExprVisitor {
 
   exitStructMethod(): void {
     this.inStructMethod = false;
+  }
+
+  shadowBuiltins(names: Iterable<string>): void {
+    this.shadowedBuiltins = new Set(names);
   }
 
   visit(expr: Expr): string {
@@ -92,6 +99,10 @@ export class ExprVisitor {
     const op = expr.operator.value;
     const left = this.visit(expr.left);
     const right = this.visit(expr.right);
+    // int / int e inteiro na linguagem: o runtime precisa truncar
+    if ((expr as any).truncateDivision) {
+      return `Math.trunc(${left} / ${right})`;
+    }
     return `${left} ${op} ${right}`;
   }
 
@@ -116,13 +127,35 @@ export class ExprVisitor {
   }
 
   private visitCall(expr: CallExpr): string {
-    const callee = this.visit(expr.callee);
     const args = expr.args.map((a: any) => {
       if (a.kind === "NamedArgument") {
         return this.visit(a.value);
       }
       return this.visit(a);
     }).join(", ");
+
+// Metodo de primitivo: o checker anotou o template JS no no Member.
+    // $self = receiver, $ARGS = lista de argumentos (sem parenteses — o
+    // template ja traz os parenteses).
+    if (expr.callee.kind === "Member") {
+      const template = (expr.callee as any).jsTemplate;
+      if (typeof template === "string") {
+        const self = this.visit(expr.callee.object);
+        return template
+          .split("$self").join(self)
+          .split("$ARGS").join(args);
+      }
+    }
+
+    // Builtins: print(...) -> $print(...)
+    if (expr.callee.kind === "Identifier") {
+      const name = expr.callee.name.value;
+      if (isBuiltinValue(name) && !this.shadowedBuiltins.has(name)) {
+        return `${getBuiltinValue(name)!.jsName}(${args})`;
+      }
+    }
+
+    const callee = this.visit(expr.callee);
     return `${callee}(${args})`;
   }
 
@@ -205,10 +238,10 @@ export class ExprVisitor {
     return `new ${name}({ ${fields} })`;
   }
 
-  private visitMember(expr: MemberExpr): string {
+private visitMember(expr: MemberExpr): string {
     const obj = this.visit(expr.object);
     const prop = expr.property.name.value;
-    // self.prop inside a struct method → this.prop
+    // self.prop inside a struct method  this.prop
     if (this.inStructMethod && expr.object.kind === "Identifier" && expr.object.name.value === "self") {
       return `this.${prop}`;
     }

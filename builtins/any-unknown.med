@@ -1,0 +1,14 @@
+// any deixa member access passar; unknown nao
+//
+// Espera:
+// nenhum erro na primeira parte
+// [INVALID_MEMBER_ACCESS] na parte de unknown
+
+// any aceita qualquer membro
+val x: any = 7
+val a: any = x.toString()
+val b: any = x.qualquerCoisa()
+
+// unknown exige estreitamento: member access e rejeitado
+val y: unknown = 7
+val c: unknown = y.toString()

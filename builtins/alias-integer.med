@@ -1,0 +1,85 @@
+// Integer vs int — transparencia em todas as direcoes
+
+// 1. atribuicao nos dois sentidos
+val a: Integer = 42
+val b: int = a
+val c: Integer = 42
+print(a, b, c)
+
+// 2. metodo resolve para o primitivo
+print(a.isEven())
+print(a.toString())
+print(a.toFloat())
+
+// 3. parametro: alias recebido como int
+func dobro(x: int): int {
+  return x * 2
+}
+
+print(dobro(a))
+
+// 4. parametro: int recebido como alias
+func triplo(x: Integer): int {
+  return x * 3
+}
+
+print(triplo(b))
+
+// 5. retorno: int devolvido como Integer
+func cinco(): Integer {
+  return 5
+}
+
+print(cinco().isOdd())
+
+// 6. retorno: alias devolvido como int
+func seis(): int {
+  return a
+}
+
+print(seis())
+
+// 7. struct com campo Integer
+struct Ponto {
+  x: Integer
+  y: int
+}
+
+val p = Ponto { x: 1, y: 2 }
+print(p.x, p.y)
+
+// 8. struct com campo int recebe valor Integer
+struct Caixa { n: int }
+val cx = Caixa { n: a }
+print(cx.n)
+
+// 9. arrays
+val arr1: Integer[] = [1, 2, 3]
+val arr2: int[] = arr1
+val arr3: Integer[] = [1, 2, 3]
+print(arr2)
+print(arr3)
+
+// 10. optional
+val o1: Integer? = a
+val o2: int? = o1
+print(o1)
+
+// 11. generic
+func identidade<T>(x: T): T {
+  return x
+}
+
+val g1: Integer = identidade(a)
+val g2: int = identidade(b)
+print(g1, g2)
+
+// 12. operador
+if (a > 10) {
+  print("maior")
+}
+
+// 13. switch-free: comparacao com literal
+if (b == 42) {
+  print("igual a 42")
+}

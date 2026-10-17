@@ -1,0 +1,30 @@
+// metodos de float e bool
+
+val pi: float = 3.14
+
+// float -> string
+print(pi.toString())
+print(2.5.toString())
+
+// float -> int (trunca)
+print(pi.toInt())          // 3
+print(2.99.toInt())        // 2
+print((-3.14).toInt())     // -3
+
+// float na volta para int
+print(pi.toInt().isEven()) // false — 3 e impar
+print(2.0.toInt().isEven()) // true
+
+// string -> int? -> float -> int
+val m: int? = "16".toInt()
+if val v = m {
+  print(v.toFloat())      // 16
+}
+
+// bool tem so conversao
+val b: bool = pi.toInt().isEven()
+print(b.toString())        // "false"
+print((!b).toString())     // "true"
+
+// ciclo completo int -> float -> string -> int -> bool
+print(2.toFloat().toString().length.isEven())   // "2" tem 1 char -> false

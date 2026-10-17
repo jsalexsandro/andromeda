@@ -1,0 +1,27 @@
+// interconexao entre primitivos: string -> int -> bool
+
+val nome: string = "John"
+
+// string -> int -> bool
+val l: bool = nome.length.isEven()
+print(l)
+
+// string -> string -> int -> bool
+print("  Ana Silva  ".trim().lower().length.isEven())
+
+// int -> string -> string
+print(10.toString().upper())
+
+// int -> string -> int? (ciclo completo)
+val ciclo: int? = "42".toInt()
+if val v = ciclo {
+  print(v.toString().length.isEven())
+}
+
+// string -> string[] (array ainda nao tem metodos)
+val partes: string[] = "a,b,c".split(",")
+print(partes)
+
+// receiver inferido em cada elo
+print("abc".length.isOdd())
+print(7.toString().lower())

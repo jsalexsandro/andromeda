@@ -1,0 +1,22 @@
+// concatenacao: string + primitivo, e o simetrico
+
+val age: int = 10
+val pi: float = 3.14
+val ok: bool = true
+
+print("idade: " + age)
+print(age + " anos")
+print("pi = " + pi)
+print(pi + " eh aproximadamente 3")
+print("flag: " + ok)
+
+// encadeado com metodo
+print("idade: " + age.toString())
+
+// string + string continua igual
+print("a" + "b" + "c")
+
+// dentro de expressao
+if (("idade: " + age) == "idade: 10") {
+  print("ok")
+}

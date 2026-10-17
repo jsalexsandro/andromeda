@@ -1,0 +1,10 @@
+// print — caso de erro: builtin nao pode ser redefinido
+//
+//Espera: [CANNOT_REDEFINE_BUILTIN] Cannot redefine built-in 'print'
+
+func print(msg: string): void {
+  val prefix: string = "[custom] "
+  console.log(prefix + msg)
+}
+
+print("esta chamada aponta para a funcao do usuario")

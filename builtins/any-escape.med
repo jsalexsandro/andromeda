@@ -1,0 +1,21 @@
+// any e escape hatch: member access passa no checker, resolve em runtime
+
+val n: any = 7
+print(n)                       // 7
+
+// membro que existe no valor real — passa no checker e funciona
+val s: any = "  Ana  "
+print(s.trim())                // "Ana"   — nome JS
+print(s.length)                // 7 — dois espacos + "Ana" + dois espacos
+print(s.toUpperCase())         // "  ANA  "
+
+// any com struct tambem funciona
+struct User { name: string }
+val u: any = User { name: "Alice" }
+print(u.name)                  // Alice
+
+// ATENCAO: `any` nao conhece os nomes de metodo de Andromeda.
+// Com tipo estatico `string`, `s.upper()` vira `toUpperCase()`.
+// Com `any` nao ha template, entao o nome e repassado ao JavaScript.
+val t: any = "  ana  "
+print(t.upper())               // runtime: t.upper is not a function

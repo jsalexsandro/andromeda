@@ -2,12 +2,19 @@ import { Symbol } from "./types";
 import { Token, TokenType } from "../lexer/types";
 import {
   PrimitiveTypeNode,
-  NamedTypeNode,
   GenericTypeNode,
-  FunctionTypeNode,
-  ArrayTypeNode,
-  TypeParameterNode,
 } from "../ast";
+import {
+  BUILTIN_NAMESPACES,
+  BUILTIN_TYPE_ALIASES,
+  BUILTIN_TYPES,
+  BUILTIN_VALUES,
+  builtinAliasType,
+  builtinNamespaceType,
+  builtinTypeNode,
+  builtinValueType,
+  typeParameterNode,
+} from "../builtins";
 import type { PrimitiveTypes } from "../types";
 
 export class Environment {
@@ -51,110 +58,58 @@ export class Environment {
     }
 
     this.defineBuiltinTypes();
+    this.defineBuiltinValues();
+    this.defineBuiltinNamespaces();
+    this.defineBuiltinAliases();
+  }
+
+  private defineBuiltinNamespaces() {
+    for (const name of BUILTIN_NAMESPACES) {
+      this.symbols.set(name, {
+        name,
+        type: builtinNamespaceType(name),
+        kind: "builtin",
+        mutable: false,
+        initialized: true,
+      });
+    }
+  }
+
+  private defineBuiltinAliases() {
+    for (const alias of BUILTIN_TYPE_ALIASES) {
+      this.symbols.set(alias.name, {
+        name: alias.name,
+        type: builtinAliasType(alias),
+        kind: "builtin",
+        mutable: false,
+        initialized: true,
+      });
+    }
   }
 
   private defineBuiltinTypes() {
-    const anyType: PrimitiveTypeNode = { kind: "PrimitiveType", name: "any" };
-    const intType: PrimitiveTypeNode = { kind: "PrimitiveType", name: "int" };
-    const stringType: PrimitiveTypeNode = { kind: "PrimitiveType", name: "string" };
-    const boolType: PrimitiveTypeNode = { kind: "PrimitiveType", name: "bool" };
-    const voidType: PrimitiveTypeNode = { kind: "PrimitiveType", name: "void" };
+    for (const builtin of BUILTIN_TYPES) {
+      this.symbols.set(builtin.name, {
+        name: builtin.name,
+        type: builtinTypeNode(builtin) as GenericTypeNode,
+        kind: "builtin",
+        mutable: false,
+        initialized: true,
+        typeParameters: builtin.typeParameters.map(typeParameterNode),
+      });
+    }
+  }
 
-    const arrayType = (elementType: PrimitiveTypeNode): ArrayTypeNode => ({
-      kind: "ArrayType",
-      elementType,
-      dimensions: 1,
-    });
-
-    const functionType = (
-      params: PrimitiveTypeNode[],
-      returnType: PrimitiveTypeNode
-    ): FunctionTypeNode => ({
-      kind: "FunctionType",
-      params,
-      returnType,
-    });
-
-    const printFnType: FunctionTypeNode = functionType([stringType], voidType);
-    const printlnFnType: FunctionTypeNode = functionType([stringType], voidType);
-    const intToStringFnType: FunctionTypeNode = functionType([intType], stringType);
-    const stringToIntFnType: FunctionTypeNode = functionType([stringType], intType);
-    const toStringFnType: FunctionTypeNode = functionType([anyType], stringType);
-    const lenFnType: FunctionTypeNode = functionType([anyType], intType);
-    const readLineFnType: FunctionTypeNode = functionType([], stringType);
-
-    this.symbols.set("print", {
-      name: "print",
-      type: printFnType,
-      kind: "function",
-      mutable: false,
-      initialized: true,
-    });
-
-    this.symbols.set("println", {
-      name: "println",
-      type: printlnFnType,
-      kind: "function",
-      mutable: false,
-      initialized: true,
-    });
-
-    this.symbols.set("toString", {
-      name: "toString",
-      type: toStringFnType,
-      kind: "function",
-      mutable: false,
-      initialized: true,
-    });
-
-    this.symbols.set("len", {
-      name: "len",
-      type: lenFnType,
-      kind: "function",
-      mutable: false,
-      initialized: true,
-    });
-
-    this.symbols.set("readLine", {
-      name: "readLine",
-      type: readLineFnType,
-      kind: "function",
-      mutable: false,
-      initialized: true,
-    });
-
-    const typeTParam: TypeParameterNode = {
-      kind: "TypeParameter",
-      name: { type: TokenType.IDENTIFIER, value: "T", line: 0, column: 0 },
-    };
-
-    // Built-in generic: Array<T>
-    this.symbols.set("Array", {
-      name: "Array",
-      type: {
-        kind: "GenericType",
-        name: { type: TokenType.IDENTIFIER, value: "Array", line: 0, column: 0 },
-        args: [],
-      } as GenericTypeNode,
-      kind: "builtin",
-      mutable: false,
-      initialized: true,
-      typeParameters: [typeTParam],
-    });
-
-    // Built-in generic: Optional<T>
-    this.symbols.set("Optional", {
-      name: "Optional",
-      type: {
-        kind: "GenericType",
-        name: { type: TokenType.IDENTIFIER, value: "Optional", line: 0, column: 0 },
-        args: [],
-      } as GenericTypeNode,
-      kind: "builtin",
-      mutable: false,
-      initialized: true,
-      typeParameters: [typeTParam],
-    });
+  private defineBuiltinValues() {
+    for (const builtin of BUILTIN_VALUES) {
+      this.symbols.set(builtin.name, {
+        name: builtin.name,
+        type: builtinValueType(builtin),
+        kind: "builtin",
+        mutable: false,
+        initialized: true,
+      });
+    }
   }
 
   public define(name: string, symbol: Symbol): void {

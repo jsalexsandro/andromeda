@@ -101,21 +101,27 @@ FASE 1.0 — PROTOCOL TYPES
 
 ### Test Cases Required
 
+> **Nota sobre o exemplo `Printable`:** estes casos usam `Printable { func print(): void }`
+> como exemplo de protocol. O `print` que aparece dentro do corpo (`print(self.name)`)
+> é o [builtin](../controlls/api-bultins.md), enquanto `u.print()` é o método — são
+> coisas diferentes. Para formatação de structs a linguagem usa
+> `Stringable { func toString(): string }`, que o `print` respeita automaticamente.
+
 #### 1.1 Protocol Básico
 ```andromeda
-protocol Printable {
-  func print(): void
+protocol Stringable {
+  func toString(): string
 }
 
-struct User implements Printable {
+struct User implements Stringable {
   name: string
-  func print(): void {
-    print(self.name)
+  func toString(): string {
+    return "User(" + self.name + ")"
   }
 }
 
 val u = User { name: "Alice" }
-u.print()  // "Alice"
+print(u)  // User(Alice)
 ```
 
 #### 1.2 Protocol com Self

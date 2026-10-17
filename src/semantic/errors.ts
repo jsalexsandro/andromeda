@@ -181,9 +181,15 @@ export const Errors = {
       `Type alias '${name}' contains a circular reference`,
       token, "typecheck"),
 
+  unknownMethod: (name: string, typeName: string, available: string[], token: Token) =>
+    createError("UNKNOWN_METHOD",
+      `type '${typeName}' has no method '${name}'` +
+      (available.length > 0 ? ` — available: ${available.join(", ")}` : ""),
+      token, "typecheck"),
+
   cannotRedefineBuiltin: (name: string, token: Token) =>
     createError("CANNOT_REDEFINE_BUILTIN",
-      `Cannot redefine built-in type '${name}'`,
+      `Cannot redefine built-in '${name}'`,
       token, "scope"),
 
   protocolNotFound: (name: string, token: Token) =>

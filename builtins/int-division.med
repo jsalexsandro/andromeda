@@ -1,0 +1,22 @@
+// divisao: int / int e inteiro na linguagem (truncado)
+
+val a: int = 10
+val b: int = 3
+
+print(a / b)        // 3   (nao 3.333)
+print(a / 4)        // 2
+print(-10 / 3)      // -3  (trunca em direcao a zero, como Rust/Go)
+print(a % b)        // 1
+print(-10 % 3)      // -1
+
+// float continua float
+val x: float = 10.0
+print(x / 3)        // 3.3333333333333335
+print(a / 3.0)      // 3.3333333333333335
+
+// divisao em expressao e atribuicao
+val total: int = 100
+val count: int = 3
+print(total / count)
+val media: int = total / count
+print(media)
