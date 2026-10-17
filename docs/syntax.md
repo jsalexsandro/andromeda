@@ -1076,6 +1076,32 @@ for item in items { item.print() }
 
 **Upcast implícito:** struct → protocol é automático quando struct implementa o protocol.
 
+### 17.5.1 Method Resolution on Protocol Types
+
+Quando uma variável é declarada com o tipo de um protocolo, o type checker resolve chamadas de método contra os métodos declarados no protocolo (não no struct subjacente):
+
+```typescript
+protocol Printable {
+  func print(): void
+}
+
+struct User implements Printable {
+  name: string
+  func print(): void {
+    // body
+  }
+}
+
+val p: Printable = User { name: "Alice" }
+p.print()  // OK - resolve 'print' do protocolo Printable
+```
+
+**Regras:**
+- Apenas métodos declarados no protocolo estão acessíveis através do tipo do protocolo
+- Campos do struct não são acessíveis através do tipo do protocolo (apenas métodos)
+- Se o método não existe no protocolo, ocorre erro `UNKNOWN_PROPERTY`
+- Assinatura do método é validada contra a declaração no protocolo
+
 ### 17.6 Protocol Generics
 
 ```typescript
@@ -1133,6 +1159,7 @@ val eq = a.equals(b)  // Self resolvido para UserId
 | `DUPLICATE_PROTOCOL_METHOD` | Duplicado no protocol | `duplicate method 'print' in protocol` |
 | `GENERIC_ARG_COUNT` | Type args errados | `Generic protocol 'Container' expects 1 type argument(s), got 2` |
 | `ALREADY_DECLARED` | Type param duplicado | `'T' is already declared` |
+| `UNKNOWN_PROPERTY` | Método não existe no protocolo | `property 'foo' does not exist` (acessando método inexistente em variável tipada como protocolo) |
 
 ---
 
@@ -1583,6 +1610,7 @@ val okCheck: bool = ok.isOk()
 - [x] **Optional Binding** - `if val x = expr`, `if (val x = expr)`, and chained binding `if val x = a, val y = b`
 - [x] **Protocols** - Declaration, methods, generics, Self type, struct implements, conformance checking, upcast
 - [x] **Protocol Generics** - Generic protocols, nested generics, type param validation
+- [x] **Protocol as Type** - Use protocol as variable type, implicit upcast from struct, method resolution on protocol-typed variables
 
 ## Planned Features (Not Yet Implemented)
 
