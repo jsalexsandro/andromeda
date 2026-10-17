@@ -1,6 +1,6 @@
 import { Token, TokenType } from "../lexer/types";
 import { ErrorHandler } from "./error";
-import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode, StructField, StructMethod, StructLiteralExpr, StructConstructor } from "../ast";
+import { Expr, Stmt, IfVariableStmt, TypeNode, TypeParameterNode, StructField, StructMethod, StructLiteralExpr, StructConstructor, FunctionExpr } from "../ast";
 import { Precedence, getPrecedence } from "./precedence";
 
 type PrefixParselet = () => Expr | null;
@@ -11,6 +11,7 @@ export class Parser {
   private current = 0;
   public errors: ErrorHandler;
   private sourceCode: string;
+  private inIfBindingInitializer: boolean = false;
 
   private prefixParselets: Map<TokenType, PrefixParselet> = new Map();
   private infixParselets: Map<TokenType, InfixParselet> = new Map();
@@ -131,6 +132,12 @@ export class Parser {
       TokenType.DECREMENT,
       this.parsePostfixDecrement.bind(this),
     );
+
+    // Prefixo para 'func' como expressão anônima: val f = func(x: int) { ... }
+    this.prefixParselets.set(
+      TokenType.KEYWORD,
+      this.parseKeywordPrefix.bind(this),
+    );
   }
 
   private parseIdentifier(): Expr {
@@ -143,6 +150,71 @@ export class Parser {
     }
 
     return { kind: "Identifier", name };
+  }
+
+  /**
+   * Prefix parselet para tokens KEYWORD em posição de expressão.
+   * Atualmente apenas 'func' é suportado como expressão de função anônima:
+   *   val f = func(x: int): int { return x * 2 }
+   */
+  private parseKeywordPrefix(): Expr | null {
+    const token = this.previous();
+    if (token.type === TokenType.KEYWORD && token.value === "func") {
+      return this.parseFunctionExpression();
+    }
+    this.error(
+      `Unexpected keyword '${token.value}' in expression position`,
+      token,
+    );
+    return null;
+  }
+
+  /**
+   * Parseia uma expressão de função anônima:
+   *   func(x: int): int { return x * 2 }
+   *   func <T>(x: T): T { return x }
+   *
+   * Não exige nome — o nome vem da variável a quem é atribuída.
+   * Reutiliza parseAnnotation() para tipagem de parâmetros e retorno.
+   */
+  private parseFunctionExpression(): Expr | null {
+    // 'func' já foi consumido por parseKeywordPrefix
+
+    // Parâmetros de tipo genérico opcionais: func <T, U>(...)
+    let typeParameters: TypeParameterNode[] | undefined;
+    if (this.check(TokenType.LESS_THAN)) {
+      typeParameters = this.parseGenericTypeParameters();
+    }
+
+    if (!this.check(TokenType.LPAREN)) {
+      this.error("Expected '(' after 'func'", this.peek());
+    }
+    this.advance(); // consume '('
+
+    const params = this.parseFunctionParams();
+
+    // Tipo de retorno: func(x: int): int { ... }
+    let returnType: TypeNode | undefined;
+    if (this.check(TokenType.COLON)) {
+      this.advance(); // consume ':'
+      returnType = this.parseAnnotationType();
+    }
+
+    let body: BlockStmt;
+    if (this.check(TokenType.LBRACE)) {
+      body = this.parseBlockStatement();
+    } else {
+      this.error("Expected '{' before function body", this.peek());
+      body = { kind: "BlockStmt", statements: [] };
+    }
+
+    return {
+      kind: "Function",
+      params,
+      body,
+      returnType,
+      typeParameters,
+    };
   }
 
   private parseNumber(): Expr {
@@ -717,11 +789,13 @@ export class Parser {
   }
 
   /**
-   * Tenta parsear argumentos de tipo em chamada genérica: <int, string>
-   * Usado por parseGenericCallOrBinary para detectar foo<int>(args).
-   * Avança '>' no final. Retorna null se não for lista de tipos válida.
+   * Parseia argumentos de tipo genérico: T, U, V >
+   * Assume que '<' JÁ FOI consumido pelo chamador.
+   * Retorna null se não for uma lista válida de tipos (para error recovery).
+   * Reutilizado por tryParseCallTypeArgs() e por qualquer outra estrutura
+   * que precise de <Tipo, Tipo> após '<'.
    */
-  private tryParseCallTypeArgs(): TypeNode[] | null {
+  private parseGenericTypeArgs(): TypeNode[] | null {
     const args: TypeNode[] = [];
 
     while (!this.check(TokenType.GREATER_THAN) && !this.isAtEnd()) {
@@ -739,6 +813,16 @@ export class Parser {
     if (!this.check(TokenType.GREATER_THAN)) return null;
     this.advance(); // consume '>'
     return args;
+  }
+
+  /**
+   * Tenta parsear argumentos de tipo em chamada genérica: <int, string>
+   * Usado por parseGenericCallOrBinary para detectar foo<int>(args).
+   * Avança '>' no final. Retorna null se não for lista de tipos válida.
+   * Delegada ao parseGenericTypeArgs() para evitar duplicação de lógica.
+   */
+  private tryParseCallTypeArgs(): TypeNode[] | null {
+    return this.parseGenericTypeArgs();
   }
 
   /**
@@ -1265,7 +1349,9 @@ export class Parser {
   }
 
   private parseIfVariableBinding(): IfVariableStmt {
+    this.inIfBindingInitializer = true;
     const decl = this.parseBindingDeclarator();
+    this.inIfBindingInitializer = false;
     if (!decl || !decl.initializer) {
       this.error("Expected '= expression' in if binding", this.peek());
       return {
@@ -1599,8 +1685,15 @@ export class Parser {
 
       // Não tratar { como infix (struct literal) se left não for Identifier
       // Evita que if val x = expr { ... } consuma o bloco como struct literal
-      if (nextToken.type === TokenType.LBRACE && left && left.kind !== "Identifier") {
-        return left;
+      if (nextToken.type === TokenType.LBRACE) {
+        // Se estamos em contexto de if-val/if-var binding, nunca tratar { como struct literal
+        if (this.inIfBindingInitializer) {
+          return left;
+        }
+        // Se left não é Identifier, também não é struct literal
+        if (left && left.kind !== "Identifier") {
+          return left;
+        }
       }
 
       // se o token pode ser prefixo (nova expressão) e está em linha diferente,

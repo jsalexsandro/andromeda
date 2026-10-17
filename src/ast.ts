@@ -22,6 +22,7 @@ export type Expr =
   | NullishCoalescingExpr
   | ClassExpr
   | ArrowFunctionExpr
+  | FunctionExpr
   | TemplateLiteralExpr
   | AwaitExpr
   | SpreadExpr
@@ -51,6 +52,8 @@ export interface UnaryExpr {
   kind: "Unary"
   operator: Token
   right: Expr
+  /** true para pós-fixo (x++, x--), false para prefixo (++x, --x) */
+  isPostfix?: boolean
 }
 
 export interface LogicalExpr {
@@ -285,6 +288,16 @@ export interface ArrowFunctionExpr {
   async?: boolean
   returnType?: TypeNode
   /** Parâmetros de tipo genérico: <T>(x: T): T => x */
+  typeParameters?: TypeParameterNode[]
+}
+
+export interface FunctionExpr {
+  kind: "Function"
+  params: FunctionStmtParam[]
+  body: BlockStmt
+  async?: boolean
+  returnType?: TypeNode
+  /** Parâmetros de tipo genérico: func <T>(x: T): T { ... } */
   typeParameters?: TypeParameterNode[]
 }
 

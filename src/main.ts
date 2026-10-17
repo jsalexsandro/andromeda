@@ -2,6 +2,7 @@ import * as fs from 'fs'
 import { Lexer } from './lexer/lexer'
 import { Parser } from './parser/parser'
 import { analyze } from './semantic/TypeChecker'
+import { transpile } from './transpiler'
 
 function showHelp() {
   console.log(`Andromeda Language CLI v1.0.0`)
@@ -10,6 +11,7 @@ function showHelp() {
   console.log('Commands:')
   console.log('  run <file>          Run an andromeda file (syntax + semantic)')
   console.log('  compile <file>      Compile (lexer + parser + semantic)')
+  console.log('  transpile <file>    Transpile to JavaScript')
   console.log('  tokens <file>       Print the token stream of a file')
   console.log('  ast <file>          Print AST of a file')
   console.log('  help                Show this help message')
@@ -39,10 +41,11 @@ export function main() {
   let filename = args[1]
   let isRun = command === 'run'
   let isCompile = command === 'compile'
+  let isTranspile = command === 'transpile'
   let isTokens = command === 'tokens'
   let isAst = command === 'ast' || command === 'parse'
 
-  if (!isRun && !isCompile && !isTokens && !isAst) {
+  if (!isRun && !isCompile && !isTranspile && !isTokens && !isAst) {
     if (fs.existsSync(command)) {
       filename = command
       isTokens = true
@@ -82,6 +85,38 @@ export function main() {
       parser.errors.renderAll()
       process.exit(1)
     }
+
+  } else if (isTranspile) {
+    console.log(`[Andromeda] Transpiling ${filename}...`);
+
+    console.time("parser");
+    const parser = new Parser(tokens, input)
+    const ast = parser.parse()
+    console.timeEnd("parser")
+
+    if (parser.errors.hasErrors()) {
+      parser.errors.renderAll()
+      process.exit(1)
+    }
+
+    console.time("semantic")
+    const { errors } = analyze(ast)
+    console.timeEnd("semantic")
+
+    if (errors.length > 0) {
+      console.log(`\n[Semantic Errors] (${errors.length}):\n`)
+      for (const error of errors) {
+        console.log(`  ${error.render()}`)
+      }
+      console.log("\n[Warning] Continuing transpilation despite semantic errors...\n")
+    }
+
+    console.time("transpile")
+    const js = transpile(ast)
+    console.timeEnd("transpile")
+
+    console.log(`\n--- Generated JavaScript ---\n`)
+    console.log(js)
 
   } else if (isCompile) {
     console.log(`[Andromeda] Compiling ${filename}...`)

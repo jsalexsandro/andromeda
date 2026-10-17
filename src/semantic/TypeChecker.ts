@@ -474,20 +474,37 @@ export class TypeChecker {
         const inferredType = this.inferType(stmt.initializer);
         this.contextualType = null;
         if (!this.areTypesCompatible(typeNode, inferredType)) {
-          // Hint para função nullable
-          const isNullableFunctionHint = 
-            typeNode.kind === "FunctionType" &&
-            inferredType.kind === "PrimitiveType" &&
-            inferredType.name === "null";
-          
-          const hint = isNullableFunctionHint
-            ? ` Hint: for nullable function, use '((${this.typeToString(typeNode)}) | null' or '(${this.typeToString(typeNode)})?'`
-            : "";
-          
-          this.errors.push(Errors.typeMismatch(
-            `type '${this.typeToString(typeNode)}' is incompatible with initializer '${this.typeToString(inferredType)}'${hint}`,
-            stmt.name
-          ));
+          // Allow implicit upcast: struct -> protocol
+          let upcastAllowed = false;
+          if (typeNode.kind === "NamedType" && typeNode.name.value !== undefined) {
+            const targetSymbol = this.currentEnv.lookup(typeNode.name.value as string);
+            if (targetSymbol && targetSymbol.kind === "protocol") {
+              const valueSymbol = this.currentEnv.lookup(inferredType.kind === "NamedType" ? inferredType.name.value as string : "");
+              if (valueSymbol && valueSymbol.kind === "struct") {
+                if (this.checkProtocolConformanceForSymbol(valueSymbol, targetSymbol, stmt.name)) {
+                  upcastAllowed = true;
+                }
+              }
+            }
+          }
+          if (upcastAllowed) {
+            // Upcast allowed, no error
+          } else {
+            // Hint para função nullable
+            const isNullableFunctionHint = 
+              typeNode.kind === "FunctionType" &&
+              inferredType.kind === "PrimitiveType" &&
+              inferredType.name === "null";
+            
+            const hint = isNullableFunctionHint
+              ? ` Hint: for nullable function, use '((${this.typeToString(typeNode)}) | null' or '(${this.typeToString(typeNode)})?'`
+              : "";
+            
+            this.errors.push(Errors.typeMismatch(
+              `type '${this.typeToString(typeNode)}' is incompatible with initializer '${this.typeToString(inferredType)}'${hint}`,
+              stmt.name
+            ));
+          }
         }
       }
     } else if (stmt.initializer) {
@@ -661,6 +678,7 @@ export class TypeChecker {
       declarationToken: stmt.name,
       fields: stmt.fields,
       typeParameters: stmt.typeParameters,
+      stmt,  // Store AST node reference for protocol conformance checks
     });
 
     // Registrar type params em escopo temporário (6.2 + 6.6)
@@ -1057,6 +1075,64 @@ export class TypeChecker {
     }
   }
 
+  /**
+   * Check protocol conformance for a struct symbol (used for implicit upcast).
+   * Returns true if the struct symbol implements all methods of the protocol symbol.
+   */
+  private checkProtocolConformanceForSymbol(
+    structSymbol: Symbol,
+    protocolSymbol: Symbol,
+    protocolToken: Token
+  ): boolean {
+    const protocolMethods = protocolSymbol.methods ?? [];
+    const structStmt = this.getStructStmtFromSymbol(structSymbol);
+    if (!structStmt) return false;
+
+    const structMethods = new Map<string, StructMethod>();
+    if (structStmt.methods) {
+      for (const method of structStmt.methods) {
+        structMethods.set(method.name.value as string, method);
+      }
+    }
+
+    for (const protocolMethod of protocolMethods) {
+      const methodName = protocolMethod.name.value as string;
+      const structMethod = structMethods.get(methodName);
+
+      if (!structMethod) {
+        return false; // Missing method
+      }
+
+      // Create Self type replacement
+      let selfType: TypeNode | undefined;
+      if (structStmt.typeParameters && structStmt.typeParameters.length > 0) {
+        selfType = {
+          kind: "GenericType",
+          name: structStmt.name,
+          args: structStmt.typeParameters.map(tp => ({
+            kind: "NamedType",
+            name: tp.name
+          } as TypeNode))
+        };
+      } else {
+        selfType = { kind: "NamedType", name: structStmt.name } as TypeNode;
+      }
+
+      if (!this.checkMethodSignatureCompatible(structMethod, protocolMethod, protocolToken, selfType)) {
+        return false; // Signature mismatch
+      }
+    }
+
+    return true; // All methods implemented
+  }
+
+  /**
+   * Get the StructStmt AST node from a struct symbol (stored during checkStructStmt).
+   */
+  private getStructStmtFromSymbol(structSymbol: Symbol): Extract<Stmt, { kind: "StructStmt" }> | undefined {
+    return structSymbol.stmt as Extract<Stmt, { kind: "StructStmt" }> | undefined;
+  }
+
   private checkMethodSignature(
     structMethod: StructMethod,
     protocolMethod: ProtocolMethod,
@@ -1123,6 +1199,57 @@ export class TypeChecker {
         protocolToken
       ));
     }
+  }
+
+  /**
+   * Check method signature compatibility for protocol conformance (returns boolean, no errors).
+   */
+  private checkMethodSignatureCompatible(
+    structMethod: StructMethod,
+    protocolMethod: ProtocolMethod,
+    protocolToken: Token,
+    selfType?: TypeNode
+  ): boolean {
+    const resolvedProtocolParams = protocolMethod.params.map(p => ({
+      ...p,
+      type: p.type ? this.substituteSelfType(p.type, selfType) : undefined
+    }));
+    const resolvedProtocolReturnType = protocolMethod.returnType
+      ? this.substituteSelfType(protocolMethod.returnType, selfType)
+      : undefined;
+
+    const resolvedStructParams = structMethod.params.map(p => ({
+      ...p,
+      type: p.type ? this.substituteSelfType(p.type, selfType) : undefined
+    }));
+    const resolvedStructReturnType = structMethod.returnType
+      ? this.substituteSelfType(structMethod.returnType, selfType)
+      : undefined;
+
+    const structParams = resolvedStructParams;
+    const protocolParams = resolvedProtocolParams;
+
+    if (structParams.length !== protocolParams.length) {
+      return false;
+    }
+
+    for (let i = 0; i < structParams.length; i++) {
+      const structParamType = structParams[i].type ?? { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+      const protocolParamType = protocolParams[i].type ?? { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+
+      if (!this.areTypesCompatible(protocolParamType, structParamType)) {
+        return false;
+      }
+    }
+
+    const structReturnType = resolvedStructReturnType ?? { kind: "PrimitiveType", name: "void" } as TypeNode;
+    const protocolReturnType = resolvedProtocolReturnType ?? { kind: "PrimitiveType", name: "void" } as TypeNode;
+
+    if (!this.areTypesCompatible(protocolReturnType, structReturnType)) {
+      return false;
+    }
+
+    return true;
   }
 
   private substituteSelfType(type: TypeNode, selfType?: TypeNode): TypeNode {
@@ -2050,7 +2177,7 @@ export class TypeChecker {
 
       // Verifica no escopo corrente (inclui type params genéricos)
       const existing = this.currentEnv.lookup(typeName);
-      if (existing && (existing.kind === "type" || existing.kind === "struct" || existing.kind === "typeParam" || existing.kind === "builtin")) {
+      if (existing && (existing.kind === "type" || existing.kind === "struct" || existing.kind === "protocol" || existing.kind === "typeParam" || existing.kind === "builtin")) {
         return null;
       }
 
@@ -2780,8 +2907,17 @@ export class TypeChecker {
     // Check compound operators ( +=, -=, *=, /=, %= )
     const operator = expr.operator?.value as string;
     if (operator && ['+=', '-=', '*=', '/=', '%='].includes(operator)) {
-      // For compound assignment, check if target type is numeric
-      if (!this.isNumericType(symbol.type)) {
+      if (operator === '+=') {
+        const resolvedType = this.resolveAlias(symbol.type);
+        if (resolvedType.kind === "PrimitiveType" && resolvedType.name === "string") {
+        } else if (!this.isNumericType(symbol.type)) {
+          this.errors.push(Errors.typeMismatch(
+            `Cannot use '${operator}' with non-numeric type '${this.typeToString(symbol.type)}'`,
+            expr.operator!
+          ));
+          return;
+        }
+      } else if (!this.isNumericType(symbol.type)) {
         this.errors.push(Errors.typeMismatch(
           `Cannot use '${operator}' with non-numeric type '${this.typeToString(symbol.type)}'`,
           expr.operator!
@@ -2794,6 +2930,22 @@ export class TypeChecker {
     const valueType = this.inferType(expr.value);
     this.contextualType = null;
     if (!this.areTypesCompatible(symbol.type, valueType)) {
+      console.error(`DEBUG assign: symbol.type=${symbol.type.kind}:${symbol.type.kind === "NamedType" ? symbol.type.name.value : "?"}, valueType=${valueType.kind}:${valueType.kind === "NamedType" ? valueType.name.value : "?"}`);
+      // Allow implicit upcast: struct -> protocol
+      if (symbol.type.kind === "NamedType" && symbol.type.name.value !== undefined) {
+        const targetSymbol = this.currentEnv.lookup(symbol.type.name.value as string);
+        console.error(`DEBUG upcast: targetSymbol=${targetSymbol?.name}, kind=${targetSymbol?.kind}`);
+        if (targetSymbol && targetSymbol.kind === "protocol") {
+          const valueSymbol = this.currentEnv.lookup(valueType.kind === "NamedType" ? valueType.name.value as string : "");
+          console.error(`DEBUG upcast: valueSymbol=${valueSymbol?.name}, kind=${valueSymbol?.kind}`);
+          if (valueSymbol && valueSymbol.kind === "struct") {
+            console.error(`DEBUG upcast: hasStmt=${!!valueSymbol.stmt}`);
+            if (this.checkProtocolConformanceForSymbol(valueSymbol, targetSymbol, targetName.name)) {
+              return; // Upcast allowed
+            }
+          }
+        }
+      }
       this.errors.push(Errors.typeMismatch(
         `Cannot assign '${this.typeToString(valueType)}' to '${name}'`,
         targetName.name
