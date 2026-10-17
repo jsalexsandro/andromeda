@@ -26,6 +26,7 @@ export type ErrorCode =
   | "REST_NOT_LAST"
   | "INVALID_RETURN_TYPE"
   | "INVALID_CONDITION"
+  | "DIVISION_BY_ZERO"
   | "HETEROGENEOUS_ARRAY"
   | "TUPLE_SIZE_MISMATCH"
   | "TUPLE_IMMUTABLE"
@@ -122,6 +123,11 @@ export const Errors = {
 
   undefinedType: (name: string, token: Token) =>
     createError("UNDEFINED_TYPE", `type '${name}' is not found`, token, "typecheck"),
+
+  divisionByZero: (operator: string, token: Token) =>
+    createError("DIVISION_BY_ZERO",
+      operator === "%" ? "modulo by zero" : "division by zero",
+      token, "typecheck"),
 
   invalidUnary: (operator: string, token: Token) =>
     createError("INVALID_UNARY", `unary operator '${operator}' is invalid for the operand`, token, "typecheck"),

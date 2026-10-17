@@ -1776,8 +1776,21 @@ val b: int = 3
 val c: int = a / b      // 3     (não 3.333)
 val d: int = -10 / 3    // -3
 val e: int = 10 % 3     // 1
-val f: float = 10.0 / 3 // 3.333 — float em qualquer lado devolve float
+val f: float = 10.0 / 3 // 3.333 - float em qualquer lado devolve float
 ```
+
+`int` por zero é **erro** — o compilador pega divisor literal, e o runtime
+protege o caso de variável:
+
+```typescript
+print(10 / 0)         // ERROR: [DIVISION_BY_ZERO] division by zero
+
+val zero: int = 0
+print(10 / zero)      // runtime: Error: division by zero
+```
+
+`float` por zero **não** é erro: segue IEEE-754 e devolve `Infinity`, `-Infinity`
+ou `NaN`, como em Rust e JavaScript.
 
 ### Concatenação
 
@@ -1833,6 +1846,7 @@ Strings no topo saem sem aspas; strings aninhadas saem com aspas
 - [x] **Métodos de float e bool** - só conversão: `float.toString/toInt`, `bool.toString`
 - [x] **Aliases globais** - `Integer`, `Float`, `String`, `Boolean`, `Void`, `Null`, `Any`, `Unknown` (transparentes e protegidos)
 - [x] **Divisão inteira** - `int / int` trunca em direção a zero, cumprindo o tipo prometido
+- [x] **Divisão por zero** - `int` por zero é erro (`DIVISION_BY_ZERO` ou exceção em runtime); `float` segue IEEE-754
 - [x] **Concatenação** - `string + primitivo` e o simétrico
 
 ## Planned Features (Not Yet Implemented)

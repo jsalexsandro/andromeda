@@ -3522,10 +3522,16 @@ export class TypeChecker {
         (rightType.name === "int" || rightType.name === "float")
       ) {
         const bothInt = leftType.name === "int" && rightType.name === "int";
-        // int / int e inteiro na linguagem: o runtime precisa truncar,
-        // senao o tipo promete int e entrega float
-        if (op === "/" && bothInt) {
-          (expr as any).truncateDivision = true;
+        if (bothInt && (op === "/" || op === "%")) {
+          // int / int promete int. O runtime trunca via AndromedaAPI,
+          // e lanca se o divisor for zero — Infinity com tipo int seria
+          // a mesma mentira que o / ja corrigiu.
+          (expr as any).intDivisionOp = op;
+
+          const divisor = this.unwrapGrouping(expr.right);
+          if (divisor.kind === "Literal" && divisor.value === 0) {
+            this.errors.push(Errors.divisionByZero(op, expr.operator));
+          }
         }
         return bothInt
           ? { kind: "PrimitiveType", name: "int" }

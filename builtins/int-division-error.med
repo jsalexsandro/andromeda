@@ -1,0 +1,19 @@
+// divisao por zero com divisor literal e erro de compilacao
+//
+// Espera:
+// [DIVISION_BY_ZERO] division by zero
+// [DIVISION_BY_ZERO] modulo by zero
+// float por zero NAO e erro: segue IEEE-754
+
+print(10 / 0)
+print(10 % 0)
+print(10 / (0))
+
+// float segue IEEE — sem erro
+print(10.0 / 0.0)
+print(10.0 % 0.0)
+
+// divisor variavel nao da para provar em compilacao: o runtime lanca
+val zero: int = 0
+print(10 / zero)     // runtime: division by zero
+print(10 % zero)     // runtime: modulo by zero

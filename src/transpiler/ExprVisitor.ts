@@ -99,10 +99,10 @@ export class ExprVisitor {
     const op = expr.operator.value;
     const left = this.visit(expr.left);
     const right = this.visit(expr.right);
-    // int / int e inteiro na linguagem: o runtime precisa truncar
-    if ((expr as any).truncateDivision) {
-      return `Math.trunc(${left} / ${right})`;
-    }
+    // int / int e int % int: o runtime trunca e protege contra zero
+    const intOp = (expr as any).intDivisionOp;
+    if (intOp === "/") return `AndromedaAPI.divInt(${left}, ${right})`;
+    if (intOp === "%") return `AndromedaAPI.modInt(${left}, ${right})`;
     return `${left} ${op} ${right}`;
   }
 

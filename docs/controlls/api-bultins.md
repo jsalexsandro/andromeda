@@ -336,13 +336,36 @@ if val v = m {
 | Regra | Comportamento |
 |-------|---------------|
 | `int / int` | **divisão inteira**, truncada em direção a zero (`10 / 3 == 3`, `-10 / 3 == -3`) |
-| `float` em qualquer lado | divisão real (`10.0 / 3 == 3.333…`) |
 | `int % int` | resto, com sinal do dividendo (`-10 % 3 == -1`) |
+| `int` por zero | **erro** — `DIVISION_BY_ZERO` em compilação se o divisor for literal, exceção em runtime se for variável |
+| `float` em qualquer lado | divisão real (`10.0 / 3 == 3.333…`) |
+| `float` por zero | segue IEEE-754: `Infinity`, `-Infinity`, `NaN`. **Não** é erro |
 | `string + primitivo` | concatena (`"idade: " + 10`), e o simétrico (`10 + " anos"`) |
 | `string + string` | concatena |
 
 A divisão inteira existe porque o tipo `int` promete `int`; o runtime trunca para
 cumprir a promessa. Misturar com `float` devolve `float`.
+
+### Divisão por zero
+
+`int` promete `int`, então não pode entregar `Infinity` nem `NaN` — seria a mesma
+mentira que a divisão truncação corrigiu. Duas camadas:
+
+```typescript
+print(10 / 0)         // ERROR: [DIVISION_BY_ZERO] division by zero
+
+val zero: int = 0
+print(10 / zero)      // runtime: Error: division by zero
+```
+
+O compilador pega o caso que dá para provar (divisor literal `0`, mesmo entre
+parênteses). Quando o divisor é uma variável, o valor não é conhecido em tempo de
+compilação, e quem protege é `AndromedaAPI.divInt` / `AndromedaAPI.modInt`, que
+lançam antes de devolver qualquer coisa.
+
+**`float` por zero não é erro.** `Infinity` é a resposta padrão da aritmética de
+ponto flutuante, e é o que Rust, JavaScript e Java fazem. Silenciar isso seria
+inventar semântica que o tipo `float` não promete.
 
 `string + struct` ainda é rejeitado — só entra struct que implementa `toString()`,
 e isso depende do `Stringable` ser nativo.
@@ -470,6 +493,8 @@ const AndromedaAPI = (() => { /* ... */ return { toString, print, toInt, toFloat
 | `AndromedaAPI.toString(v)` | o formatador único — usado por `print` e pelos métodos `toString()` |
 | `AndromedaAPI.toInt(s)` | `string` → `int` ou `null` |
 | `AndromedaAPI.toFloat(s)` | `string` → `float` ou `null` |
+| `AndromedaAPI.divInt(a, b)` | divisão inteira truncada; lança se `b == 0` |
+| `AndromedaAPI.modInt(a, b)` | resto inteiro; lança se `b == 0` |
 
 Tudo o mais (`MAX_DEPTH`, `MAX_ITEMS`, `hasCustomToString`, `toNumber`) fica no
 closure do IIFE — invisível de fora, e portanto incapaz de colidir com uma
@@ -496,7 +521,8 @@ programa.
 | `builtins/reserved-namespace.med` | `CANNOT_REDEFINE_BUILTIN` em `AndromedaAPI` |
 | `builtins/int-methods.med` | `int`, receiver inferido, encadeamento |
 | `builtins/int-methods-error.med` | `UNKNOWN_METHOD` em `int` e em `bool` |
-| `builtins/int-division.med` | truncamento, negativos, `%`, mistura com `float` |
+| `builtins/int-division.med` | truncamento, negativos, `%`, mistura com `float`, zero em float |
+| `builtins/int-division-error.med` | `DIVISION_BY_ZERO` em divisor literal e em runtime |
 | `builtins/string-concat.med` | `string + primitivo` nos dois sentidos |
 | `builtins/string-methods.med` | trim, caixa, length, busca, substring, split, replace, `toInt`/`toFloat` |
 | `builtins/string-methods-error.med` | `UNKNOWN_METHOD`, `TYPE_MISMATCH`, `ARGUMENT_COUNT_MISMATCH`, `INVALID_CALL` |

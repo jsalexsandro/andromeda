@@ -8,6 +8,7 @@ print(a / 4)        // 2
 print(-10 / 3)      // -3  (trunca em direcao a zero, como Rust/Go)
 print(a % b)        // 1
 print(-10 % 3)      // -1
+print(10 % 4)       // 2
 
 // float continua float
 val x: float = 10.0
@@ -20,3 +21,14 @@ val count: int = 3
 print(total / count)
 val media: int = total / count
 print(media)
+
+// divisor variavel nunca e zero nos testes acima — o runtime protege
+val safe: int = 2
+print(a / safe)
+
+// encadeamento com metodo
+print(a % 3)
+
+// float por zero segue IEEE de proposito
+print(10.0 / 0.0)   // Infinity
+print(-1.0 / 0.0)   // -Infinity

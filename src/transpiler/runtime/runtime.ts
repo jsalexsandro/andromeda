@@ -95,6 +95,21 @@ const AndromedaAPI = (() => {
     },
 
     toFloat: (value) => toNumber(value),
+
+    // Divisao e resto inteiros. O tipo int promete int, entao o runtime
+    // trunca e recusa divisor zero: Infinity ou NaN com tipo int seria a
+    // mesma mentira que a divisao ja corrigiu. Divisao em float segue
+    // IEEE-754 de proposito (Infinity e a resposta padrao do ponto
+    // flutuante) e nao passa por aqui.
+    divInt: (a, b) => {
+      if (b === 0) throw new Error("division by zero");
+      return Math.trunc(a / b);
+    },
+
+    modInt: (a, b) => {
+      if (b === 0) throw new Error("modulo by zero");
+      return a % b;
+    },
   };
 })();
 `;
