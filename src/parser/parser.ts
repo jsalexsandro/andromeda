@@ -2777,31 +2777,43 @@ export class Parser {
     }
     this.advance(); // consume '{'
 
+    const fields: StructField[] = [];
+    const fieldNames = new Set<string>();
     const methods: StructMethod[] = [];
+
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
       const next = this.peek();
 
-      // mut func — igual ao corpo do struct
+      // mut func / mut campo
       if (next.type === TokenType.KEYWORD && next.value === "mut") {
-        if (this.current + 1 < this.tokens.length &&
-            this.tokens[this.current + 1].type === TokenType.KEYWORD &&
-            this.tokens[this.current + 1].value === "func") {
-          this.advance(); // consume 'mut'
+        const isMutFunc =
+          this.current + 1 < this.tokens.length &&
+          this.tokens[this.current + 1].type === TokenType.KEYWORD &&
+          this.tokens[this.current + 1].value === "func";
+
+        this.advance(); // consume 'mut'
+
+        if (isMutFunc) {
           methods.push(this.parseStructMethod(true));
-          continue;
+        } else {
+          this.parseExtendField(true, fields, fieldNames);
         }
-        this.error("Expected 'func' after 'mut' in extend block", next);
-        this.advance();
         continue;
       }
 
+      // func
       if (next.type === TokenType.KEYWORD && next.value === "func") {
         methods.push(this.parseStructMethod(false));
         continue;
       }
 
-      // qualquer outra coisa (campo, por exemplo) nao e metodo
-      this.error("Only methods are allowed in extend — expected 'func' or 'mut func'", next);
+      // campo
+      if (next.type === TokenType.IDENTIFIER) {
+        this.parseExtendField(false, fields, fieldNames);
+        continue;
+      }
+
+      this.error("Expected 'func' or a field name in extend block", next);
       this.advance();
       this.skipToExtendMemberEnd();
     }
@@ -2812,7 +2824,42 @@ export class Parser {
       this.error("Expected '}' to close extend block", this.peek());
     }
 
-    return { kind: "ExtendStmt", targetName: nameToken, methods };
+    return { kind: "ExtendStmt", targetName: nameToken, fields, methods };
+  }
+
+  /** `nome: Tipo = default` dentro do corpo de um extend */
+  private parseExtendField(
+    mutable: boolean,
+    fields: StructField[],
+    _fieldNames: Set<string>
+  ): void {
+    const nameToken = this.advance();
+
+    // Duplicidade NAO e verificada aqui: e regra semantica, e o checker
+    // emite EXTENSION_CONFLICT. Se o parser recusasse, abortaria o compilador
+    // inteiro antes das outras diagnosticas.
+
+    if (!this.check(TokenType.COLON)) {
+      this.error("Expected ':' after field name", this.peek());
+      this.skipToExtendMemberEnd();
+      return;
+    }
+    this.advance();
+
+    const fieldType = this.parseAnnotationType();
+    if (!fieldType) {
+      this.error("Expected type for field in extend", this.peek());
+      this.skipToExtendMemberEnd();
+      return;
+    }
+
+    let defaultValue: Expr | undefined;
+    if (this.check(TokenType.ASSIGN)) {
+      this.advance();
+      defaultValue = this.parseExpression(Precedence.LOWEST);
+    }
+
+    fields.push({ name: nameToken, type: fieldType, mutable, defaultValue });
   }
 
   /**

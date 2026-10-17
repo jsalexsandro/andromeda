@@ -503,6 +503,7 @@ export interface StructStmt {
 export interface ExtendStmt {
   kind: "ExtendStmt"
   targetName: Token
+  fields: StructField[]
   methods: StructMethod[]
 }
 

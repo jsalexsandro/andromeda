@@ -1,0 +1,81 @@
+// campos declarados no extend — viram propriedade da instancia
+
+struct Example {
+  name: string
+}
+
+extend Example {
+ mut id: string
+ hash: string = "auto"
+
+ mut func rehash(value: string) {
+  self.hash = value
+ }
+
+ func short(): string {
+  return self.name + "/" + self.id
+ }
+}
+
+val e = Example { name: "a", id: "1", hash: "x" }
+print(e.name)
+print(e.id)
+print(e.hash)
+print(e.short())
+
+// print mostra os campos do extend: sao propriedade propria
+print(e)
+
+e.rehash("y")
+print(e.hash)
+
+// campo com default e opcional no literal
+val f = Example { name: "b", id: "2" }
+print(f.hash)
+print(f.short())
+
+// campo mut do extend: reatribuivel
+f.id = "9"
+print(f.id)
+print(f.short())
+
+// extend em struct sem campo proprio
+struct Tag {
+  text: string
+}
+
+extend Tag {
+  mut hits: int = 0
+
+  mut func hit(): int {
+    self.hits = self.hits + 1
+    return self.hits
+  }
+}
+
+val t = Tag { text: "post" }
+print(t.text)
+print(t.hits)
+print(t.hit())
+print(t.hit())
+print(t.hits)
+print(t)
+
+// dois extends, cada um com seu campo
+struct Cfg {
+  host: string
+}
+
+extend Cfg {
+  port: int = 8080
+}
+
+extend Cfg {
+  secure: bool = true
+}
+
+val cfg = Cfg(host: "localhost")
+print(cfg.host)
+print(cfg.port)
+print(cfg.secure)
+print(cfg)

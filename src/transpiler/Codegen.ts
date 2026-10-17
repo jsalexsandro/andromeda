@@ -217,7 +217,11 @@ export class Codegen {
 
   private transpileStructStmt(stmt: any): string {
     const name = stmt.name.value;
-    const fields: any[] = stmt.fields || [];
+    // Campos vindos de `extend` entram no construtor auto-init: viram
+    // propriedade propria da instancia, entao `print()` tambem os mostra.
+    // O checker anota aqui via preRegisterExtends.
+    const extendFields: any[] = (stmt as any).extendFields || [];
+    const fields: any[] = [...(stmt.fields || []), ...extendFields];
     const methods: any[] = stmt.methods || [];
     const init = stmt.init;
 

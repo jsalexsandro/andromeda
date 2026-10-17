@@ -1,0 +1,34 @@
+// casos de erro de campo no extend
+//
+// Espera:
+// [EXTENSION_CONFLICT] campo repetido do struct, do proprio extend ou de outro
+// [EXTEND_TARGET_INVALID] campo em struct com init custom
+// [TYPE_MISMATCH] campo obrigatorio faltando no literal
+
+// 1. nome que ja existe no struct
+struct A { name: string }
+extend A { name: string }
+
+// 2. nome repetido dentro do mesmo extend
+struct B { x: int }
+extend B {
+  dup: int
+  dup: int
+}
+
+// 3. nome repetido em outro extend do mesmo tipo
+struct C { y: int }
+extend C { shared: int }
+extend C { shared: int }
+
+// 4. campo em struct com init custom
+struct D {
+  mut v: string
+  init(raw: string) { self.v = raw }
+}
+extend D { extra: int }
+
+// 5. campo obrigatorio faltando no literal
+struct E { z: int }
+extend E { needed: string }
+val e = E { z: 1 }

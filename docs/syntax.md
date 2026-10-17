@@ -1897,6 +1897,59 @@ Nos dois sentidos: método do `extend` chama método do `struct`, e um método d
 O `extend` ainda precisa vir **depois** do `struct` — ele não acha o alvo antes
 da declaração. O que funciona é o caminho inverso.
 
+#### Campos no `extend`
+
+`extend` também pode declarar **campos**, que viram propriedade da instância e
+são injetados no construtor auto-init:
+
+```typescript
+struct Example {
+  name: string
+}
+
+extend Example {
+ mut id: string                  // sem default: obrigatório
+ hash: string = "auto"           // com default: opcional
+
+ mut func rehash(value: string) {
+  self.hash = value
+ }
+
+ func short(): string {
+  return self.name + "/" + self.id
+ }
+}
+
+val e = Example { name: "a", id: "1", hash: "x" }
+print(e.short())        // "a/1"
+print(e)                // Example { name: "a", id: "1", hash: "x" }
+
+e.rehash("y")
+print(e.hash)           // "y"
+
+val f = Example { name: "b", id: "2" }   // hash = "auto"
+```
+
+Como viram propriedade própria, `print()` os mostra normalmente — diferente de
+propriedade em prototype, que o formatador não enxergaria.
+
+Campo sem default fica **obrigatório** no literal e no construtor:
+
+```typescript
+val g = Example { name: "c" }
+// ERROR: missing required field 'id' in struct literal for 'Example'
+```
+
+| Situação | Erro |
+|----------|------|
+| nome já existe no struct | `[EXTENSION_CONFLICT] field 'name' already exists in 'User'` |
+| nome repetido no mesmo `extend` ou em outro | `[EXTENSION_CONFLICT] field ...` |
+| campo em struct com `init` custom | `[EXTEND_TARGET_INVALID] cannot add fields to 'B' — it has a custom init` |
+| campo obrigatório faltando no literal | `[TYPE_MISMATCH] missing required field 'id'` |
+
+Campo em struct com `init` custom é proibido porque o construtor é posicional e
+não tem onde injetar o campo.
+
 #### Limitações conhecidas de `extend`
 
 **`struct { }` literal não vale em struct com `init` custom.** O literal é a
@@ -2024,6 +2077,7 @@ Strings no topo saem sem aspas; strings aninhadas saem com aspas
 - [x] **extend em primitivos** - `extend String`, `extend Integer`, etc., via registro `$ext` sem tocar no prototype global
 - [x] **Construtor de struct com `new`** - `Nome(...)` e `Nome(campo: valor)` emitem `new`; literal rejeitado em struct com init custom
 - [x] **Método do struct chama método do extend** - pré-registro no momento da declaração do struct
+- [x] **Campos no extend** - viram propriedade da instância, entram no construtor auto-init e aparecem no `print()`
 - [x] **Divisão inteira** - `int / int` trunca em direção a zero, cumprindo o tipo prometido
 - [x] **Divisão por zero** - `int` por zero é erro (`DIVISION_BY_ZERO` ou exceção em runtime); `float` segue IEEE-754
 - [x] **Concatenação** - `string + primitivo` e o simétrico

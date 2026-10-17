@@ -136,9 +136,14 @@ export const Errors = {
       `cannot extend '${target}': '${resolved}' is not an extendable type`,
       token, "typecheck"),
 
-  extensionConflict: (method: string, target: string, token: Token) =>
+  extensionConflict: (name: string, target: string, token: Token, kind: "method" | "field" = "method") =>
     createError("EXTENSION_CONFLICT",
-      `method '${method}' already exists in '${target}'`,
+      `${kind} '${name}' already exists in '${target}'`,
+      token, "typecheck"),
+
+  extendFieldOnCustomInit: (target: string, token: Token) =>
+    createError("EXTEND_TARGET_INVALID",
+      `cannot add fields to '${target}' — it has a custom init, which takes positional arguments`,
       token, "typecheck"),
 
   divisionByZero: (operator: string, token: Token) =>

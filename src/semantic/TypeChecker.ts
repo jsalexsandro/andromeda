@@ -28,6 +28,8 @@ export class TypeChecker {
   private programStmts: Stmt[] = [];
   /** Metodos de extend ja registrados por preRegisterExtends */
   private preRegisteredMethods = new Set<StructMethod>();
+  /** Campos de extend ja registrados por preRegisterExtends */
+  private preRegisteredFields = new Set<StructField>();
   private currentFunctionReturnType: TypeNode | null = null;
   private contextualType: TypeNode | null = null;
   private resolvedTypes = new Map<Expr, TypeNode>();
@@ -698,25 +700,51 @@ export class TypeChecker {
  *
  * O corpo do metodo de extend ainda e validado depois, em checkExtendStmt.
  */
-  private preRegisterExtends(structName: string, symbol: Symbol | null | undefined): void {
+  private preRegisterExtends(
+    structName: string,
+    symbol: Symbol | null | undefined,
+    structStmt?: Extract<Stmt, { kind: "StructStmt" }> | null
+  ): void {
     if (!symbol || this.programStmts.length === 0) return;
 
-    // copia: symbol.methods pode ser a mesma referencia do AST
+    // copia: symbol.methods e symbol.fields podem ser a MESMA referencia do AST
     const methods = [...(symbol.methods ?? [])];
+    const fields = [...(symbol.fields ?? [])];
     symbol.methods = methods;
+    symbol.fields = fields;
+
+    const seenMethods = new Set<string>();
+    const extendFields: StructField[] = [];
 
     for (const stmt of this.programStmts) {
       if (stmt.kind !== "ExtendStmt") continue;
       if ((stmt.targetName.value as string) !== structName) continue;
 
-      const seen = new Set<string>();
+      const localMethods = new Set<string>();
       for (const method of stmt.methods) {
         const methodName = method.name.value;
-        if (methods.some((m) => m.name.value === methodName) || seen.has(methodName)) continue;
-        seen.add(methodName);
+        if (methods.some((m) => m.name.value === methodName) || localMethods.has(methodName)) continue;
+        localMethods.add(methodName);
         methods.push(method);
         this.preRegisteredMethods.add(method);
       }
+
+      // campos do extend viram campo da instancia: entram em symbol.fields
+      // para que literal, construtor e `self.campo` resolvam igual
+      const localFields = new Set<string>();
+      for (const field of stmt.fields) {
+        const fieldName = field.name.value;
+        if (fields.some((f) => f.name.value === fieldName) || localFields.has(fieldName)) continue;
+        localFields.add(fieldName);
+        fields.push(field);
+        extendFields.push(field);
+        this.preRegisteredFields.add(field);
+      }
+    }
+
+    // o codegen precisa dos campos do extend para montar o construtor
+    if (structStmt && extendFields.length > 0) {
+      (structStmt as any).extendFields = extendFields;
     }
   }
 
@@ -759,28 +787,52 @@ export class TypeChecker {
     // `structStmt.methods`. Empurrar no simbolo ensuciaria o AST e o
     // codegen emitiria o metodo duas vezes — dentro da classe e no
     // prototype. Copia antes de escrever.
-    const working = [...(symbol.methods ?? [])];
-    symbol.methods = working;
+const workingMethods = [...(symbol.methods ?? [])];
+    const workingFields = [...(symbol.fields ?? [])];
+    symbol.methods = workingMethods;
+    symbol.fields = workingFields;
 
     const declared = new Set<string>();
+
+    // Campos do extend so fazem sentido com auto-init: com init custom o
+    // construtor e posicional e nao tem onde injetar o campo.
+    if (stmt.fields.length > 0) {
+      if (structStmt.init) {
+        this.errors.push(Errors.extendFieldOnCustomInit(target, stmt.fields[0].name));
+      }
+      for (const field of stmt.fields) {
+        if (field.type) {
+          const err = this.validateTypeNode(field.type, field.name);
+          if (err) this.errors.push(err);
+        }
+        if (this.preRegisteredFields.has(field)) continue;
+        if (workingFields.some((f) => f.name.value === field.name.value) ||
+            declared.has(field.name.value)) {
+          this.errors.push(Errors.extensionConflict(field.name.value, target, field.name, "field"));
+          continue;
+        }
+        declared.add(field.name.value);
+        workingFields.push(field);
+      }
+    }
 
     for (const method of stmt.methods) {
       const methodName = method.name.value;
 
       // ja registrado por preRegisterExtends quando o struct foi declarado:
-      // conflictos ja foram avaliados, falta so validar o corpo
+      // conflitos ja foram avaliados, falta so validar o corpo
       if (this.preRegisteredMethods.has(method)) {
         this.checkStructMethodBody(structStmt, method);
         continue;
       }
 
-      if (working.some((m) => m.name.value === methodName) || declared.has(methodName)) {
+      if (workingMethods.some((m) => m.name.value === methodName) || declared.has(methodName)) {
         this.errors.push(Errors.extensionConflict(methodName, target, method.name));
         continue;
       }
       declared.add(methodName);
       // visivel para os corpos seguintes deste mesmo extend
-      working.push(method);
+      workingMethods.push(method);
 
       // reusa o checker de metodo de struct: registra `self`, type params,
       // substituicao de Self, params, retorno e corpo
@@ -945,20 +997,20 @@ export class TypeChecker {
       }
     }
 
-    // ── 7.3–7.7 Processar struct methods ─────────────────
+      // Copia: symbol.fields/methods podem ser a MESMA referencia do AST, e o
+      // extend empurra nessas listas.
+    const structSymbol = prevEnv.lookupLocal(name);
+    if (structSymbol) {
+      if (stmt.fields) structSymbol.fields = [...stmt.fields];
+      if (stmt.methods) structSymbol.methods = [...stmt.methods];
+    }
+
+    // Registra antes o que o extend vai adicionar e vem DEPOIS deste struct.
+    // Sem isso o corpo de um metodo do struct nao acha metodo de extend, e
+    // `self.campo` de um campo declarado no extend nao resolve.
+    this.preRegisterExtends(name, structSymbol, stmt);
+
     if (stmt.methods) {
-      // Copia: symbol.methods e a MESMA referencia do AST, e o extend
-      // empurra metodos nessa lista.
-      const structSymbol = prevEnv.lookupLocal(name);
-      if (structSymbol) {
-        structSymbol.methods = [...stmt.methods];
-      }
-
-      // Registra antes os metodos de extend que vem DEPOIS deste struct.
-      // Sem isso o corpo de um metodo do struct nao acha metodo de extend:
-      // o extend so e processado mais tarde, e o caminho inverso nao existe.
-      this.preRegisterExtends(name, structSymbol);
-
       for (const method of stmt.methods) {
         this.checkStructMethodBody(stmt, method);
       }
