@@ -2,8 +2,9 @@
 //
 // Espera:
 // [EXTENSION_CONFLICT] campo repetido do struct, do proprio extend ou de outro
-// [EXTEND_TARGET_INVALID] campo em struct com init custom
+// [EXTEND_TARGET_INVALID] campo sem default, ou com default em init com rest
 // [TYPE_MISMATCH] campo obrigatorio faltando no literal
+// [ARGUMENT_COUNT_MISMATCH] mais args posicionais que o maximo
 
 // 1. nome que ja existe no struct
 struct A { name: string }
@@ -21,7 +22,8 @@ struct C { y: int }
 extend C { shared: int }
 extend C { shared: int }
 
-// 4. campo em struct com init custom
+// 4. campo SEM default em struct com init custom: nao ha por onde
+//    receber o valor (com default seria permitido)
 struct D {
   mut v: string
   init(raw: string) { self.v = raw }
@@ -32,3 +34,24 @@ extend D { extra: int }
 struct E { z: int }
 extend E { needed: string }
 val e = E { z: 1 }
+
+// 6. init com rest param: nem campo com default pode entrar
+//    (JS nao aceita default depois de `...rest`)
+struct R {
+  mut first: string
+  init(first0: string, ...rest: string) {
+    self.first = first0
+  }
+}
+extend R { tag: string = "x" }
+
+// 7. mais args que o maximo: init tem 1 param + 1 campo-default = 2
+struct T {
+  mut value: string
+  init(raw: string) {
+    self.value = raw
+  }
+}
+extend T { hash: string = "auto" }
+
+val t7 = T("a", "z", "w")

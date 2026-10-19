@@ -1944,11 +1944,44 @@ val g = Example { name: "c" }
 |----------|------|
 | nome já existe no struct | `[EXTENSION_CONFLICT] field 'name' already exists in 'User'` |
 | nome repetido no mesmo `extend` ou em outro | `[EXTENSION_CONFLICT] field ...` |
-| campo em struct com `init` custom | `[EXTEND_TARGET_INVALID] cannot add fields to 'B' — it has a custom init` |
+| campo **sem default** em struct com `init` custom | `[EXTEND_TARGET_INVALID] cannot add field 'extra' to 'D' without a default — it has a custom init` |
+| campo em struct com `init` custom **com rest param** | `[EXTEND_TARGET_INVALID] ... its init uses a rest parameter and cannot accept extra fields` |
 | campo obrigatório faltando no literal | `[TYPE_MISMATCH] missing required field 'id'` |
 
-Campo em struct com `init` custom é proibido porque o construtor é posicional e
-não tem onde injetar o campo.
+#### Campos no `extend` de struct com `init` custom
+
+O construtor é posicional, então o campo só pode entrar **com default** — ele
+anexa o fim da lista de parâmetros e o JS preenche o default quando a chamada
+omite o argumento:
+
+```typescript
+struct Token {
+  mut value: string
+
+  init(raw: string) {
+    self.value = raw.trim()
+  }
+}
+
+extend Token {
+  hash: string = "auto"
+}
+
+val t = Token("  hello  ")             // hash = "auto"
+val t2 = Token("  hello  ", "z")       // hash = "z"
+print(t2)               // Token { hash: "z", value: "hello" }
+```
+
+- **Minimo de args**: o número de parâmetros do `init` — `expected 1 arguments,
+  got 0` continua válido.
+- **Maximo de args.len**: params do `init` + campos-default do `extend`. Passou
+  disso: `[ARGUMENT_COUNT_MISMATCH] expected 2 arguments, got 3`.
+- **Campo sem default é proibido**: não há por onde receber o valor —
+  `[EXTEND_TARGET_INVALID] cannot add field 'extra' to 'D' without a default`.
+- **`init` com rest param não aceita campo**: JS não aceita default depois de
+  `...rest` — erro mesmo com default.
+- As atribuições dos campos rodam **antes** do corpo do `init`, então em
+  `print()` o campo do extend aparece antes dos campos do struct.
 
 #### Limitações conhecidas de `extend`
 
@@ -2078,6 +2111,7 @@ Strings no topo saem sem aspas; strings aninhadas saem com aspas
 - [x] **Construtor de struct com `new`** - `Nome(...)` e `Nome(campo: valor)` emitem `new`; literal rejeitado em struct com init custom
 - [x] **Método do struct chama método do extend** - pré-registro no momento da declaração do struct
 - [x] **Campos no extend** - viram propriedade da instância, entram no construtor auto-init e aparecem no `print()`
+- [x] **Campo com default em struct com `init` custom** - anexa o fim da lista posicional (`constructor(raw, hash = "auto")`); sem default segue proibido
 - [x] **Divisão inteira** - `int / int` trunca em direção a zero, cumprindo o tipo prometido
 - [x] **Divisão por zero** - `int` por zero é erro (`DIVISION_BY_ZERO` ou exceção em runtime); `float` segue IEEE-754
 - [x] **Concatenação** - `string + primitivo` e o simétrico

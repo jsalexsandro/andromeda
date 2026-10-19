@@ -141,9 +141,14 @@ export const Errors = {
       `${kind} '${name}' already exists in '${target}'`,
       token, "typecheck"),
 
-  extendFieldOnCustomInit: (target: string, token: Token) =>
+  extendFieldWithoutDefault: (target: string, field: string, token: Token) =>
     createError("EXTEND_TARGET_INVALID",
-      `cannot add fields to '${target}' — it has a custom init, which takes positional arguments`,
+      `cannot add field '${field}' to '${target}' without a default — it has a custom init, which takes positional arguments`,
+      token, "typecheck"),
+
+  extendFieldRestInit: (target: string, field: string, token: Token) =>
+    createError("EXTEND_TARGET_INVALID",
+      `cannot add field '${field}' to '${target}' — its init uses a rest parameter and cannot accept extra fields`,
       token, "typecheck"),
 
   divisionByZero: (operator: string, token: Token) =>

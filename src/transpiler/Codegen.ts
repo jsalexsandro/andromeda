@@ -228,11 +228,35 @@ export class Codegen {
     // ── Constructor ──
     let ctorCode: string;
     if (init) {
-      // Custom init: positional arguments
-      const params = init.params.map((p: any) => p.name.value).join(", ");
+      // Custom init: positional arguments. Campos de extend com default
+      // anexam o fim da lista (`constructor(raw, hash = "auto")`) e sao
+      // atribuidos no inicio do corpo. Sem default o checker ja bloqueou:
+      // nao ha por onde receber o valor. Com rest param nem com default
+      // cabe, porque JS nao aceita default depois de `...rest`.
+      const initHasRest = init.params.some((p: any) => p.isRest === true);
+      const injectedFields = initHasRest
+        ? []
+        : extendFields.filter((f: any) => f.defaultValue);
+
+      const params = [
+        ...init.params.map((p: any) => p.name.value),
+        ...injectedFields.map(
+          (f: any) => `${f.name.value} = ${this.transpileExpr(f.defaultValue)}`
+        ),
+      ].join(", ");
+
       this.exprVisitor.enterStructMethod();
-      const body = this.transpileBlockStmt(init.body);
+      let body = this.transpileBlockStmt(init.body);
       this.exprVisitor.exitStructMethod();
+
+      if (injectedFields.length > 0) {
+        const assigns = injectedFields
+          .map((f: any) => `this.${f.name.value} = ${f.name.value};`)
+          .join(" ");
+        body = body === "{}"
+          ? `{ ${assigns} }`
+          : `{ ${assigns}${body.replace(/^\{/, "").replace(/\}$/, "")} }`;
+      }
       ctorCode = `constructor(${params}) ${body}`;
     } else {
       // Auto-init: named arguments via object destructuring

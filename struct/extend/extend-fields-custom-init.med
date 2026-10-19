@@ -1,0 +1,99 @@
+// campos de extend com default em struct com init custom:
+// entram no fim da lista posicional, `constructor(raw, hash = "auto")`
+
+struct Token {
+  mut value: string
+
+  init(raw: string) {
+    self.value = raw.trim()
+  }
+
+  func size(): int {
+    return self.value.length
+  }
+}
+
+extend Token {
+  hash: string = "auto"
+
+  mut func rehash(v: string) {
+    self.hash = v
+  }
+
+  func info(): string {
+    return self.value + "/" + self.hash
+  }
+}
+
+// sem o arg extra: default entra
+val t = Token("  hello  ")
+print(t.value)       // hello
+print(t.hash)        // auto
+print(t.info())      // hello/auto
+
+// com o arg extra: sobrescreve o default
+val t2 = Token("  hello  ", "z")
+print(t2.value)      // hello
+print(t2.hash)       // z
+print(t2.size())     // 5
+
+// campo mut do extend: metodos veem e mudam
+t2.rehash("w")
+print(t2.hash)       // w
+print(t2.info())     // hello/w
+
+// print mostra todas as propriedades, inclusive as do extend
+// (as atribuicoes injetadas rodam antes do corpo: campo do extend sai primeiro)
+print(t2)            // Token { hash: "w", value: "hello" }
+
+// dois campos-default: os extras chegam em ordem
+struct Host {
+  name: string
+
+  init(n: string) {
+    self.name = n
+  }
+}
+
+extend Host {
+  port: int = 8080
+  secure: bool = true
+}
+
+val h = Host("app")
+print(h.name)        // app
+print(h.port)        // 8080
+print(h.secure)      // true
+
+val h2 = Host("app", 9090)
+print(h2.port)       // 9090
+print(h2.secure)     // true
+
+val h3 = Host("app", 9090, false)
+print(h3.port)       // 9090
+print(h3.secure)     // false
+print(h3)            // Host { port: 9090, secure: false, name: "app" }
+
+// init body vazio: so as atribuicoes injetadas
+struct Badge {
+  mut code: string
+
+  init(c: string) {
+    self.code = c
+  }
+}
+
+extend Badge {
+  mut uses: int = 0
+  label: string = "padrao"
+}
+
+val bd = Badge("abc")
+print(bd.code)       // abc
+print(bd.uses)       // 0
+print(bd.label)      // padrao
+
+val bd2 = Badge("xyz", 3, "vip")
+print(bd2.uses)      // 3
+print(bd2.label)     // vip
+print(bd2)           // Badge { uses: 3, label: "vip", code: "xyz" }

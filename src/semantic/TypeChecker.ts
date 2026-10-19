@@ -794,11 +794,21 @@ const workingMethods = [...(symbol.methods ?? [])];
 
     const declared = new Set<string>();
 
-    // Campos do extend so fazem sentido com auto-init: com init custom o
-    // construtor e posicional e nao tem onde injetar o campo.
     if (stmt.fields.length > 0) {
-      if (structStmt.init) {
-        this.errors.push(Errors.extendFieldOnCustomInit(target, stmt.fields[0].name));
+      // Campos do extend em struct com init custom: com default entram no
+      // fim da lista posicional (`constructor(raw, hash = "auto")`); sem
+      // default nao ha por onde receber o valor; com rest param nem com
+      // default cabe — JS nao aceita default depois de `...rest`.
+      const init = structStmt.init;
+      if (init) {
+        const initHasRest = init.params.some((p) => p.isRest === true);
+        for (const field of stmt.fields) {
+          if (initHasRest) {
+            this.errors.push(Errors.extendFieldRestInit(target, field.name.value, field.name));
+          } else if (!field.defaultValue) {
+            this.errors.push(Errors.extendFieldWithoutDefault(target, field.name.value, field.name));
+          }
+        }
       }
       for (const field of stmt.fields) {
         if (field.type) {
@@ -2157,6 +2167,19 @@ const workingMethods = [...(symbol.methods ?? [])];
     const hasRest = initParams.length > 0 && initParams[initParams.length - 1].isRest === true;
     const restIndex = hasRest ? initParams.length - 1 : -1;
 
+    // Campos de extend com default anexam a assinatura: o construtor
+    // gerado e `constructor(raw, hash = "auto")`, entao o minimo de args
+    // segue sendo o numero de params do init e o maximo cresce um por
+    // campo. Com rest param o codegen nao anexa nada — caso ja bloqueado
+    // em checkExtendStmt.
+    const extendDefaults: StructField[] = [];
+    if (!hasRest) {
+      const structStmt = structSymbol.stmt as Extract<Stmt, { kind: "StructStmt" }> | undefined;
+      for (const f of ((structStmt as any).extendFields ?? []) as StructField[]) {
+        if (f.defaultValue) extendDefaults.push(f);
+      }
+    }
+
     // Check arity
     if (hasRest) {
       if (positionalArgs.length < restIndex) {
@@ -2165,9 +2188,11 @@ const workingMethods = [...(symbol.methods ?? [])];
         ));
       }
     } else {
-      if (positionalArgs.length !== initParams.length) {
+      const maxArgs = initParams.length + extendDefaults.length;
+      const belowMin = positionalArgs.length < initParams.length;
+      if (belowMin || positionalArgs.length > maxArgs) {
         this.errors.push(Errors.argumentCountMismatch(
-          initParams.length, positionalArgs.length, token,
+          belowMin ? initParams.length : maxArgs, positionalArgs.length, token,
         ));
       }
     }
@@ -2188,6 +2213,12 @@ const workingMethods = [...(symbol.methods ?? [])];
         }
       } else if (i < initParams.length) {
         expectedType = initParams[i].type ?? null;
+      } else {
+        // arg extra: checa contra o campo de extend correspondente
+        const field = extendDefaults[i - initParams.length];
+        expectedType = field && field.type
+          ? (typeArgMap.size > 0 ? this.substitute(field.type, typeArgMap) : field.type)
+          : null;
       }
 
       if (!expectedType) {
