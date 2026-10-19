@@ -33,6 +33,9 @@ export class TypeChecker {
   private currentFunctionReturnType: TypeNode | null = null;
   private contextualType: TypeNode | null = null;
   private resolvedTypes = new Map<Expr, TypeNode>();
+  /** Campos do struct (e de `extend`) visíveis por nome nu dentro de métodos/init */
+  private currentStructFields: Map<string, { type: TypeNode; mutable: boolean }> | null = null;
+  private currentStructSelfMutable: boolean = false;
 
   constructor() {
     this.globalEnv = new Environment(null, true);
@@ -1196,7 +1199,19 @@ const workingMethods = [...(symbol.methods ?? [])];
     this.functionDepth++;
     this.currentFunctionReturnType = returnType;
     this.hasReturn = false;
-    this.checkBlockStmt(method.body);
+
+    const structFields: StructField[] = [
+      ...structStmt.fields,
+      ...(((structStmt as any).extendFields ?? []) as StructField[]).filter(
+        (f: StructField) => !structStmt.fields.some((sf: StructField) => sf.name.value === f.name.value),
+      ),
+    ];
+    this.pushStructContext(structFields, method.mutable);
+    try {
+      this.checkBlockStmt(method.body);
+    } finally {
+      this.popStructContext();
+    }
 
     // Verificar return obrigatório
     if (returnType.kind !== "PrimitiveType" || returnType.name !== "void") {
@@ -1238,6 +1253,18 @@ const workingMethods = [...(symbol.methods ?? [])];
       initialized: true,
       declarationToken: declToken ?? structStmt.name,
     });
+  }
+
+  private pushStructContext(fields: StructField[], selfMutable: boolean): void {
+    const map = new Map<string, { type: TypeNode; mutable: boolean }>();
+    for (const f of fields) map.set(f.name.value as string, { type: f.type, mutable: f.mutable });
+    this.currentStructFields = map;
+    this.currentStructSelfMutable = selfMutable;
+  }
+
+  private popStructContext(): void {
+    this.currentStructFields = null;
+    this.currentStructSelfMutable = false;
   }
 
   // ── 10.0 Check struct init constructor ──────────────────────
@@ -1307,7 +1334,12 @@ const workingMethods = [...(symbol.methods ?? [])];
     const initializedFields = new Set<string>(
       structStmt.fields.filter(f => f.defaultValue).map(f => f.name.value as string)
     );
-    this.checkInitBodyStatements(initNode.body.statements, initializedFields, structStmt, initNode);
+    this.pushStructContext(structStmt.fields, true);
+    try {
+      this.checkInitBodyStatements(initNode.body.statements, initializedFields, structStmt, initNode);
+    } finally {
+      this.popStructContext();
+    }
 
     // Verificar return com valor
     if (this.hasReturn) {
@@ -1816,6 +1848,11 @@ const workingMethods = [...(symbol.methods ?? [])];
               const fieldName = (member.property.name.value as string);
               initializedFields.add(fieldName);
             }
+          }
+          // Detecta campo = valor (nome nu) dentro de init
+          if (expr.kind === "Assign" && expr.name.kind === "Identifier" && this.currentStructFields) {
+            const fieldName = (expr.name.name.value as string);
+            if (this.currentStructFields.has(fieldName)) initializedFields.add(fieldName);
           }
           this.checkExpressionStmt(stmt);
           break;
@@ -2970,6 +3007,13 @@ const workingMethods = [...(symbol.methods ?? [])];
 
     const symbol = this.currentEnv.lookup(name);
     if (!symbol) {
+      if (this.currentStructFields && name) {
+        const field = this.currentStructFields.get(name);
+        if (field) {
+          this.checkAssignToStructField(name, targetName.name, stmt.operator, stmt.value, field, this.currentStructSelfMutable);
+          return;
+        }
+      }
       this.errors.push(Errors.undefinedVariable(name, targetName.name));
       return;
     }
@@ -2999,6 +3043,51 @@ const workingMethods = [...(symbol.methods ?? [])];
       this.errors.push(Errors.typeMismatch(
         `Cannot assign '${this.typeToString(valueType)}' to '${name}' (${this.typeToString(symbol.type)})`,
         targetName.name
+      ));
+    }
+  }
+
+  private checkAssignToStructField(
+    name: string,
+    targetToken: Token,
+    operator: Token | undefined,
+    value: Expr,
+    field: { type: TypeNode; mutable: boolean },
+    selfMutable: boolean,
+  ): void {
+    const writable = field.mutable || selfMutable;
+    const op = operator?.value as string;
+    if (op && ['+=', '-=', '*=', '/=', '%='].includes(op)) {
+      if (op === '+=') {
+        const resolvedType = this.resolveAlias(field.type);
+        if (!(resolvedType.kind === "PrimitiveType" && resolvedType.name === "string")) {
+          if (!this.isNumericType(field.type)) {
+            this.errors.push(Errors.typeMismatch(
+              `Cannot use '${op}' with non-numeric field '${name}' of type '${this.typeToString(field.type)}'`,
+              operator!,
+            ));
+            return;
+          }
+        }
+      } else if (!this.isNumericType(field.type)) {
+        this.errors.push(Errors.typeMismatch(
+          `Cannot use '${op}' with non-numeric field '${name}' of type '${this.typeToString(field.type)}'`,
+          operator!,
+        ));
+        return;
+      }
+    }
+    if (!writable) {
+      this.errors.push(Errors.cannotAssignToField(name, targetToken));
+      return;
+    }
+    this.contextualType = field.type;
+    const valueType = this.inferType(value);
+    this.contextualType = null;
+    if (!this.areTypesCompatible(field.type, valueType)) {
+      this.errors.push(Errors.typeMismatch(
+        `Cannot assign '${this.typeToString(valueType)}' to field '${name}' of type '${this.typeToString(field.type)}'`,
+        targetToken,
       ));
     }
   }
@@ -3227,6 +3316,13 @@ const workingMethods = [...(symbol.methods ?? [])];
 
     const symbol = this.currentEnv.lookup(name);
     if (!symbol) {
+      if (this.currentStructFields && name) {
+        const field = this.currentStructFields.get(name);
+        if (field) {
+          this.checkAssignToStructField(name, targetName.name, expr.operator, expr.value, field, this.currentStructSelfMutable);
+          return;
+        }
+      }
       this.errors.push(Errors.undefinedVariable(name, targetName.name));
       return;
     }
@@ -3441,11 +3537,13 @@ const workingMethods = [...(symbol.methods ?? [])];
       case "Identifier": {
         const name = expr.name.value as string;
         const symbol = this.currentEnv.lookup(name);
-        if (!symbol) {
-          this.errors.push(Errors.undefinedVariable(name, expr.name));
-          return { kind: "PrimitiveType", name: "unknown" };
+        if (symbol) return symbol.type;
+        if (this.currentStructFields) {
+          const field = this.currentStructFields.get(name);
+          if (field) return field.type;
         }
-        return symbol.type;
+        this.errors.push(Errors.undefinedVariable(name, expr.name));
+        return { kind: "PrimitiveType", name: "unknown" };
       }
       case "Literal":
         return this.inferLiteralType(expr);
@@ -4790,7 +4888,11 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const previousReturnType = this.currentFunctionReturnType;
     const previousHasReturn = this.hasReturn;
     const previousFunctionDepth = this.functionDepth;
+    const previousStructFields = this.currentStructFields;
+    const previousStructSelfMutable = this.currentStructSelfMutable;
     this.currentEnv = fnEnv;
+    this.currentStructFields = null;
+    this.currentStructSelfMutable = false;
 
     // Se temos type parameters e contexto, tenta inferir mapeamento concreto
     // Ex: apply(10, <T>(x: T): T => x) → fnContext = (int) => int → T=int
@@ -4889,6 +4991,8 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       inferredReturn = expectedReturn ?? { kind: "PrimitiveType", name: "void" };
     }
 
+    this.currentStructFields = previousStructFields;
+    this.currentStructSelfMutable = previousStructSelfMutable;
     this.currentEnv = previousEnv;
     this.currentFunctionReturnType = previousReturnType;
     this.hasReturn = previousHasReturn;

@@ -6,6 +6,7 @@ import { Token, TokenType } from "../lexer/types";
 
 export class Codegen {
   private exprVisitor: ExprVisitor;
+  private structs = new Map<string, { hasInit: boolean; fields: string[] }>();
 
   constructor() {
     this.exprVisitor = new ExprVisitor();
@@ -14,8 +15,9 @@ export class Codegen {
   transpile(ast: Stmt[]): string {
     const lines: string[] = [];
 
+    this.structs = this.collectStructs(ast);
     this.exprVisitor.shadowBuiltins(this.collectShadowedBuiltins(ast));
-    this.exprVisitor.setStructs(this.collectStructs(ast));
+    this.exprVisitor.setStructs(this.structs);
 
     lines.push(RUNTIME_JS);
     lines.push("");
@@ -40,7 +42,17 @@ export class Codegen {
     const visit = (node: any): void => {
       if (!node || typeof node !== "object") return;
       if (node.kind === "StructStmt" && node.name) {
-        structs.set(node.name.value as string, { hasInit: !!node.init });
+        structs.set(node.name.value as string, { hasInit: !!node.init, fields: node.fields.map(f => f.name.value as string) });
+      }
+      if (node.kind === "ExtendStmt" && node.targetName) {
+        const target = node.targetName.value as string;
+        const existing = structs.get(target);
+        if (existing) {
+          existing.fields = [
+            ...existing.fields,
+            ...node.fields.map((f: any) => f.name.value as string),
+          ];
+        }
       }
       for (const key of Object.keys(node)) {
         const value = node[key];
@@ -222,6 +234,7 @@ export class Codegen {
     // O checker anota aqui via preRegisterExtends.
     const extendFields: any[] = (stmt as any).extendFields || [];
     const fields: any[] = [...(stmt.fields || []), ...extendFields];
+    const fieldNames = fields.map((f: any) => f.name.value);
     const methods: any[] = stmt.methods || [];
     const init = stmt.init;
 
@@ -245,7 +258,7 @@ export class Codegen {
         ),
       ].join(", ");
 
-      this.exprVisitor.enterStructMethod();
+      this.exprVisitor.enterStructMethod(fieldNames, "this", init.params.map((p: any) => p.name.value));
       let body = this.transpileBlockStmt(init.body);
       this.exprVisitor.exitStructMethod();
 
@@ -278,7 +291,7 @@ export class Codegen {
     const methodCode = methods.map((m: any) => {
       const methodName = m.name.value;
       const params = m.params.map((p: any) => p.name.value).join(", ");
-      this.exprVisitor.enterStructMethod();
+      this.exprVisitor.enterStructMethod(fieldNames, "this", m.params.map((p: any) => p.name.value));
       const body = this.transpileBlockStmt(m.body);
       this.exprVisitor.exitStructMethod();
       return `${methodName}(${params}) ${body}`;
@@ -314,9 +327,13 @@ if ((stmt as any).extendTargetKind === "primitive") {
       return `$ext[${key}] = Object.assign($ext[${key}] || {}, ${body});`;
     }
 
+    const targetStruct = this.structs.get(target);
+    const extendFieldNames = targetStruct ? targetStruct.fields : [];
     return (stmt.methods || []).map((m: any) => {
       const params = m.params.map((p: any) => p.name.value).join(", ");
+      this.exprVisitor.enterStructMethod(extendFieldNames, "self", m.params.map((p: any) => p.name.value));
       const body = this.transpileBlockStmt(m.body);
+      this.exprVisitor.exitStructMethod();
       // `self` nao pode ser parametro: `u.m()` so passa `this`, entao um
       // parametro `self` viria undefined. Injetamos do `this` real.
       const injected = body.replace(/^\{/, "{\n  const self = this;");

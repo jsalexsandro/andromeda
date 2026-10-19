@@ -8,14 +8,25 @@ export class ExprVisitor {
   /** Builtins redefinidos pelo usuario no programa — nao devem ser reescritos */
   private shadowedBuiltins: Set<string> = new Set();
   /** Structs do programa — para emitir `new` em chamadas de construtor */
-  private structs = new Map<string, { hasInit: boolean }>();
+  private structs = new Map<string, { hasInit: boolean; fields: string[] }>();
+  /** Campos visiveis por nome nu no metodo/struct atual */
+  private currentStructFields: Set<string> = new Set();
+  private currentStructPrefix: "this" | "self" | null = null;
+  /** Parametros do metodo/struct atual — sombreiam campos com mesmo nome */
+  private currentParamNames: Set<string> = new Set();
 
-  enterStructMethod(): void {
+  enterStructMethod(fieldNames: string[], prefix: "this" | "self", paramNames: string[] = []): void {
     this.inStructMethod = true;
+    this.currentStructFields = new Set(fieldNames);
+    this.currentStructPrefix = prefix;
+    this.currentParamNames = new Set(paramNames);
   }
 
   exitStructMethod(): void {
     this.inStructMethod = false;
+    this.currentStructFields = new Set();
+    this.currentStructPrefix = null;
+    this.currentParamNames = new Set();
   }
 
   shadowBuiltins(names: Iterable<string>): void {
@@ -79,10 +90,16 @@ export class ExprVisitor {
   }
 
   private visitIdentifier(expr: IdentifierExpr): string {
-    if (this.inStructMethod && expr.name.value === "self") {
-      return "this";
+    const name = expr.name.value;
+    if (name === "self") {
+      return this.currentStructPrefix === "this" ? "this" : "self";
     }
-    return expr.name.value;
+    // Parametros e variaveis locais sombreiam campos com mesmo nome
+    if (this.currentParamNames.has(name)) return name;
+    if (this.currentStructPrefix && this.currentStructFields.has(name)) {
+      return `${this.currentStructPrefix}.${name}`;
+    }
+    return name;
   }
 
   private visitGroup(expr: GroupExpr): string {
@@ -273,9 +290,9 @@ private visitMember(expr: MemberExpr): string {
       obj = `(${obj})`;
     }
 
-    // self.prop inside a struct method  this.prop
-    if (this.inStructMethod && expr.object.kind === "Identifier" && expr.object.name.value === "self") {
-      return `this.${prop}`;
+    // self.prop inside a struct method -> prefixo do contexto (this ou self)
+    if (this.currentStructPrefix && expr.object.kind === "Identifier" && expr.object.name.value === "self") {
+      return `${this.currentStructPrefix}.${prop}`;
     }
     return `${obj}.${prop}`;
   }

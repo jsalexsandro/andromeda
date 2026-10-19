@@ -1,0 +1,94 @@
+// Nome nu dentro de metodos de struct resolve como self.name
+// (leitura e escrita), mantendo self.name funcionando.
+
+struct Person {
+  mut name: string = ''
+  mut age: int = 0
+
+  func getName(): string {
+    return name
+  }
+
+  mut func setName(n: string) {
+    name = n
+  }
+
+  mut func birthday() {
+    age = age + 1
+  }
+
+  func summary(): string {
+    return name + "(" + age + ")"
+  }
+}
+
+val p = Person { name: "Ana", age: 30 }
+print(p.getName())
+p.setName("Joao")
+print(p.getName())
+p.birthday()
+print(p.summary())
+
+// self continua funcionando igual
+func useSelf(s: Person): string {
+  return s.name
+}
+print(useSelf(p))
+
+// init custom: campos sem default inicializados por nome nu
+struct Point {
+  mut x: float
+  mut y: float
+
+  init(xv: float, yv: float) {
+    x = xv
+    y = yv
+  }
+
+  func sum(): float {
+    return x + y
+  }
+}
+
+val pt = Point(3.0, 4.0)
+print(pt.sum())
+
+// campos vindos de extend, acessados por nome nu nos metodos do extend
+struct Tag {
+  text: string
+}
+
+extend Tag {
+  mut hits: int = 0
+
+  mut func hit() {
+    hits = hits + 1
+  }
+
+  func count(): int {
+    return hits
+  }
+}
+
+val t = Tag { text: "x" }
+t.hit()
+t.hit()
+print(t.count())
+print(t)
+
+// generico com nome nu
+struct Box<T> {
+  mut value: T
+
+  func get(): T {
+    return value
+  }
+
+  mut func set(v: T) {
+    value = v
+  }
+}
+
+val b = Box<int> { value: 42 }
+b.set(7)
+print(b.get())
