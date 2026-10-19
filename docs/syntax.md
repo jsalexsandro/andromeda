@@ -45,7 +45,16 @@
     - [Protocol Generics](#176-protocol-generics)
     - [Self Type](#177-self-type)
     - [Error Cases](#178-error-cases)
-18. [Builtins](#18-builtins)
+18. [Extend](#18-extend)
+    - [Ordem e hoisting](#181-ordem-e-hoisting)
+    - [Métodos](#182-métodos)
+    - [mut func](#183-mut-func)
+    - [Conflitos de nome](#184-conflitos-de-nome)
+    - [Campos no extend](#185-campos-no-extend)
+    - [Campos em struct com init custom](#186-campos-em-struct-com-init-custom)
+    - [extend em primitivos](#187-extend-em-primitivos)
+    - [Limitações conhecidas](#188-limitações-conhecidas)
+19. [Builtins](#19-builtins)
 
 ---
 
@@ -908,12 +917,6 @@ val result: int = double(5)
 
 ---
 
-## 16. Structs
-
-Structs são tipos nominais com campos nomeados (similar a `struct` em Rust, `data class` em Kotlin, ou `record` em Java).
-
----
-
 ## 17. Protocols
 
 Protocols definem contratos de comportamento que structs podem implementar (similar a `protocol` em Swift, `interface` em Kotlin/Java, ou `trait` em Rust).
@@ -1166,7 +1169,10 @@ val eq = a.equals(b)  // Self resolvido para UserId
 
 ---
 
-## 18. Structs
+## 16. Structs
+
+Structs são tipos nominais com campos nomeados (similar a `struct` em Rust,
+`data class` em Kotlin, ou `record` em Java).
 
 ### 16.1 Declaração
 
@@ -1600,7 +1606,330 @@ val okCheck: bool = ok.isOk()
 
 ---
 
-## 18. Builtins
+## 18. Extend
+
+`extend` adiciona **métodos e campos** a um tipo já declarado — structs e
+primitivos de valor — sem editar a declaração original (similar a extensions em
+Kotlin/Swift). Serve para compor o programa progressivamente: cada bloco de
+código pode estender tipos de outro módulo sem reabri-los.
+
+### 18.1 Ordem e hoisting
+
+O `extend` **precisa vir depois** da declaração do alvo. Não há hoisting: antes
+do `struct`, o alvo não foi declarado e o compilador não acha:
+
+```typescript
+extend Ghost { }                 // ❌ [UNDEFINED_TYPE] type 'Ghost' is not found
+
+struct Greeter { who: string }
+
+extend Greeter {
+  func hello(): string {
+    return "Oi " + self.who
+  }
+}
+
+val g = Greeter { who: "Ana" }
+print(g.hello())                 // "Oi Ana"
+```
+
+**Os corpos de método são a exceção — os dois lados se enxergam.** Ao declarar
+o `struct`, o compilador pré-registra todos os `extend`s do programa, então um
+método do `struct` chama método do `extend` que vem depois:
+
+```typescript
+struct Greeter {
+  who: string
+
+  func hi(): string {
+    return self.hello() + "!"    // ok, `hello` vem do extend abaixo
+  }
+}
+
+extend Greeter {
+  func hello(): string {
+    return "Oi " + self.who
+  }
+}
+
+print(Greeter { who: "Ana" }.hi())   // "Oi Ana!"
+```
+
+Nos dois sentidos: método do `extend` chama método do `struct`, e um método do
+`extend` chama outro `extend` do mesmo tipo.
+
+**Código executável, porém, roda linha a linha.** O checker valida os nomes
+independente da posição, mas uma chamada escrita **acima** da linha do
+`extend` executa antes do método existir:
+
+```typescript
+val u = Greeter { who: "Ana" }
+print(u.hello())                 // checker: ok — runtime: explodiu, prototype ainda não tem `hello`
+
+extend Greeter { func hello(): string { return "Oi " + self.who } }
+```
+
+Regra prática: declare os `extend`s **antes** do código executável que os usa.
+
+### 18.2 Métodos
+
+Métodos do `struct` e do `extend` convivem como se tivessem sido declarados
+juntos — `self` funciona igual:
+
+```typescript
+struct User {
+  name: string
+  age: int
+
+  func isAdult(): bool {
+    return self.age >= 18
+  }
+}
+
+extend User {
+  func greeting(): string {
+    return "Oi, " + self.name
+  }
+
+  func olderThan(age: int): bool {
+    return self.age > age
+  }
+}
+
+val u = User { name: "Ana", age: 20 }
+print(u.greeting())        // "Oi, Ana"
+print(u.isAdult())         // true
+print(u.olderThan(18))     // true
+```
+
+Vários `extend` no mesmo tipo são permitidos desde que não repitam nome — cada
+um pode trazer métodos e campos:
+
+```typescript
+struct Config {
+  host: string = "localhost"
+}
+
+extend Config {
+  port: int = 8080
+}
+
+extend Config {
+  secure: bool = true
+}
+
+val c = Config { host: "lo" }
+print(c.port)              // 8080
+print(c.secure)            // true
+```
+
+### 18.3 mut func
+
+`mut func` funciona igual dentro do `extend`, e em primitivos também:
+
+```typescript
+struct Counter { mut value: int }
+
+extend Counter {
+  mut func increment(step: int): int {
+    self.value = self.value + step
+    return self.value
+  }
+}
+
+extend Integer {
+  mut func times(factor: int): int { return self * factor }
+}
+
+val c = Counter { value: 10 }
+print(c.increment(5))      // 15
+print(7.times(6))          // 42
+```
+
+Reatribuir `self = ...` direto é proibido — inclusive em primitivos — com
+`CANNOT_ASSIGN`: `'self' is immutable`.
+
+### 18.4 Conflitos de nome
+
+| Situação | Erro |
+|----------|------|
+| método já existe no struct | `[EXTENSION_CONFLICT] method 'isAdult' already exists in 'User'` |
+| nome repetido dentro do mesmo `extend` | `[EXTENSION_CONFLICT]` |
+| nome repetido em outro `extend` do mesmo tipo | `[EXTENSION_CONFLICT]` |
+| método que já existe no primitivo | `[EXTENSION_CONFLICT] method 'upper' already exists in 'string'` |
+| alvo não existe | `[UNDEFINED_TYPE] type 'Ghost' is not found` |
+| alvo existe mas não é struct | `[EXTEND_TARGET_INVALID] cannot extend 'Integer': expected a struct, but it is a built-in type` |
+| primitivo não extensível (`Void`, `Null`, `Any`, `Unknown`) | `[EXTEND_TARGET_INVALID] ... is not an extendable type` |
+
+Um nome de campo e um nome de método iguais **não** são detectados como conflito
+(veja [Limitações](#188-limitações-conhecidas)).
+
+Método adicionado por `extend` **não** conta para `implements` — a conformância
+é verificada quando o `struct` é declarado.
+
+### 18.5 Campos no `extend`
+
+`extend` também pode declarar **campos**, que viram propriedade da instância e
+são injetados no construtor auto-init:
+
+```typescript
+struct Example {
+  name: string
+}
+
+extend Example {
+  mut id: string                 // sem default: obrigatório
+  hash: string = "auto"          // com default: opcional
+
+  mut func rehash(value: string) {
+    self.hash = value
+  }
+
+  func short(): string {
+    return self.name + "/" + self.id
+  }
+}
+
+val e = Example { name: "a", id: "1", hash: "x" }
+print(e.short())           // "a/1"
+print(e)                   // Example { name: "a", id: "1", hash: "x" }
+
+e.rehash("y")
+print(e.hash)              // "y"
+
+val f = Example { name: "b", id: "2" }   // hash = "auto"
+```
+
+Como viram propriedade própria, `print()` os mostra normalmente — diferente de
+propriedade em prototype, que o formatador não enxergaria.
+
+Campo sem default fica **obrigatório** no literal e no construtor:
+
+```typescript
+val g = Example { name: "c" }
+// ❌ [TYPE_MISMATCH] missing required field 'id' in struct literal for 'Example'
+```
+
+| Situação | Erro |
+|----------|------|
+| campo repete campo do struct, do mesmo `extend` ou de outro | `[EXTENSION_CONFLICT] field 'name' already exists in 'User'` |
+| campo **sem default** em struct com `init` custom | `[EXTEND_TARGET_INVALID] cannot add field 'extra' to 'D' without a default — it has a custom init, which takes positional arguments` |
+| campo em struct com `init` custom **com rest param** | `[EXTEND_TARGET_INVALID] ... its init uses a rest parameter and cannot accept extra fields` |
+| campo obrigatório faltando no literal | `[TYPE_MISMATCH] missing required field 'id'` |
+
+### 18.6 Campos em struct com `init` custom
+
+Com `init` declarado, o construtor é **posicional**, então o campo só pode
+entrar **com default** — ele anexa o fim da lista de parâmetros e o JS preenche
+o default quando a chamada omite o argumento:
+
+```typescript
+struct Token {
+  mut value: string
+
+  init(raw: string) {
+    self.value = raw.trim()
+  }
+}
+
+extend Token {
+  hash: string = "auto"
+}
+
+val t = Token("  hello  ")        // hash = "auto"
+val t2 = Token("  hello  ", "z")  // hash = "z"
+print(t2)            // Token { hash: "z", value: "hello" }
+```
+
+- **Mínimo de args**: o número de parâmetros do `init` — `Token()` continua
+  dando `expected 1 arguments, got 0`.
+- **Máximo de args**: params do `init` + campos-default do `extend`. Passou
+  disso: `[ARGUMENT_COUNT_MISMATCH] expected 2 arguments, got 3`.
+- **Campo sem default é proibido**: não há por onde receber o valor —
+  `[EXTEND_TARGET_INVALID] cannot add field 'extra' to 'D' without a default`.
+- **`init` com rest param não aceita campo**: JS não aceita default depois de
+  `...rest` — erro mesmo com default.
+- As atribuições dos campos rodam **antes** do corpo do `init`, então em
+  `print()` o campo do extend aparece **antes** dos campos do struct.
+
+### 18.7 extend em primitivos
+
+Primitivo se escreve **pelo alias capitalizado** — o `string` minúsculo é
+token de tipo, não identificador:
+
+```typescript
+extend string { }   // ❌ Parse Error: Expected type name after 'extend'
+extend String { }   // ✅
+```
+
+Funciona em `int`, `float`, `string` e `bool` (`Integer`, `Float`, `String`,
+`Boolean`). `void`, `null`, `any` e `unknown` não são extensíveis.
+
+```typescript
+extend String {
+  func shout(): string {
+    return self.upper() + "!"
+  }
+
+  func has(text: string): bool {
+    return self.contains(text)
+  }
+}
+
+print("ana".shout())              // "ANA!"
+print("andromeda".has("rome"))    // true
+```
+
+Os métodos **não** vão para `String.prototype` — patchear o prototype global
+poluiria todo string vindo de qualquer biblioteca, sem como desfazer. Eles ficam
+num registro por primitivo:
+
+```javascript
+$ext["string"] = Object.assign($ext["string"] || {}, {
+  shout: function (self) { return self.toUpperCase() + "!"; },
+});
+```
+
+e a chamada é reescrita: `s.shout()` → `$ext["string"].shout(s)`. Por isso
+funcionam em cadeia com os embutidos, atravessando tipos:
+
+```typescript
+print("  x  ".trim().shout())            // string → string (builtin) → extend
+print(42.toFloat().toString().shout())   // int → float → string → extend
+```
+
+### 18.8 Limitações conhecidas
+
+**Cravos que ainda não existem, e pegadinhas honestas:**
+
+- **`struct { }` literal não vale em struct com `init` custom.** O literal é a
+  forma de auto-init; com init custom o construtor é posicional:
+
+  ```typescript
+  struct T { mut value: string; init(raw: string) { self.value = raw.trim() } }
+
+  T("  x  ")             // ✅ ok
+  T { value: "x" }       // ❌ ERROR: has a custom init and takes positional arguments
+  ```
+
+- **`Array<T>`** ainda não é extensível.
+
+- **Campo em `extend` de primitivo não é suportado** — e hoje é
+  **silenciosamente ignorado**: `extend String { ghost: int = 3 }` compila e
+  nenhum campo nasce (o suporte a primitivo só cobre métodos). Aguardando
+  diagnóstico explícito.
+
+- **Campo e método com o mesmo nome** também não são detectados como conflito
+  hoje: o campo prevalece no acesso (`x.name`), a chamada dá `INVALID_CALL`, e
+  o método do prototype vira código morto. Evite até virar
+  `[EXTENSION_CONFLICT]`.
+
+- **Não há narrowing** depois de `if (x == null)` — use `if val` (ver
+  [Optional Binding](#optional-binding-if-val--if-var)).
+
+---
+
+## 19. Builtins
 
 Builtins são funções disponíveis em qualquer escopo sem declaração. A referência
 completa da API está em [`docs/controlls/api-bultins.md`](controlls/api-bultins.md).
@@ -1736,267 +2065,6 @@ Como os métodos devolvem primitivos, as cadeias fluem entre os tipos:
 const n = ''
 print(n.length.isEven())                   // "" → 0 → 0 é par → true
 ```
-
-### extend
-
-`extend` adiciona métodos a um tipo já declarado. Precisa vir **depois** do
-`struct` — não há hoisting:
-
-```typescript
-struct User {
-  name: string
-  age: int
-
-  func isAdult(): bool {
-    return self.age >= 18
-  }
-}
-
-extend User {
-  func greeting(): string {
-    return "Oi, " + self.name
-  }
-
-  func olderThan(age: int): bool {
-    return self.age > age
-  }
-}
-
-val u = User { name: "Ana", age: 20 }
-print(u.greeting())          // "Oi, Ana"
-print(u.isAdult())           // true
-print(u.olderThan(18))       // true
-```
-
-Métodos do `struct` e do `extend` convivem, e um método de `extend` pode chamar
-outro do mesmo `extend` ou do próprio struct.
-
-Vários `extend` no mesmo tipo são permitidos desde que não repitam nome.
-
-`mut func` funciona igual dentro do `extend`, e em primitivos também:
-
-```typescript
-struct Counter { mut value: int }
-
-extend Counter {
-  mut func increment(step: int): int {
-    self.value = self.value + step
-    return self.value
-  }
-}
-
-extend Integer {
-  mut func times(factor: int): int { return self * factor }
-}
-
-val c = Counter { value: 10 }
-print(c.increment(5))    // 15
-print(7.times(6))         // 42
-```
-
-O corpo do `extend` aceita **só métodos**. Campo solto é erro de parse com
-mensagem explícita: `Only methods are allowed in extend — expected 'func' or
-'mut func'`.
-
-| Regra | Erro |
-|-------|------|
-| método já existe no struct | `[EXTENSION_CONFLICT] method 'isAdult' already exists in 'User'` |
-| nome repetido dentro do mesmo `extend` | `[EXTENSION_CONFLICT]` |
-| nome repetido em outro `extend` do mesmo tipo | `[EXTENSION_CONFLICT]` |
-| alvo não existe | `[UNDEFINED_TYPE] type 'Ghost' is not found` |
-| alvo não é struct | `[EXTEND_TARGET_INVALID] cannot extend 'Integer': expected a struct, but it is a built-in type` |
-
-Método adicionado por `extend` **não** conta para `implements` — a conformance é
-verificada quando o `struct` é declarado.
-
-#### extend em primitivos
-
-`extend` também funciona nos primitivos de valor (`int`, `float`, `string`,
-`bool`), e o alias capitalizado é aceito:
-
-```typescript
-extend String {
-  func shout(): string {
-    return self.upper() + "!"
-  }
-
-  func has(text: string): bool {
-    return self.contains(text)
-  }
-}
-
-print("ana".shout())        // "ANA!"
-print("andromeda".has("rome"))  // true
-```
-
-Funciona em `int`, `float`, `string` e `bool`. `void`, `null`, `any` e
-`unknown` não são extensíveis.
-
-Os métodos **não** vão para `String.prototype` — patchear o prototype global
-poluiria todo string vindo de qualquer biblioteca, sem como desfazer. Eles ficam
-num registro:
-
-```javascript
-$ext["string"] = Object.assign($ext["string"] || {}, {
-  shout: function (self) { return self.toUpperCase() + "!"; },
-});
-```
-
-e a chamada é reescrita: `s.shout()` → `$ext["string"].shout(s)`.
-
-Nomes de método embutidos são protegidos:
-
-```typescript
-extend String {
-  func upper(): string { return "nao deveria" }
-}
-// ERROR: [EXTENSION_CONFLICT] method 'upper' already exists in 'string'
-```
-
-Métodos de `extend` convivem com os embutidos, e uns chamam os outros:
-
-```typescript
-extend Integer {
-  func isPositive(): bool { return self > 0 }
-}
-
-val n: int = 5
-print(n.isPositive())              // true
-print("texto".shout())             // methods do usuario + builtin
-print("  x  ".trim().shout())      // encadeamento
-```
-
-Ainda não funciona em `Array<T>`.
-
-#### Métodos do struct e do extend se enxergam
-
-O corpo de um método do `struct` **pode** chamar métodos do `extend`, mesmo que o
-`extend` venha depois:
-
-```typescript
-struct Greeter {
-  who: string
-
-  func hi(): string {
-    return self.hello() + "!"   // ok, `hello` vem do extend abaixo
-  }
-}
-
-extend Greeter {
-  func hello(): string {
-    return "Oi " + self.who
-  }
-}
-
-print(Greeter { who: "Ana" }.hi())   // "Oi Ana!"
-```
-
-Nos dois sentidos: método do `extend` chama método do `struct`, e um método do
-`extend` pode chamar outro `extend` do mesmo tipo.
-
-O `extend` ainda precisa vir **depois** do `struct` — ele não acha o alvo antes
-da declaração. O que funciona é o caminho inverso.
-
-#### Campos no `extend`
-
-`extend` também pode declarar **campos**, que viram propriedade da instância e
-são injetados no construtor auto-init:
-
-```typescript
-struct Example {
-  name: string
-}
-
-extend Example {
- mut id: string                  // sem default: obrigatório
- hash: string = "auto"           // com default: opcional
-
- mut func rehash(value: string) {
-  self.hash = value
- }
-
- func short(): string {
-  return self.name + "/" + self.id
- }
-}
-
-val e = Example { name: "a", id: "1", hash: "x" }
-print(e.short())        // "a/1"
-print(e)                // Example { name: "a", id: "1", hash: "x" }
-
-e.rehash("y")
-print(e.hash)           // "y"
-
-val f = Example { name: "b", id: "2" }   // hash = "auto"
-```
-
-Como viram propriedade própria, `print()` os mostra normalmente — diferente de
-propriedade em prototype, que o formatador não enxergaria.
-
-Campo sem default fica **obrigatório** no literal e no construtor:
-
-```typescript
-val g = Example { name: "c" }
-// ERROR: missing required field 'id' in struct literal for 'Example'
-```
-
-| Situação | Erro |
-|----------|------|
-| nome já existe no struct | `[EXTENSION_CONFLICT] field 'name' already exists in 'User'` |
-| nome repetido no mesmo `extend` ou em outro | `[EXTENSION_CONFLICT] field ...` |
-| campo **sem default** em struct com `init` custom | `[EXTEND_TARGET_INVALID] cannot add field 'extra' to 'D' without a default — it has a custom init` |
-| campo em struct com `init` custom **com rest param** | `[EXTEND_TARGET_INVALID] ... its init uses a rest parameter and cannot accept extra fields` |
-| campo obrigatório faltando no literal | `[TYPE_MISMATCH] missing required field 'id'` |
-
-#### Campos no `extend` de struct com `init` custom
-
-O construtor é posicional, então o campo só pode entrar **com default** — ele
-anexa o fim da lista de parâmetros e o JS preenche o default quando a chamada
-omite o argumento:
-
-```typescript
-struct Token {
-  mut value: string
-
-  init(raw: string) {
-    self.value = raw.trim()
-  }
-}
-
-extend Token {
-  hash: string = "auto"
-}
-
-val t = Token("  hello  ")             // hash = "auto"
-val t2 = Token("  hello  ", "z")       // hash = "z"
-print(t2)               // Token { hash: "z", value: "hello" }
-```
-
-- **Minimo de args**: o número de parâmetros do `init` — `expected 1 arguments,
-  got 0` continua válido.
-- **Maximo de args.len**: params do `init` + campos-default do `extend`. Passou
-  disso: `[ARGUMENT_COUNT_MISMATCH] expected 2 arguments, got 3`.
-- **Campo sem default é proibido**: não há por onde receber o valor —
-  `[EXTEND_TARGET_INVALID] cannot add field 'extra' to 'D' without a default`.
-- **`init` com rest param não aceita campo**: JS não aceita default depois de
-  `...rest` — erro mesmo com default.
-- As atribuições dos campos rodam **antes** do corpo do `init`, então em
-  `print()` o campo do extend aparece antes dos campos do struct.
-
-#### Limitações conhecidas de `extend`
-
-**`struct { }` literal não vale em struct com `init` custom.** O literal é a
-forma de auto-init; com init custom o construtor é posicional:
-
-```typescript
-struct Token { mut value: string; init(raw: string) { self.value = raw.trim() } }
-
-Token("  x  ")          // ok
-Token { value: "x" }   // ERROR: has a custom init and takes positional arguments
-```
-
-**Não há narrowing** depois de `if (x == null)` — use `if val` (ver
-[Optional Binding](#optional-binding-if-val--if-var)).
 
 ### Aliases globais de primitivos
 
