@@ -817,18 +817,23 @@ const structStmt = symbol.stmt as Extract<Stmt, { kind: "StructStmt" }> | undefi
     // `structStmt.methods`. Empurrar no simbolo ensuciaria o AST e o
     // codegen emitiria o metodo duas vezes — dentro da classe e no
     // prototype. Copia antes de escrever.
- const workingMethods = [...(symbol.methods ?? [])];
+const workingMethods = [...(symbol.methods ?? [])];
     const workingFields = [...(symbol.fields ?? [])];
     symbol.methods = workingMethods;
     symbol.fields = workingFields;
+
+    // Get the original struct methods (without any extends)
+    const originalStructMethods = new Set(
+      (structStmt?.methods ?? []).map(m => m.name.value)
+    );
 
     const declared = new Set<string>();
 
     if (stmt.fields.length > 0) {
       // Campos do extend em struct com init custom: com default entram no
       // fim da lista posicional (`constructor(raw, hash = "auto")`); sem
-      // default nao ha por onde receber o valor; com rest param nem com
-      // default cabe — JS nao aceita default depois de `...rest`.
+      // default nao ha por onde receber o valor. Com rest param nem com
+      // default cabe, porque JS nao aceita default depois de `...rest`.
       const init = structStmt.init;
       if (init) {
         const initHasRest = init.params.some((p) => p.isRest === true);
@@ -859,17 +864,40 @@ const structStmt = symbol.stmt as Extract<Stmt, { kind: "StructStmt" }> | undefi
     for (const method of stmt.methods) {
       const methodName = method.name.value;
 
-      // ja registrado por preRegisterExtends quando o struct foi declarado:
-      // conflitos ja foram avaliados, falta so validar o corpo
-      if (this.preRegisteredMethods.has(method)) {
-        this.checkStructMethodBody(structStmt, method);
+      // Check if this is an override method
+      const isOverride = method.override === true;
+
+      console.log(`DEBUG: Checking method ${methodName}, isOverride=${isOverride}`);
+
+      // Check if method is pre-registered (from preRegisterExtends)
+      const isPreRegistered = this.preRegisteredMethods.has(method);
+
+      console.log(`DEBUG: Method ${methodName} isPreRegistered=${isPreRegistered}`);
+
+      // Even if pre-registered, we need to handle override logic
+      // Check if there's an existing method in workingMethods or declared
+      const existingMethod = originalStructMethods.has(methodName) || declared.has(methodName);
+
+      console.log(`DEBUG: existingMethod for ${methodName}:`, existingMethod ? 'found' : 'not found');
+
+      if (existingMethod) {
+        if (!isOverride) {
+          this.errors.push(Errors.extensionConflict(methodName, target, method.name));
+          continue;
+        }
+        // This is an override - remove the old method from workingMethods and declared
+        const overrideIndex = workingMethods.findIndex((m) => m.name.value === methodName);
+        if (overrideIndex !== -1) {
+          workingMethods.splice(overrideIndex, 1);
+        }
+        declared.delete(methodName);
+      } else if (isOverride) {
+        // Override specified but no existing method to override
+        console.log(`DEBUG: Override target not found for ${methodName}`);
+        this.errors.push(Errors.overrideTargetNotFound(methodName, target, method.name));
         continue;
       }
 
-      if (workingMethods.some((m) => m.name.value === methodName) || declared.has(methodName)) {
-        this.errors.push(Errors.extensionConflict(methodName, target, method.name));
-        continue;
-      }
       declared.add(methodName);
       // visivel para os corpos seguintes deste mesmo extend
       workingMethods.push(method);

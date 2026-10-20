@@ -536,6 +536,7 @@ export interface StructMethod {
   body: BlockStmt
   mutable: boolean
   typeParameters?: TypeParameterNode[]
+  override?: boolean
 }
 
 // Fase 5 — enum

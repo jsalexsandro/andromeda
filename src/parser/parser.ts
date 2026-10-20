@@ -2831,7 +2831,7 @@ export class Parser {
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
       const next = this.peek();
 
-      // mut func / mut campo
+      // mut func / mut campo / override mut func
       if (next.type === TokenType.KEYWORD && next.value === "mut") {
         const isMutFunc =
           this.current + 1 < this.tokens.length &&
@@ -2841,16 +2841,45 @@ export class Parser {
         this.advance(); // consume 'mut'
 
         if (isMutFunc) {
-          methods.push(this.parseStructMethod(true));
+          methods.push(this.parseStructMethod(true, false));
         } else {
           this.parseExtendField(true, fields, fieldNames);
         }
         continue;
       }
 
+      // override mut func
+      if (
+        next.type === TokenType.KEYWORD &&
+        next.value === "override" &&
+        this.current + 1 < this.tokens.length &&
+        this.tokens[this.current + 1].type === TokenType.KEYWORD &&
+        this.tokens[this.current + 1].value === "mut"
+      ) {
+        this.advance(); // consume 'override'
+        this.advance(); // consume 'mut'
+        if (!this.check(TokenType.KEYWORD) || this.peek().value !== "func") {
+          this.error("Expected 'func' after 'override mut'", this.peek());
+        }
+        this.advance(); // consume 'func'
+        methods.push(this.parseStructMethod(true, true));
+        continue;
+      }
+
+      // override func
+      if (next.type === TokenType.KEYWORD && next.value === "override") {
+        this.advance(); // consume 'override'
+        if (!this.check(TokenType.KEYWORD) || this.peek().value !== "func") {
+          this.error("Expected 'func' after 'override'", this.peek());
+        }
+        this.advance(); // consume 'func'
+        methods.push(this.parseStructMethod(false, true));
+        continue;
+      }
+
       // func
       if (next.type === TokenType.KEYWORD && next.value === "func") {
-        methods.push(this.parseStructMethod(false));
+        methods.push(this.parseStructMethod(false, false));
         continue;
       }
 
@@ -3101,8 +3130,11 @@ export class Parser {
   // ── Struct method (7.1 / 7.2) ──────────────────────────
   // func greet(): string { body }
   // mut func update(): void { body }
-  private parseStructMethod(mutable: boolean): StructMethod {
-    this.advance(); // consume 'func' (caller already consumed 'mut' if present)
+  private parseStructMethod(mutable: boolean, override: boolean = false): StructMethod {
+    if (!override) {
+      this.advance(); // consume 'func' (caller already consumed 'mut' if present)
+    }
+    // If override, caller already consumed 'override' and 'func'
 
     const nameToken = this.advance();
     if (nameToken.type !== TokenType.IDENTIFIER) {
@@ -3113,6 +3145,7 @@ export class Parser {
         params: [],
         body: { kind: "BlockStmt", statements: [] },
         mutable,
+        override: false,
       };
     }
 
@@ -3144,7 +3177,7 @@ export class Parser {
       body = { kind: "BlockStmt", statements: [] };
     }
 
-    return { kind: "StructMethod", name: nameToken, params, returnType, body, mutable, typeParameters };
+    return { kind: "StructMethod", name: nameToken, params, returnType, body, mutable, typeParameters, override };
   }
 
   // ── Struct constructor (10.0) ────────────────────────────────
