@@ -381,6 +381,9 @@ val a = maybe(42)                 // ✅ concrete argument infers T → int
 | Not generic | `foo<int>()` (func `foo()` is not generic) | `Function 'foo' is not generic` |
 | Duplicate type param | `func add<T, T>()` | `'T' is already declared` |
 | Inference failed | `maybe(null)` with no context | `Could not infer type for 'T'` |
+| Required after optional | `func f(a: int = 1, b: int)` | `Required parameter cannot follow optional parameter` |
+| Rest with default | `func f(...rest: int = [])` | `Rest parameter cannot have a default value` |
+| Default type mismatch | `func f(a: string = 42)` | `default value type 'int' incompatible with parameter type 'string'` |
 
 ---
 
@@ -400,7 +403,35 @@ func functionName<T, U>(param1: T, param2: U): ReturnType {
   // body
   return value
 }
+
+// Function with default parameter values
+func greet(name: string = "World"): string {
+  return "Hello, " + name
+}
+
+func makePoint(x: int = 0, y: int = 0): string {
+  return "(" + x + ", " + y + ")"
+}
 ```
+
+### Default Parameter Values
+
+Parâmetros podem ter valores default usando `= valor`:
+
+```typescript
+func add(a: int = 1, b: int = 2): int {
+  return a + b
+}
+
+val r1 = add()        // 3 (1 + 2)
+val r2 = add(10)      // 12 (10 + 2)
+val r3 = add(5, 7)    // 12 (5 + 7)
+```
+
+**Regras:**
+- Parâmetros com default devem vir **após** parâmetros obrigatórios
+- `rest` parameter (`...`) **não pode** ter default
+- Default value deve ser compatível com o tipo do parâmetro
 
 ### Examples
 
@@ -465,6 +496,14 @@ val result = add(
 `(` as being on the same line as the function name, keeping the call context
 active.
 
+### Error Cases (Default Parameters)
+
+| Error | Example | Message |
+|-------|---------|---------|
+| Required after optional | `func f(a: int = 1, b: int)` | `Required parameter cannot follow optional parameter` |
+| Rest with default | `func f(...rest: int = [])` | `Rest parameter cannot have a default value` |
+| Default type mismatch | `func f(a: string = 42)` | `default value type 'int' incompatible with parameter type 'string'` |
+
 ---
 
 ## 10. Arrow Functions
@@ -499,6 +538,33 @@ val name = <T>(x: T): T => x
 // Generic arrow with multiple type params
 val name = <A, B>(a: A, b: B): A => a
 ```
+
+### Default Parameter Values in Arrow Functions
+
+Arrow functions também suportam default parameter values:
+
+```typescript
+val greet = (name: string = "World"): string => "Hello, " + name
+
+val makePoint = (x: int = 0, y: int = 0): string => "(" + x + ", " + y + ")"
+
+val g1 = greet()        // "Hello, World"
+val g2 = greet("Arrow") // "Hello, Arrow"
+
+val p1 = makePoint()           // "(0, 0)"
+val p2 = makePoint(10)         // "(10, 0)"
+val p3 = makePoint(10, 20)     // "(10, 20)"
+```
+
+Mesmas regras das funções regulares se aplicam: parâmetros obrigatórios primeiro, rest sem default, tipagem compatível.
+
+### Error Cases (Arrow Functions com Default Parameters)
+
+| Error | Example | Message |
+|-------|---------|---------|
+| Required after optional | `val f = (a: int = 1, b: int) => a + b` | `Required parameter cannot follow optional parameter` |
+| Rest with default | `val f = (...rest: int = []) => rest` | `Rest parameter cannot have a default value` |
+| Default type mismatch | `val f = (a: string = 42) => a` | `default value type 'int' incompatible with parameter type 'string'` |
 
 ### Examples
 
@@ -1380,6 +1446,34 @@ val m = p.magnitude()                // 5.0
 p.scale(2.0)                         // Point { x: 6.0, y: 8.0 }
 ```
 
+**Default Parameter Values in Methods**
+
+Métodos de struct também suportam default parameter values:
+
+```typescript
+struct Counter {
+  mut value: int = 0
+  
+  func increment(step: int = 1): int {
+    value = value + step
+    return value
+  }
+  
+  func setValue(v: int = 10): int {
+    value = v
+    return value
+  }
+}
+
+val c = Counter()
+print(c.increment())   // 1 (step=1 default)
+print(c.increment(5))  // 6 (step=5)
+print(c.setValue())    // 10 (v=10 default)
+print(c.setValue(42))  // 42 (v=42)
+```
+
+Mesmas regras das funções: parâmetros obrigatórios primeiro, rest sem default, tipagem compatível.
+
 **Bare method calls** — dentro de métodos e `init` de struct, métodos podem ser chamados pelo nome nu (sem `self.`):
 
 ```typescript
@@ -1472,6 +1566,45 @@ struct Token {
 val t = Token("  hello  ")             // positional
 // val t = Token(raw: "hello")         // ERROR: named not allowed in custom init
 ```
+
+#### Default Parameter Values in Custom Init
+
+Construtores customizados (`init`) também suportam default parameter values:
+
+```typescript
+struct Counter {
+  mut value: int
+  mut step: int = 1
+
+  init(start: int = 0, step: int = 1) {
+    self.value = start
+    self.step = step
+  }
+}
+
+val c1 = Counter()        // start=0, step=1
+val c2 = Counter(10)      // start=10, step=1
+val c3 = Counter(10, 5)   // start=10, step=5
+
+print("c1: " + c1.value + ", step=" + c1.step)  // 0, 1
+print("c2: " + c2.value + ", step=" + c2.step)  // 10, 1
+print("c3: " + c3.value + ", step=" + c3.step)  // 10, 5
+```
+
+**Regras de aridade:**
+- Mínimo de args = parâmetros **sem** default value
+- Chamadas válidas: `minRequiredArgs <= args.length <= totalParams`
+- Ex: `init(a: int = 1, b: int = 2)` → 0, 1 ou 2 args permitidos
+
+Mesmas regras das funções: parâmetros obrigatórios primeiro, rest sem default, tipagem compatível.
+
+### Error Cases (Init com Default Parameters)
+
+| Error | Example | Message |
+|-------|---------|---------|
+| Required after optional | `init(a: int = 1, b: int)` | `Required parameter cannot follow optional parameter` |
+| Rest with default | `init(...rest: int = [1])` | `Rest parameter cannot have a default value` |
+| Default type mismatch | `init(a: string = 42)` | `default value type 'int' incompatible with parameter type 'string'` |
 
 **Regra de inicialização:** campos sem default devem ser atribuídos no escopo raiz do `init` (não dentro de `if`/`for`):
 
@@ -1797,7 +1930,40 @@ print(c.port)              // 8080
 print(c.secure)            // true
 ```
 
-### 18.3 mut func
+### Default Parameter Values in Extend Methods
+
+Métodos adicionados via `extend` também suportam default parameter values:
+
+```typescript
+extend String {
+  func center(width: int, fillChar: string = " "): string {
+    val padding = width - self.length
+    if (padding <= 0) return self
+    val left = padding / 2
+    val right = padding - left
+    var result = ""
+    var i = 0
+    while (i < left) {
+      result = result + fillChar
+      i = i + 1
+    }
+    result = result + self
+    i = 0
+    while (i < right) {
+      result = result + fillChar
+      i = i + 1
+    }
+    return result
+  }
+}
+
+print("hi".center(10))        // "    hi    "
+print("hi".center(10, "-"))   // "----hi----"
+print("hello".center(5))      // "hello"
+print("".center(5, "*"))      // "*****"
+```
+
+Mesmas regras das funções regulares se aplicam.
 
 `mut func` funciona igual dentro do `extend`, e em primitivos também:
 
@@ -1822,6 +1988,14 @@ print(7.times(6))          // 42
 
 Reatribuir `self = ...` direto é proibido — inclusive em primitivos — com
 `CANNOT_ASSIGN`: `'self' is immutable`.
+
+### Error Cases (Extend Methods com Default Parameters)
+
+| Error | Example | Message |
+|-------|---------|---------|
+| Required after optional | `extend S { func f(a: int = 1, b: int) }` | `Required parameter cannot follow optional parameter` |
+| Rest with default | `extend S { func f(...rest: int = []) }` | `Rest parameter cannot have a default value` |
+| Default type mismatch | `extend S { func f(a: string = 42) }` | `default value type 'int' incompatible with parameter type 'string'` |
 
 ### 18.4 Conflitos de nome
 
