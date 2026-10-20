@@ -52,8 +52,7 @@
     - [Conflitos de nome](#184-conflitos-de-nome)
     - [Campos no extend](#185-campos-no-extend)
     - [Campos em struct com init custom](#186-campos-em-struct-com-init-custom)
-    - [extend em primitivos](#187-extend-em-primitivos)
-    - [Limitações conhecidas](#188-limitações-conhecidas)
+    - [extend em primitivos](#187-extend-em-primitivoses-conhecidas)
 19. [Builtins](#19-builtins)
 
 ---
@@ -1279,6 +1278,35 @@ p.email = "alice@example.com"       // atribuição em mut field
 val e: string? = p.email            // leitura — tipo é string?
 ```
 
+**Bare field access** — dentro de métodos e `init` de struct, campos podem ser acessados pelo nome nu (sem `self.`):
+
+```typescript
+struct Counter {
+  mut value: int = 0
+
+  func increment() {
+    value = value + 1      // ≡ self.value = self.value + 1
+  }
+
+  func get(): int {
+    return value           // ≡ return self.value
+  }
+}
+```
+
+A regra vale para leitura e escrita. Parâmetros e variáveis locais com o mesmo nome **sombreiam** o campo:
+
+```typescript
+struct Shadow {
+  x: int = 10
+
+  func setX(x: int) {
+    x = x                 // parâmetro sombreia campo — campo NÃO é alterado
+    self.x = x            // use self.x para acessar o campo
+  }
+}
+```
+
 ### Error Cases
 
 **UNKNOWN_PROPERTY** — propriedade não existe no struct:
@@ -1351,6 +1379,52 @@ val p = Point { x: 3.0, y: 4.0 }
 val m = p.magnitude()                // 5.0
 p.scale(2.0)                         // Point { x: 6.0, y: 8.0 }
 ```
+
+**Bare method calls** — dentro de métodos e `init` de struct, métodos podem ser chamados pelo nome nu (sem `self.`):
+
+```typescript
+struct Counter {
+  mut value: int = 0
+
+  func double(): int {
+    return value * 2        // bare field access
+  }
+
+  func show(): string {
+    return "Value: " + value
+  }
+
+  init(start: int) {
+    value = start
+    print("Init: " + show())  // bare method call in init
+  }
+}
+
+extend Counter {
+  func triple(): int {
+    return value * 3
+  }
+
+  func incAndShow(step: int): string {
+    value = value + step
+    return show()           // bare method call in extend method
+  }
+}
+```
+
+A regra vale para chamadas diretas (`b()`) e para referências a métodos como valor (`val f = b` → `this.b`). Parâmetros e variáveis locais com o mesmo nome **sombreiam** o método:
+
+```typescript
+struct ShadowTest {
+  func getX(): int { return 10 }
+
+  func testShadow(getX: int): int {
+    return getX() + getX   // primeira: parâmetro (call inválido), segunda: método
+  }
+}
+```
+
+Métodos de `extend` são incluídos automaticamente — um método do struct pode chamar método de `extend` por nome nu, e vice-versa.
 
 ### 16.6 Constructors
 
