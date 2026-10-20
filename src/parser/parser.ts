@@ -2799,8 +2799,27 @@ export class Parser {
       return { kind: "BlockStmt", statements: [] };
     }
 
+    // Optional implements clause: extend User implements Stringable { ... }
+    const implementsTokens: Token[] = [];
+    if (this.check(TokenType.KEYWORD) && this.peek().value === "implements") {
+      this.advance(); // consume 'implements'
+      while (!this.check(TokenType.LBRACE) && !this.isAtEnd()) {
+        const protoName = this.advance();
+        if (protoName.type !== TokenType.IDENTIFIER) {
+          this.error("Expected protocol name after 'implements'", protoName);
+          break;
+        }
+        implementsTokens.push(protoName);
+        if (this.check(TokenType.COMMA)) {
+          this.advance(); // consume ','
+        } else if (!this.check(TokenType.LBRACE)) {
+          break;
+        }
+      }
+    }
+
     if (this.peek().type !== TokenType.LBRACE) {
-      this.error("Expected '{' after extended type name", this.peek());
+      this.error("Expected '{' after extended type name or implements clause", this.peek());
       return { kind: "BlockStmt", statements: [] };
     }
     this.advance(); // consume '{'
@@ -2852,7 +2871,7 @@ export class Parser {
       this.error("Expected '}' to close extend block", this.peek());
     }
 
-    return { kind: "ExtendStmt", targetName: nameToken, fields, methods };
+    return { kind: "ExtendStmt", targetName: nameToken, implements: implementsTokens, fields, methods };
   }
 
   /** `nome: Tipo = default` dentro do corpo de um extend */

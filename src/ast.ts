@@ -504,6 +504,7 @@ export interface StructStmt {
 export interface ExtendStmt {
   kind: "ExtendStmt"
   targetName: Token
+  implements: Token[]  // protocols that this extend implements
   fields: StructField[]
   methods: StructMethod[]
 }

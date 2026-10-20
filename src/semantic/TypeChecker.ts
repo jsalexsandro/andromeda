@@ -786,14 +786,38 @@ export class TypeChecker {
       return;
     }
 
-    const structStmt = symbol.stmt as Extract<Stmt, { kind: "StructStmt" }> | undefined;
+const structStmt = symbol.stmt as Extract<Stmt, { kind: "StructStmt" }> | undefined;
     if (!structStmt) return;
+
+    // Handle implements clause in extend
+    if (stmt.implements && stmt.implements.length > 0) {
+      for (const protoToken of stmt.implements) {
+        const protoName = protoToken.value as string;
+        const protoSymbol = this.currentEnv.lookup(protoName);
+        if (!protoSymbol) {
+          this.errors.push(Errors.undefinedType(protoName, protoToken));
+          continue;
+        }
+        if (protoSymbol.kind !== "protocol") {
+          this.errors.push(Errors.notAProtocol(protoName, protoToken));
+          continue;
+        }
+        // Add protocol to struct's implemented protocols
+        const existingImplements = (structStmt as any).implements || [];
+        if (!existingImplements.some((p: any) => p.value === protoName)) {
+          existingImplements.push(protoToken);
+          (structStmt as any).implements = existingImplements;
+        }
+        // Verify protocol conformance (including methods from this extend)
+        this.checkProtocolConformance(structStmt, protoSymbol, protoToken);
+      }
+    }
 
     // Cuidado com aliasing: `symbol.methods` e a MESMA referencia de
     // `structStmt.methods`. Empurrar no simbolo ensuciaria o AST e o
     // codegen emitiria o metodo duas vezes — dentro da classe e no
     // prototype. Copia antes de escrever.
-const workingMethods = [...(symbol.methods ?? [])];
+ const workingMethods = [...(symbol.methods ?? [])];
     const workingFields = [...(symbol.fields ?? [])];
     symbol.methods = workingMethods;
     symbol.fields = workingFields;
@@ -1426,10 +1450,12 @@ const workingMethods = [...(symbol.methods ?? [])];
   ): void {
     const protocolMethods = protocolSymbol.methods ?? [];
 
-    // Coletar métodos do struct (incluindo herdados via type params)
+    // Coletar métodos do struct (incluindo de extends via preRegisterExtends)
+    // O symbol do struct já contém métodos de extends via preRegisterExtends
+    const structSymbol = this.currentEnv.lookup(structStmt.name.value as string);
     const structMethods = new Map<string, StructMethod>();
-    if (structStmt.methods) {
-      for (const method of structStmt.methods) {
+    if (structSymbol?.methods) {
+      for (const method of structSymbol.methods) {
         structMethods.set(method.name.value as string, method);
       }
     }
@@ -1473,12 +1499,14 @@ const workingMethods = [...(symbol.methods ?? [])];
     protocolToken: Token
   ): boolean {
     const protocolMethods = protocolSymbol.methods ?? [];
+
     const structStmt = this.getStructStmtFromSymbol(structSymbol);
     if (!structStmt) return false;
 
+    // Include methods from extends (via preRegisterExtends)
     const structMethods = new Map<string, StructMethod>();
-    if (structStmt.methods) {
-      for (const method of structStmt.methods) {
+    if (structSymbol?.methods) {
+      for (const method of structSymbol.methods) {
         structMethods.set(method.name.value as string, method);
       }
     }
