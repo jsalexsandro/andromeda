@@ -35,36 +35,45 @@ export class Codegen {
   /**
    * Mapeia struct -> tem init custom? O visitor precisa disso para emitting
    * `new`: auto-init recebe objeto nomeado, init custom recebe posicional.
+   * Tambem coleta nomes de metodos (incluindo extend) para bare method calls.
    */
-  private collectStructs(ast: Stmt[]): Map<string, { hasInit: boolean }> {
-    const structs = new Map<string, { hasInit: boolean }>();
+  private collectStructs(ast: Stmt[]): Map<string, { hasInit: boolean; fields: string[]; methodNames: string[] }> {
+    const structs = new Map<string, { hasInit: boolean; fields: string[]; methodNames: string[] }>();
 
-    const visit = (node: any): void => {
-      if (!node || typeof node !== "object") return;
-      if (node.kind === "StructStmt" && node.name) {
-        structs.set(node.name.value as string, { hasInit: !!node.init, fields: node.fields.map(f => f.name.value as string) });
+    // First pass: collect struct declarations
+    const structStmts = new Map<string, any>();
+    for (const stmt of ast) {
+      if (stmt.kind === "StructStmt" && stmt.name) {
+        const name = stmt.name.value as string;
+        structStmts.set(name, stmt);
+        structs.set(name, {
+          hasInit: !!stmt.init,
+          fields: stmt.fields.map((f: any) => f.name.value as string),
+          methodNames: stmt.methods.map((m: any) => m.name.value as string),
+        });
       }
-      if (node.kind === "ExtendStmt" && node.targetName) {
-        const target = node.targetName.value as string;
+    }
+
+    // Second pass: collect extend fields and methods
+    for (const stmt of ast) {
+      if (stmt.kind === "ExtendStmt" && stmt.targetName) {
+        const target = stmt.targetName.value as string;
         const existing = structs.get(target);
         if (existing) {
+          // Add extend fields
           existing.fields = [
             ...existing.fields,
-            ...node.fields.map((f: any) => f.name.value as string),
+            ...stmt.fields.map((f: any) => f.name.value as string),
+          ];
+          // Add extend method names
+          existing.methodNames = [
+            ...existing.methodNames,
+            ...stmt.methods.map((m: any) => m.name.value as string),
           ];
         }
       }
-      for (const key of Object.keys(node)) {
-        const value = node[key];
-        if (Array.isArray(value)) {
-          value.forEach(visit);
-        } else if (value && typeof value === "object" && typeof value.kind === "string") {
-          visit(value);
-        }
-      }
-    };
+    }
 
-    ast.forEach(visit);
     return structs;
   }
 
@@ -235,6 +244,8 @@ export class Codegen {
     const extendFields: any[] = (stmt as any).extendFields || [];
     const fields: any[] = [...(stmt.fields || []), ...extendFields];
     const fieldNames = fields.map((f: any) => f.name.value);
+    const structInfo = this.structs.get(name);
+    const allMethodNames = structInfo?.methodNames ?? [];
     const methods: any[] = stmt.methods || [];
     const init = stmt.init;
 
@@ -258,7 +269,7 @@ export class Codegen {
         ),
       ].join(", ");
 
-      this.exprVisitor.enterStructMethod(fieldNames, "this", init.params.map((p: any) => p.name.value));
+      this.exprVisitor.enterStructMethod(fieldNames, "this", init.params.map((p: any) => p.name.value), allMethodNames);
       let body = this.transpileBlockStmt(init.body);
       this.exprVisitor.exitStructMethod();
 
@@ -291,7 +302,7 @@ export class Codegen {
     const methodCode = methods.map((m: any) => {
       const methodName = m.name.value;
       const params = m.params.map((p: any) => p.name.value).join(", ");
-      this.exprVisitor.enterStructMethod(fieldNames, "this", m.params.map((p: any) => p.name.value));
+      this.exprVisitor.enterStructMethod(fieldNames, "this", m.params.map((p: any) => p.name.value), allMethodNames);
       const body = this.transpileBlockStmt(m.body);
       this.exprVisitor.exitStructMethod();
       return `${methodName}(${params}) ${body}`;
@@ -329,9 +340,12 @@ if ((stmt as any).extendTargetKind === "primitive") {
 
     const targetStruct = this.structs.get(target);
     const extendFieldNames = targetStruct ? targetStruct.fields : [];
+    // Get ALL method names (struct + extend) for bare method calls within extend methods
+    const allMethodNames = targetStruct ? targetStruct.methodNames : [];
+
     return (stmt.methods || []).map((m: any) => {
       const params = m.params.map((p: any) => p.name.value).join(", ");
-      this.exprVisitor.enterStructMethod(extendFieldNames, "self", m.params.map((p: any) => p.name.value));
+      this.exprVisitor.enterStructMethod(extendFieldNames, "self", m.params.map((p: any) => p.name.value), allMethodNames);
       const body = this.transpileBlockStmt(m.body);
       this.exprVisitor.exitStructMethod();
       // `self` nao pode ser parametro: `u.m()` so passa `this`, entao um

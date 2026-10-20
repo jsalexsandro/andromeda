@@ -36,6 +36,9 @@ export class TypeChecker {
   /** Campos do struct (e de `extend`) visíveis por nome nu dentro de métodos/init */
   private currentStructFields: Map<string, { type: TypeNode; mutable: boolean }> | null = null;
   private currentStructSelfMutable: boolean = false;
+  /** Métodos do struct (incluindo extend) visíveis por nome nu dentro de métodos/init */
+  private currentStructMethods: Map<string, StructMethod> | null = null;
+  private currentStructSelfType: TypeNode | null = null;
 
   constructor() {
     this.globalEnv = new Environment(null, true);
@@ -1206,7 +1209,14 @@ const workingMethods = [...(symbol.methods ?? [])];
         (f: StructField) => !structStmt.fields.some((sf: StructField) => sf.name.value === f.name.value),
       ),
     ];
-    this.pushStructContext(structFields, method.mutable);
+
+    // Get all methods including extend methods from the struct symbol
+    const structSymbol = this.currentEnv.lookup(structStmt.name.value as string);
+    const allMethods = structSymbol?.methods ?? [];
+    const methodMap = new Map<string, StructMethod>();
+    for (const m of allMethods) methodMap.set(m.name.value as string, m);
+
+    this.pushStructContext(structFields, method.mutable, methodMap, selfType);
     try {
       this.checkBlockStmt(method.body);
     } finally {
@@ -1255,16 +1265,25 @@ const workingMethods = [...(symbol.methods ?? [])];
     });
   }
 
-  private pushStructContext(fields: StructField[], selfMutable: boolean): void {
+  private pushStructContext(
+    fields: StructField[],
+    selfMutable: boolean,
+    methods: Map<string, StructMethod> | null = null,
+    selfType: TypeNode | null = null
+  ): void {
     const map = new Map<string, { type: TypeNode; mutable: boolean }>();
     for (const f of fields) map.set(f.name.value as string, { type: f.type, mutable: f.mutable });
     this.currentStructFields = map;
     this.currentStructSelfMutable = selfMutable;
+    this.currentStructMethods = methods;
+    this.currentStructSelfType = selfType;
   }
 
   private popStructContext(): void {
     this.currentStructFields = null;
     this.currentStructSelfMutable = false;
+    this.currentStructMethods = null;
+    this.currentStructSelfType = null;
   }
 
   // ── 10.0 Check struct init constructor ──────────────────────
@@ -1334,7 +1353,29 @@ const workingMethods = [...(symbol.methods ?? [])];
     const initializedFields = new Set<string>(
       structStmt.fields.filter(f => f.defaultValue).map(f => f.name.value as string)
     );
-    this.pushStructContext(structStmt.fields, true);
+
+    // Get all methods including extend methods from the struct symbol
+    const structSymbol = this.currentEnv.lookup(structStmt.name.value as string);
+    const allMethods = structSymbol?.methods ?? [];
+    const methodMap = new Map<string, StructMethod>();
+    for (const m of allMethods) methodMap.set(m.name.value as string, m);
+
+    // Create selfType for this struct
+    let selfType: TypeNode;
+    if (structStmt.typeParameters && structStmt.typeParameters.length > 0) {
+      selfType = {
+        kind: "GenericType",
+        name: structStmt.name,
+        args: structStmt.typeParameters.map(tp => ({
+          kind: "NamedType",
+          name: tp.name
+        } as TypeNode))
+      };
+    } else {
+      selfType = { kind: "NamedType", name: structStmt.name } as TypeNode;
+    }
+
+    this.pushStructContext(structStmt.fields, true, methodMap, selfType);
     try {
       this.checkInitBodyStatements(initNode.body.statements, initializedFields, structStmt, initNode);
     } finally {
@@ -1649,6 +1690,16 @@ const workingMethods = [...(symbol.methods ?? [])];
           if (missing.length > 0) {
             this.errors.push(Errors.typeMismatch(
               "'self' used before all properties are initialized",
+              expr.name,
+            ));
+          }
+        }
+        // Bare method call used before all properties initialized
+        if (this.currentStructMethods && this.currentStructMethods.has(expr.name.value as string)) {
+          const missing = requiredFieldNames.filter(f => !initializedFields.has(f));
+          if (missing.length > 0) {
+            this.errors.push(Errors.typeMismatch(
+              `method '${expr.name.value}' used before all properties are initialized`,
               expr.name,
             ));
           }
@@ -3541,6 +3592,13 @@ const workingMethods = [...(symbol.methods ?? [])];
         if (this.currentStructFields) {
           const field = this.currentStructFields.get(name);
           if (field) return field.type;
+        }
+        // Bare method call: resolve method from struct (including extend)
+        if (this.currentStructMethods) {
+          const method = this.currentStructMethods.get(name);
+          if (method) {
+            return this.buildMethodType(method, undefined, this.currentStructSelfType);
+          }
         }
         this.errors.push(Errors.undefinedVariable(name, expr.name));
         return { kind: "PrimitiveType", name: "unknown" };

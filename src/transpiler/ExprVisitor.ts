@@ -11,13 +11,21 @@ export class ExprVisitor {
   private structs = new Map<string, { hasInit: boolean; fields: string[] }>();
   /** Campos visiveis por nome nu no metodo/struct atual */
   private currentStructFields: Set<string> = new Set();
+  /** Metodos visiveis por nome nu no metodo/struct atual */
+  private currentStructMethods: Set<string> = new Set();
   private currentStructPrefix: "this" | "self" | null = null;
   /** Parametros do metodo/struct atual — sombreiam campos com mesmo nome */
   private currentParamNames: Set<string> = new Set();
 
-  enterStructMethod(fieldNames: string[], prefix: "this" | "self", paramNames: string[] = []): void {
+  enterStructMethod(
+    fieldNames: string[],
+    prefix: "this" | "self",
+    paramNames: string[] = [],
+    methodNames: string[] = []
+  ): void {
     this.inStructMethod = true;
     this.currentStructFields = new Set(fieldNames);
+    this.currentStructMethods = new Set(methodNames);
     this.currentStructPrefix = prefix;
     this.currentParamNames = new Set(paramNames);
   }
@@ -25,6 +33,7 @@ export class ExprVisitor {
   exitStructMethod(): void {
     this.inStructMethod = false;
     this.currentStructFields = new Set();
+    this.currentStructMethods = new Set();
     this.currentStructPrefix = null;
     this.currentParamNames = new Set();
   }
@@ -97,6 +106,10 @@ export class ExprVisitor {
     // Parametros e variaveis locais sombreiam campos com mesmo nome
     if (this.currentParamNames.has(name)) return name;
     if (this.currentStructPrefix && this.currentStructFields.has(name)) {
+      return `${this.currentStructPrefix}.${name}`;
+    }
+    // Bare method call
+    if (this.currentStructPrefix && this.currentStructMethods.has(name)) {
       return `${this.currentStructPrefix}.${name}`;
     }
     return name;

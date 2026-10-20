@@ -1,0 +1,84 @@
+struct Counter {
+  mut value: int = 0
+
+  func double(): int {
+    return self.value * 2
+  }
+
+  func show(): string {
+    return "Value: " + self.value
+  }
+
+  init(start: int) {
+    self.value = start
+    print("Init: " + show())  // bare method call in init
+  }
+}
+
+extend Counter {
+  func triple(): int {
+    return self.value * 3
+  }
+
+  func incAndShow(step: int): string {
+    self.value = self.value + step
+    return show()  // bare method call in extend method
+  }
+}
+
+val c = Counter(5)
+print(c.double())      // 10
+print(c.triple())      // 15
+print(c.incAndShow(2)) // "Value: 17"
+print(c.show())        // "Value: 17"
+
+// Test parameter shadowing
+struct ShadowTest {
+  mut x: int = 10
+
+  func getX(): int {
+    return self.x
+  }
+
+  func testShadow(x: int): int {
+    return getX() + x  // bare method (getX) + param (x)
+  }
+}
+
+val s = ShadowTest()
+print(s.testShadow(5)) // 15 (10 + 5)
+
+// Generic struct
+struct Box<T> {
+  value: T
+
+  func get(): T {
+    return self.value
+  }
+
+  func wrap(): Box<T> {
+    return Box { value: get() }  // bare method call returning value
+  }
+}
+
+val b = Box<int> { value: 42 }
+print(b.get()) // 42
+
+// Test calling extend method from struct method
+struct Greeter {
+  name: string
+
+  func greet(): string {
+    return "Hello " + self.name
+  }
+}
+
+extend Greeter {
+  func shout(): string {
+    return greet() + "!"  // bare call to struct method
+  }
+}
+
+val g = Greeter { name: "World" }
+print(g.greet()) // "Hello World"
+print(g.shout()) // "Hello World!"
