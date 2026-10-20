@@ -50,9 +50,10 @@
     - [Métodos](#182-métodos)
     - [mut func](#183-mut-func)
     - [Conflitos de nome](#184-conflitos-de-nome)
-    - [Campos no extend](#185-campos-no-extend)
-    - [Campos em struct com init custom](#186-campos-em-struct-com-init-custom)
-    - [extend em primitivos](#187-extend-em-primitivoses-conhecidas)
+    - [implements Protocol](#185-implements-protocol)
+    - [Campos no extend](#186-campos-no-extend)
+    - [Campos em struct com init custom](#187-campos-em-struct-com-init-custom)
+    - [extend em primitivos](#188-extend-em-primitivoses-conhecidas)
 19. [Builtins](#19-builtins)
 
 ---
@@ -2028,7 +2029,48 @@ Um nome de campo e um nome de método iguais **não** são detectados como confl
 Método adicionado por `extend` **não** conta para `implements` — a conformância
 é verificada quando o `struct` é declarado.
 
-### 18.5 Campos no `extend`
+### 18.5 implements Protocol
+
+O `extend` pode declarar que adiciona conformidade a um protocol ao struct alvo,
+usando a cláusula `implements Protocol` após o nome do tipo alvo:
+
+```typescript
+struct User {
+  name: string
+}
+
+extend User implements Stringable {
+  func toString(): string {
+    return "User(" + self.name + ")"
+  }
+}
+
+func printUser(u: Stringable) {
+  print("User: " + u.toString())
+}
+
+val u = User { name: "Ana" }
+printUser(u)  // User(Ana)
+```
+
+**Regras:**
+- O alvo do `extend` deve ser um struct (não primitivo, não protocol)
+- O protocol deve existir e ser do tipo `protocol`
+- O `extend` deve fornecer todos os métodos requeridos pelo protocol
+- A conformância é verificada em compile-time — erro se faltar método
+- O upcast implícito `struct → protocol` funciona em chamadas de função
+
+**Regras de erro:**
+| Erro | Exemplo | Mensagem |
+|-------|---------|----------|
+| Protocol não existe | `extend S implements Ghost { }` | `protocol 'Ghost' not found` |
+| Alvo não é struct | `extend String implements S { }` | `cannot extend 'String': expected a struct` |
+| Método faltando | `extend S implements Stringable { }` | `missing method 'toString'` |
+| Assinatura incompatível | `extend S implements Stringable { func toString(): int }` | `signature mismatch` |
+
+**Nota:** O `extend implements` permite adicionar conformidade a protocols *depois* da declaração do struct, útil para compor bibliotecas de terceiros. O método pode vir do próprio `extend` (como no exemplo) ou já existir no struct original.
+
+### 18.6 Campos no `extend`
 
 `extend` também pode declarar **campos**, que viram propriedade da instância e
 são injetados no construtor auto-init:
@@ -2078,7 +2120,7 @@ val g = Example { name: "c" }
 | campo em struct com `init` custom **com rest param** | `[EXTEND_TARGET_INVALID] ... its init uses a rest parameter and cannot accept extra fields` |
 | campo obrigatório faltando no literal | `[TYPE_MISMATCH] missing required field 'id'` |
 
-### 18.6 Campos em struct com `init` custom
+### 18.7 Campos em struct com `init` custom
 
 Com `init` declarado, o construtor é **posicional**, então o campo só pode
 entrar **com default** — ele anexa o fim da lista de parâmetros e o JS preenche
@@ -2113,7 +2155,7 @@ print(t2)            // Token { hash: "z", value: "hello" }
 - As atribuições dos campos rodam **antes** do corpo do `init`, então em
   `print()` o campo do extend aparece **antes** dos campos do struct.
 
-### 18.7 extend em primitivos
+### 18.8 extend em primitivos
 
 Primitivo se escreve **pelo alias capitalizado** — o `string` minúsculo é
 token de tipo, não identificador:
@@ -2159,7 +2201,7 @@ print("  x  ".trim().shout())            // string → string (builtin) → exte
 print(42.toFloat().toString().shout())   // int → float → string → extend
 ```
 
-### 18.8 Limitações conhecidas
+### 18.9 Limitações conhecidas
 
 **Cravos que ainda não existem, e pegadinhas honestas:**
 
