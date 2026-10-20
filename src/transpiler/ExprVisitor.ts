@@ -157,7 +157,19 @@ export class ExprVisitor {
   }
 
   private visitAssign(expr: AssignExpr): string {
-    const name = this.visit(expr.name);
+    // LHS of assignment: if bare identifier matches struct field, use this.field
+    // even if parameter shadows it (parameter shadows for reads, not writes)
+    let name: string;
+    if (expr.name.kind === "Identifier") {
+      const identName = expr.name.name.value;
+      if (this.currentStructPrefix && this.currentStructFields.has(identName)) {
+        name = `${this.currentStructPrefix}.${identName}`;
+      } else {
+        name = this.visit(expr.name);
+      }
+    } else {
+      name = this.visit(expr.name);
+    }
     const value = this.visit(expr.value);
     const op = expr.operator?.value || "=";
     return `${name} ${op} ${value}`;

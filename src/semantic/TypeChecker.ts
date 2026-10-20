@@ -3056,15 +3056,18 @@ const workingMethods = [...(symbol.methods ?? [])];
       name = targetName.name.value as string;
     }
 
+    // Bare field assignment: check struct fields FIRST (before params in currentEnv)
+    // This allows `value = x` to assign to field even when parameter shadows it
+    if (name && this.currentStructFields) {
+      const field = this.currentStructFields.get(name);
+      if (field) {
+        this.checkAssignToStructField(name, targetName.name, stmt.operator, stmt.value, field, this.currentStructSelfMutable);
+        return;
+      }
+    }
+
     const symbol = this.currentEnv.lookup(name);
     if (!symbol) {
-      if (this.currentStructFields && name) {
-        const field = this.currentStructFields.get(name);
-        if (field) {
-          this.checkAssignToStructField(name, targetName.name, stmt.operator, stmt.value, field, this.currentStructSelfMutable);
-          return;
-        }
-      }
       this.errors.push(Errors.undefinedVariable(name, targetName.name));
       return;
     }
@@ -3365,15 +3368,18 @@ const workingMethods = [...(symbol.methods ?? [])];
       name = targetName.name.value as string;
     }
 
+    // Bare field assignment: check struct fields FIRST (before params in currentEnv)
+    // This allows `value = x` to assign to field even when parameter shadows it
+    if (name && this.currentStructFields) {
+      const field = this.currentStructFields.get(name);
+      if (field) {
+        this.checkAssignToStructField(name, targetName.name, expr.operator, expr.value, field, this.currentStructSelfMutable);
+        return;
+      }
+    }
+
     const symbol = this.currentEnv.lookup(name);
     if (!symbol) {
-      if (this.currentStructFields && name) {
-        const field = this.currentStructFields.get(name);
-        if (field) {
-          this.checkAssignToStructField(name, targetName.name, expr.operator, expr.value, field, this.currentStructSelfMutable);
-          return;
-        }
-      }
       this.errors.push(Errors.undefinedVariable(name, targetName.name));
       return;
     }
