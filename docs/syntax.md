@@ -1979,7 +1979,70 @@ print("".center(5, "*"))      // "*****"
 
 Mesmas regras das funções regulares se aplicam.
 
-`mut func` funciona igual dentro do `extend`, e em primitivos também:
+### Override de métodos em Extend
+
+O `extend` suporta sobrescrita explícita de métodos usando a keyword `override`:
+
+```typescript
+struct User {
+  name: string
+  func greet(): string {
+    return "Hello " + self.name
+  }
+}
+
+extend User {
+  override func greet(): string {
+    return "Hello, " + self.name + "!"
+  }
+}
+
+val u = User { name: "Ana" }
+print(u.greet())  // "Hello, Ana!"
+```
+
+**Regras:**
+- A keyword `override` deve preceder `func` (ou `mut func`)
+- O método deve já existir no struct original ou em um `extend` anterior
+- Métodos marcados com `override` substituem a implementação anterior
+- Métodos de `extend` anteriores também podem ser sobrescritos por `extend`s posteriores
+
+```typescript
+struct Counter {
+  mut value: int = 0
+  func increment(): int {
+    value = value + 1
+    return value
+  }
+}
+
+extend Counter {
+  override func increment(): int {
+    value = value + 10
+    return value
+  }
+}
+
+val c = Counter()
+print(c.increment())  // 10 (sobrescrito)
+```
+
+**Regras:**
+- `override` só pode ser usado em `extend`, não na declaração original da `struct`
+- O método alvo deve existir no struct original ou em um `extend` anterior
+- `override` não pode ser usado em primitivos (`extend Integer { override func toString() }` → erro)
+- `override` não pode ser usado com `...rest` parameters
+
+### Error Cases (Override)
+
+| Error | Example | Message |
+|-------|---------|---------|
+| Override target not found | `extend S { override func missing() }` | `override target method 'missing' not found in 'S'` |
+| Override on primitive | `extend Integer { override func toString() }` | `cannot extend 'Integer': expected a struct, but it is a built-in type` |
+| Override with rest param | `extend S { override func f(...rest: int) }` | `Rest parameter cannot have override` |
+| Override without target | `extend S { override func f() }` (where `f` doesn't exist) | `override target method 'f' not found in 'S'` |
+
+### Error Cases (Extend Methods com Default Parameters)
 
 ```typescript
 struct Counter { mut value: int }
