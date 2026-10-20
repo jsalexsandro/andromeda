@@ -4455,12 +4455,30 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       const actualType = this.checkExpression(arg);
       this.contextualType = null;
       if (!this.areTypesCompatible(resolvedExpected, actualType)) {
-        const label = expectedName ? `'${expectedName}'` : `${i + 1}`;
-        this.errors.push(Errors.typeMismatch(
-          `argument ${label}: expected '${this.typeToString(resolvedExpected)}', ` +
-          `got '${this.typeToString(actualType)}'`,
-          this.getExprToken(arg),
-        ));
+        // Allow implicit upcast: struct -> protocol
+        let upcastAllowed = false;
+        if (resolvedExpected.kind === "NamedType" && resolvedExpected.name.value !== undefined) {
+          const targetSymbol = this.currentEnv.lookup(resolvedExpected.name.value as string);
+          if (targetSymbol && targetSymbol.kind === "protocol") {
+            const actualResolved = this.resolveAlias(actualType);
+            if (actualResolved.kind === "NamedType") {
+              const valueSymbol = this.currentEnv.lookup(actualResolved.name.value as string);
+              if (valueSymbol && valueSymbol.kind === "struct") {
+                if (this.checkProtocolConformanceForSymbol(valueSymbol, targetSymbol, this.getExprToken(arg))) {
+                  upcastAllowed = true;
+                }
+              }
+            }
+          }
+        }
+        if (!upcastAllowed) {
+          const label = expectedName ? `'${expectedName}'` : `${i + 1}`;
+          this.errors.push(Errors.typeMismatch(
+            `argument ${label}: expected '${this.typeToString(resolvedExpected)}', ` +
+            `got '${this.typeToString(actualType)}'`,
+            this.getExprToken(arg),
+          ));
+        }
       }
     }
 

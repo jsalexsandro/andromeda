@@ -25,6 +25,11 @@ export interface BuiltinType {
   typeParameters: string[];
 }
 
+export interface BuiltinProtocol {
+  name: string;
+  methods: { name: string; params: BuiltinParam[]; returnType: TypeNode }[];
+}
+
 /**
  * Alias global de primitivo. Transparente: `Integer` E `int`, e
  * intercambiavel nos dois sentidos. Diferente de `typealias` escrito pelo
@@ -41,6 +46,8 @@ const ident = (value: string): Token => ({
   line: 0,
   column: 0,
 });
+
+export { ident };
 
 const primitive = (name: PrimitiveTypeNode["name"]): PrimitiveTypeNode => ({
   kind: "PrimitiveType",
@@ -83,6 +90,19 @@ export const BUILTIN_VALUES: BuiltinValue[] = [
 export const BUILTIN_TYPES: BuiltinType[] = [
   { name: "Array", typeParameters: ["T"] },
   { name: "Optional", typeParameters: ["T"] },
+];
+
+// ============================================================
+// Builtin Protocols
+// ============================================================
+
+export const BUILTIN_PROTOCOLS: BuiltinProtocol[] = [
+  {
+    name: "Stringable",
+    methods: [
+      { name: "toString", params: [], returnType: primitive("string") },
+    ],
+  },
 ];
 
 // ============================================================

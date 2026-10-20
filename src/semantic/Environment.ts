@@ -9,11 +9,13 @@ import {
   BUILTIN_TYPE_ALIASES,
   BUILTIN_TYPES,
   BUILTIN_VALUES,
+  BUILTIN_PROTOCOLS,
   builtinAliasType,
   builtinNamespaceType,
   builtinTypeNode,
   builtinValueType,
   typeParameterNode,
+  ident,
 } from "../builtins";
 import type { PrimitiveTypes } from "../types";
 
@@ -58,6 +60,7 @@ export class Environment {
     }
 
     this.defineBuiltinTypes();
+    this.defineBuiltinProtocols();
     this.defineBuiltinValues();
     this.defineBuiltinNamespaces();
     this.defineBuiltinAliases();
@@ -83,6 +86,25 @@ export class Environment {
         kind: "builtin",
         mutable: false,
         initialized: true,
+      });
+    }
+  }
+
+  private defineBuiltinProtocols() {
+    for (const proto of BUILTIN_PROTOCOLS) {
+      const methods = proto.methods.map((m) => ({
+        name: ident(m.name),
+        params: m.params,
+        returnType: m.returnType,
+        typeParameters: undefined,
+      }));
+      this.symbols.set(proto.name, {
+        name: proto.name,
+        type: { kind: "NamedType", name: ident(proto.name) } as TypeNode,
+        kind: "protocol",
+        mutable: false,
+        initialized: true,
+        methods,
       });
     }
   }
