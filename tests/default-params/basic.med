@@ -1,0 +1,33 @@
+// Test: basic default parameters in global function
+func greet(name: string = "World"): string {
+  return "Hello, " + name + "!"
+}
+
+val g1 = greet()        // "Hello, World!"
+val g2 = greet("Andromeda")  // "Hello, Andromeda!"
+
+print(g1)
+print(g2)
+
+// Test: multiple default parameters
+func makePoint(x: int = 0, y: int = 0, label: string = "origin"): string {
+  return label + "(" + x + ", " + y + ")"
+}
+
+val p1 = makePoint()           // "origin(0, 0)"
+val p2 = makePoint(10)         // "origin(10, 0)"
+val p3 = makePoint(10, 20)     // "origin(10, 20)"
+val p4 = makePoint(1, 2, "P")  // "P(1, 2)"
+
+print(p1)
+print(p2)
+print(p3)
+print(p4)
+
+// Test: default with expression
+func add(a: int = 1 + 2, b: int = 3 * 4): int {
+  return a + b
+}
+
+val sum = add()  // 3 + 12 = 15
+print("add(): " + sum)

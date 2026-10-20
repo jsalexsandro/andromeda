@@ -884,6 +884,7 @@ const workingMethods = [...(symbol.methods ?? [])];
         params: method.params.map((p) => ({
           name: p.name.value as string,
           type: p.type ?? ({ kind: "PrimitiveType", name: "unknown" } as TypeNode),
+          defaultValue: p.defaultValue
         })),
         returnType: method.returnType ?? { kind: "PrimitiveType", name: "void" },
         js: `$ext[${JSON.stringify(primitiveName)}].${methodName}($self$REST)`,
@@ -1188,6 +1189,18 @@ const workingMethods = [...(symbol.methods ?? [])];
     for (const param of method.params) {
       const paramName = param.name.value as string;
       const paramType = param.type ? this.substituteSelfType(param.type, selfType) : { kind: "PrimitiveType", name: "unknown" } as TypeNode;
+      
+      // Validate default value type if present
+      if (param.defaultValue) {
+        const defaultType = this.checkExpression(param.defaultValue);
+        if (paramType && !this.areTypesCompatible(paramType, defaultType)) {
+          this.errors.push(Errors.typeMismatch(
+            `default value type '${this.typeToString(defaultType)}' incompatible with parameter type '${this.typeToString(paramType)}'`,
+            param.name
+          ));
+        }
+      }
+      
       fnEnv.define(paramName, {
         name: paramName,
         type: paramType,
@@ -2975,7 +2988,8 @@ const workingMethods = [...(symbol.methods ?? [])];
       params: paramTypes.map((pt, i) => ({
         ...pt,
         paramName: stmt.params[i]?.name?.value as string,
-        isRest: stmt.params[i]?.isRest || false
+        isRest: stmt.params[i]?.isRest || false,
+        defaultValue: stmt.params[i]?.defaultValue
       })),
       returnType,
       typeParameters: stmt.typeParameters,
@@ -3010,6 +3024,18 @@ const workingMethods = [...(symbol.methods ?? [])];
         kind: "PrimitiveType",
         name: "unknown",
       };
+      
+      // Validate default value type if present
+      if (param.defaultValue) {
+        const defaultType = this.checkExpression(param.defaultValue);
+        if (param.type && !this.areTypesCompatible(paramType, defaultType)) {
+          this.errors.push(Errors.typeMismatch(
+            `default value type '${this.typeToString(defaultType)}' incompatible with parameter type '${this.typeToString(paramType)}'`,
+            param.name
+          ));
+        }
+      }
+      
       fnEnv.define(paramName, {
         name: paramName,
         type: paramType,
@@ -4310,6 +4336,9 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     const totalPositional = positionalArgs.length;
     const totalNamed = namedArgs.length;
 
+    // Calculate minimum required args (params without default values)
+    const minRequiredArgs = params.filter(p => !(p as any).defaultValue).length;
+
     if (hasRest) {
       const minArgs = restIndex;
       if (totalPositional < minArgs) {
@@ -4317,10 +4346,11 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         this.errors.push(Errors.argumentCountMismatch(minArgs, totalPositional, token));
       }
     } else if (totalNamed === 0) {
-      // All positional: exact arity
-      if (params.length !== totalPositional) {
+      // All positional: must have at least minRequiredArgs, at most params.length
+      if (totalPositional < minRequiredArgs || totalPositional > params.length) {
         const token = this.getExprToken(expr.callee) ?? ({ line: 0, column: 0, type: 0, value: "" } as Token);
-        this.errors.push(Errors.argumentCountMismatch(params.length, totalPositional, token));
+        this.errors.push(Errors.argumentCountMismatch(
+          `${minRequiredArgs}..${params.length}`, totalPositional, token));
       }
     }
     // With named args: positional must not exceed params length, and all named keys must be unique and exist
@@ -4568,7 +4598,7 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
         this.pendingPrimitiveMethod = { node: expr, method: extension };
         return {
           kind: "FunctionType",
-          params: extension.params.map((p) => ({ ...p.type, paramName: p.name })),
+          params: extension.params.map((p) => ({ ...p.type, paramName: p.name, defaultValue: p.defaultValue })),
           returnType: extension.returnType,
         };
       }
@@ -4616,7 +4646,12 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       console.log('[DEBUG buildMethodType] param:', p.name?.value, 'type:', p.type?.kind);
       const pt = p.type ? this.substitute(p.type, fullMapping) : { kind: "PrimitiveType", name: "unknown" } as TypeNode;
       console.log('[DEBUG buildMethodType] param result:', pt.kind, pt.kind === 'NamedType' ? (pt.name as any)?.value : '');
-      return { ...pt, paramName: p.name?.value as string, isRest: p.isRest || false } as TypeNode & { paramName?: string; isRest?: boolean };
+      return { 
+        ...pt, 
+        paramName: p.name?.value as string, 
+        isRest: p.isRest || false,
+        defaultValue: p.defaultValue 
+      } as TypeNode & { paramName?: string; isRest?: boolean; defaultValue?: Expr };
     });
     const returnType = method.returnType
       ? this.substitute(method.returnType, fullMapping)
@@ -5006,6 +5041,18 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
     for (let i = 0; i < expr.params.length; i++) {
       const param = expr.params[i];
       const paramName = param.name.value as string;
+      
+      // Validate default value type if present
+      if (param.defaultValue) {
+        const defaultType = this.checkExpression(param.defaultValue);
+        if (paramTypes[i] && !this.areTypesCompatible(paramTypes[i], defaultType)) {
+          this.errors.push(Errors.typeMismatch(
+            `default value type '${this.typeToString(defaultType)}' incompatible with parameter type '${this.typeToString(paramTypes[i])}'`,
+            param.name
+          ));
+        }
+      }
+      
       fnEnv.define(paramName, {
         name: paramName,
         type: paramTypes[i],
@@ -5068,7 +5115,8 @@ private checkCallExpr(expr: Extract<Expr, { kind: "Call" }>): TypeNode {
       params: paramTypes.map((pt, i) => ({
         ...pt,
         paramName: expr.params[i]?.name?.value as string,
-        isRest: expr.params[i]?.isRest || false
+        isRest: expr.params[i]?.isRest || false,
+        defaultValue: expr.params[i]?.defaultValue
       })),
       returnType: finalReturn,
       typeParameters: expr.typeParameters,

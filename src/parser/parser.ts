@@ -528,7 +528,8 @@ export class Parser {
    * @param typeParameters Parâmetros de tipo genérico opcionais (<T, U>), reusado por parseGenericArrow().
    */
   private parseArrowFunctionRest(typeParameters?: TypeParameterNode[]): Expr | null {
-    const params: { name: Token; isRest?: boolean; type?: TypeNode }[] = [];
+    const params: { name: Token; isRest?: boolean; type?: TypeNode; defaultValue?: Expr }[] = [];
+    let seenOptional = false;
 
     // Parâmetros vazios: () => body
     if (this.check(TokenType.RPAREN)) {
@@ -567,7 +568,20 @@ export class Parser {
         paramType = this.parseAnnotation();
       }
 
-      params.push({ name: paramName, isRest, type: paramType });
+      let defaultValue: Expr | undefined;
+      if (this.check(TokenType.ASSIGN)) {
+        this.advance(); // consume '='
+        defaultValue = this.parseExpression(Precedence.LOWEST);
+        seenOptional = true;
+      } else if (seenOptional) {
+        this.error("Required parameter cannot follow optional parameter", paramName);
+      }
+
+      if (isRest && defaultValue) {
+        this.error("Rest parameter cannot have a default value", paramName);
+      }
+
+      params.push({ name: paramName, isRest, type: paramType, defaultValue });
 
       if (isRest && !this.check(TokenType.RPAREN)) {
         return null;
@@ -1592,10 +1606,11 @@ export class Parser {
   // ========================================
   // Parse Function Parameters
   // Extraído de parseFunctionStatement()
-  // Suporta: nome, ...spread, vírgulasy
-  // ========================================
-  private parseFunctionParams(): { name: Token; isRest?: boolean; type?: TypeNode }[] {
-    const params: { name: Token; isRest?: boolean; type?: TypeNode }[] = [];
+// Suporta: nome, ...spread, vírgulasy
+// ========================================
+  private parseFunctionParams(): { name: Token; isRest?: boolean; type?: TypeNode; defaultValue?: Expr }[] {
+    const params: { name: Token; isRest?: boolean; type?: TypeNode; defaultValue?: Expr }[] = [];
+    let seenOptional = false;
 
     while (!this.check(TokenType.RPAREN) && !this.isAtEnd()) {
       let isRest = false;
@@ -1615,7 +1630,20 @@ export class Parser {
         paramType = this.parseAnnotation();
       }
 
-      params.push({ name: paramName, isRest, type: paramType });
+      let defaultValue: Expr | undefined;
+      if (this.check(TokenType.ASSIGN)) {
+        this.advance(); // consume '='
+        defaultValue = this.parseExpression(Precedence.LOWEST);
+        seenOptional = true;
+      } else if (seenOptional) {
+        this.error("Required parameter cannot follow optional parameter", paramName);
+      }
+
+      if (isRest && defaultValue) {
+        this.error("Rest parameter cannot have a default value", paramName);
+      }
+
+      params.push({ name: paramName, isRest, type: paramType, defaultValue });
 
       if (isRest && !this.check(TokenType.RPAREN)) {
         this.error("Rest parameter must be last", paramName);

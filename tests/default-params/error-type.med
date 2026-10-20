@@ -1,0 +1,6 @@
+// Test: error - default value type mismatch
+// This should fail to compile
+
+func badDefault(a: string = 42): string {
+  return a
+}

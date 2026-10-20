@@ -1,0 +1,29 @@
+// Test: default parameters in extend methods
+struct Point {
+  mut x: int = 0
+  mut y: int = 0
+}
+
+extend Point {
+  func move(dx: int = 1, dy: int = 1): Point {
+    self.x = self.x + dx
+    self.y = self.y + dy
+    return self
+  }
+
+  func scale(factor: int = 2): int {
+    return (self.x * factor) + (self.y * factor)
+  }
+}
+
+val p = Point { x: 10, y: 20 }
+print("Original: (" + p.x + ", " + p.y + ")")
+
+p.move()
+print("After move(): (" + p.x + ", " + p.y + ")")  // (11, 21)
+
+p.move(5, 10)
+print("After move(5,10): (" + p.x + ", " + p.y + ")")  // (16, 31)
+
+print("scale(): " + p.scale())      // 47
+print("scale(3): " + p.scale(3))    // 70

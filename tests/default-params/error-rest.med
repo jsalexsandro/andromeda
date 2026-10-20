@@ -1,0 +1,6 @@
+// Test: error - rest parameter with default
+// This should fail to compile
+
+func badRest(...rest: int = 1): int {
+  return rest
+}

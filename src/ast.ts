@@ -202,6 +202,7 @@ export interface FunctionStmtParam {
   type?: TypeNode
   isRest?: boolean
   isOptional?: boolean
+  defaultValue?: Expr
 }
 
 export interface FunctionStmt {
@@ -284,7 +285,7 @@ export interface ClassMethod {
 
 export interface ArrowFunctionExpr {
   kind: "ArrowFunction"
-  params: { name: Token; isRest?: boolean; type?: TypeNode }[]
+  params: { name: Token; isRest?: boolean; type?: TypeNode; defaultValue?: Expr }[]
   body: Expr | Stmt
   async?: boolean
   returnType?: TypeNode
@@ -445,7 +446,7 @@ export interface TupleTypeNode {
 // (T, U) => V — function type anônimo
 export interface FunctionTypeNode {
   kind: "FunctionType"
-  params: (TypeNode & { paramName?: string; isRest?: boolean })[]
+  params: (TypeNode & { paramName?: string; isRest?: boolean; defaultValue?: Expr })[]
   returnType: TypeNode
   typeParameters?: TypeParameterNode[]
 }

@@ -1,0 +1,30 @@
+// Test: default parameters in arrow functions
+val greet = (name: string = "World"): string => "Hello, " + name
+
+val g1 = greet()        // "Hello, World"
+val g2 = greet("Arrow") // "Hello, Arrow"
+
+print(g1)
+print(g2)
+
+// Test: arrow with multiple defaults
+val makePoint = (x: int = 0, y: int = 0): string => "(" + x + ", " + y + ")"
+
+val p1 = makePoint()
+val p2 = makePoint(10)
+val p3 = makePoint(10, 20)
+
+print(p1)
+print(p2)
+print(p3)
+
+// Test: arrow passed as callback with defaults
+func apply<T>(x: T, fn: (T) => T = (v: T): T => v): T {
+  return fn(x)
+}
+
+val a1 = apply(42)            // 42 (identity default)
+val a2 = apply(42, (x) => x * 2) // 84
+
+print("apply(42): " + a1)
+print("apply(42, x*2): " + a2)

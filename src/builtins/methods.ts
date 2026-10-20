@@ -3,7 +3,7 @@ import type { PrimitiveTypes } from "../types";
 
 export interface PrimitiveMethodDecl {
   name: string;
-  params: { name: string; type: TypeNode }[];
+  params: { name: string; type: TypeNode; defaultValue?: Expr }[];
   returnType: TypeNode;
 /**
    * Template de emissao em JavaScript. Dois formatos, porque o receiver e

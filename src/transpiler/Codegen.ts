@@ -224,7 +224,11 @@ export class Codegen {
 
   private transpileFunctionStmt(stmt: any): string {
     const name = stmt.name.value;
-    const params = stmt.params.map((p: any) => p.name.value).join(", ");
+    const params = stmt.params.map((p: any) => {
+      const paramName = p.name.value;
+      const defaultVal = p.defaultValue ? ` = ${this.transpileExpr(p.defaultValue)}` : "";
+      return `${paramName}${defaultVal}`;
+    }).join(", ");
     const body = this.transpileBlockStmt(stmt.body);
     return "function " + name + "(" + params + ") " + body;
   }
@@ -301,7 +305,11 @@ export class Codegen {
     // ── Methods ──
     const methodCode = methods.map((m: any) => {
       const methodName = m.name.value;
-      const params = m.params.map((p: any) => p.name.value).join(", ");
+      const params = m.params.map((p: any) => {
+        const paramName = p.name.value;
+        const defaultVal = p.defaultValue ? ` = ${this.transpileExpr(p.defaultValue)}` : "";
+        return `${paramName}${defaultVal}`;
+      }).join(", ");
       this.exprVisitor.enterStructMethod(fieldNames, "this", m.params.map((p: any) => p.name.value), allMethodNames);
       const body = this.transpileBlockStmt(m.body);
       this.exprVisitor.exitStructMethod();
@@ -330,7 +338,11 @@ if ((stmt as any).extendTargetKind === "primitive") {
       // `self` aqui E parametro: a chamada reescrita e `$ext.String.m(s)`,
       // entao o receiver chega como primeiro argumento.
       const methods = (stmt.methods || []).map((m: any) => {
-        const params = ["self", ...m.params.map((p: any) => p.name.value)].join(", ");
+        const params = ["self", ...m.params.map((p: any) => {
+          const paramName = p.name.value;
+          const defaultVal = p.defaultValue ? ` = ${this.transpileExpr(p.defaultValue)}` : "";
+          return `${paramName}${defaultVal}`;
+        })].join(", ");
         const body = this.transpileBlockStmt(m.body);
         return `  ${m.name.value}: function (${params}) ${body}`;
       });
