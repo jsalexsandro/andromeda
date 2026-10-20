@@ -121,9 +121,22 @@ print(u)                              // User(Alice)
 print([u])                            // [User(Alice)]
 ```
 
-O runtime chama `toString()` por *duck typing*: declarar `implements` é opcional
-para funcionar, mas sem o protocol no arquivo não há checagem em compile time.
-**`Stringable` ainda não é nativo** — é preciso declarar o protocol no arquivo.
+O runtime chama `toString()` por *duck typing*. **`Stringable` agora é nativo** —
+o protocol já está disponível globalmente, não precisa declarar no arquivo.
+
+```typescript
+struct User implements Stringable {
+  name: string
+  func toString(): string { return "User(" + self.name + ")" }
+}
+
+val u = User { name: "Alice" }
+print(u)          // User(Alice)
+print([u])        // [User(Alice)]
+```
+
+Para checagem em compile time, use `implements Stringable`. Sem o `implements`,
+o duck typing ainda funciona em runtime, mas sem checagem estática.
 
 > **Por que `toString()` e não `print()`?** Um protocol `func print(): void`
 > obriga o struct a imprimir por conta própria e não serve para concatenação nem
@@ -537,8 +550,8 @@ programa.
 
 | Limitação | Impacto |
 |-----------|---------|
-| `Stringable` não é nativo | é preciso declarar o protocol no arquivo |
-| `string + struct` barrado | só entra struct com `toString()`, o que depende do `Stringable` nativo |
+| ~~`Stringable` não é nativo~~ | ~~é preciso declarar o protocol no arquivo~~ — **agora é nativo** |
+| `string + struct` barrado | só entra struct com `toString()` (agora com `Stringable` nativo) |
 | Arrays sem API | `arr.length` e `arr.push` não existem |
 | `float` e `bool` só convertem | sem `sqrt`, `abs`, `floor`, `ceil`, `round`, sem predicados |
 | Sem `toString` global | para converter explicitamente, use o método do tipo |

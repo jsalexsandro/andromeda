@@ -1,0 +1,4 @@
+struct BadUser implements Stringable {
+  name: string
+  age: int
+}

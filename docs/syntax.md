@@ -2394,13 +2394,11 @@ val t: string = age + " anos"     // "10 anos"
 
 ### Stringable
 
+**`Stringable` é um protocol nativo** — disponível globalmente sem declarar.
+
 Um struct controla a própria formatação implementando `Stringable`:
 
 ```typescript
-protocol Stringable {
-  func toString(): string
-}
-
 struct User implements Stringable {
   name: string
   func toString(): string {

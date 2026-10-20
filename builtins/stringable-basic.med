@@ -1,0 +1,12 @@
+struct User implements Stringable {
+  name: string
+  age: int
+
+  func toString(): string {
+    return "User(" + self.name + ", " + self.age + ")"
+  }
+}
+
+val u = User { name: "Ana", age: 30 }
+print(u)
+print("Hello " + u.toString())
