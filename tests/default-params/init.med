@@ -1,0 +1,18 @@
+// Test: default parameters in struct init (custom constructor)
+struct Counter {
+  mut value: int
+  mut step: int = 1
+
+  init(start: int = 0, step: int = 1) {
+    self.value = start
+    self.step = step
+  }
+}
+
+val c1 = Counter()        // start=0, step=1
+val c2 = Counter(10)      // start=10, step=1
+val c3 = Counter(10, 5)   // start=10, step=5
+
+print("c1: " + c1.value + ", step=" + c1.step)  // 0, 1
+print("c2: " + c2.value + ", step=" + c2.step)  // 10, 1
+print("c3: " + c3.value + ", step=" + c3.step)  // 10, 5

@@ -2262,6 +2262,7 @@ const workingMethods = [...(symbol.methods ?? [])];
       name: p.name,
       type: typeArgMap.size > 0 && p.type ? this.substitute(p.type, typeArgMap) : p.type,
       isRest: p.isRest,
+      defaultValue: p.defaultValue,
     }));
 
     // ── Check positional args against init params ─────────
@@ -2282,6 +2283,9 @@ const workingMethods = [...(symbol.methods ?? [])];
     }
 
     // Check arity
+    // Calculate minimum required args (init params without default values)
+    const minRequiredInitArgs = initParams.filter(p => !(p as any).defaultValue).length;
+
     if (hasRest) {
       if (positionalArgs.length < restIndex) {
         this.errors.push(Errors.argumentCountMismatch(
@@ -2290,10 +2294,10 @@ const workingMethods = [...(symbol.methods ?? [])];
       }
     } else {
       const maxArgs = initParams.length + extendDefaults.length;
-      const belowMin = positionalArgs.length < initParams.length;
+      const belowMin = positionalArgs.length < minRequiredInitArgs;
       if (belowMin || positionalArgs.length > maxArgs) {
         this.errors.push(Errors.argumentCountMismatch(
-          belowMin ? initParams.length : maxArgs, positionalArgs.length, token,
+          belowMin ? `${minRequiredInitArgs}..${initParams.length}` : maxArgs, positionalArgs.length, token,
         ));
       }
     }

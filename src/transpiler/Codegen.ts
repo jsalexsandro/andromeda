@@ -267,7 +267,11 @@ export class Codegen {
         : extendFields.filter((f: any) => f.defaultValue);
 
       const params = [
-        ...init.params.map((p: any) => p.name.value),
+        ...init.params.map((p: any) => {
+          const paramName = p.name.value;
+          const defaultVal = p.defaultValue ? ` = ${this.transpileExpr(p.defaultValue)}` : "";
+          return `${paramName}${defaultVal}`;
+        }),
         ...injectedFields.map(
           (f: any) => `${f.name.value} = ${this.transpileExpr(f.defaultValue)}`
         ),
