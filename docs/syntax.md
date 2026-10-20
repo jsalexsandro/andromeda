@@ -1051,6 +1051,19 @@ protocol Stringable {
 - Return type annotation obrigatório se não `void`
 - `Self` type válido apenas em protocols
 - Type parameters permitidos: `func metodo<T>(x: T): T`
+- **Default parameter values NÃO são suportados** — protocol methods definem contratos (assinaturas), não implementação. Default values são detalhe de implementação.
+
+```typescript
+protocol Logger {
+  func log(msg: string, level: string): void  // ❌ sem default
+}
+
+struct ConsoleLogger implements Logger {
+  func log(msg: string, level: string = "info"): void {  // ✅ default na implementação
+    print("[" + level + "] " + msg)
+  }
+}
+```
 
 ### 17.3 Struct implements Protocol
 
