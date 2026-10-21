@@ -1,0 +1,12 @@
+struct Pointer {
+    mut x: int = 0
+    init(xs: int, a: int){
+      x = xs 
+    }
+}
+
+struct Size {
+  x: Pointer    
+}
+
+const p = Pointer(xs:1, 2)

@@ -2201,8 +2201,9 @@ const workingMethods = [...(symbol.methods ?? [])];
     }
     for (const na of namedArgs) {
       if (providedByPosition.has(na.key)) {
+        const posIndex = fieldNames.indexOf(na.key);
         this.errors.push(Errors.typeMismatch(
-          `field '${na.key}' provided both by position and by name`,
+          `field '${na.key}' provided both by position (argument ${posIndex + 1}) and by name`,
           na.keyToken ?? token,
         ));
       }
@@ -2507,13 +2508,6 @@ const workingMethods = [...(symbol.methods ?? [])];
           na.keyToken ?? token,
         ));
         this.checkExpression(na.value);
-        continue;
-      }
-      if (providedByPosition.has(initParams[paramIndex].name.value as string)) {
-        this.errors.push(Errors.typeMismatch(
-          `parameter '${na.key}' provided both by position and by name`,
-          na.keyToken ?? token,
-        ));
         continue;
       }
       providedByName.add(initParams[paramIndex].name.value as string);
