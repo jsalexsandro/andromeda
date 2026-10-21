@@ -1,0 +1,8 @@
+extend Boolean {
+  override func toString(): string {
+    return "YAE"
+  }
+}
+
+val b = true
+print(b.toString())

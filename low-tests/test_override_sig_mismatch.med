@@ -1,0 +1,15 @@
+struct MeuBool {
+  valor: bool
+  func toString(): string {
+    return self.valor ? "YAE" : "NAE"
+  }
+}
+
+extend MeuBool {
+  override func toString(): int {
+    return 42
+  }
+}
+
+val b = MeuBool { valor: true }
+print(b.toString())

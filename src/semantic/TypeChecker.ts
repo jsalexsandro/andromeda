@@ -885,7 +885,19 @@ const workingMethods = [...(symbol.methods ?? [])];
           this.errors.push(Errors.extensionConflict(methodName, target, method.name));
           continue;
         }
-        // This is an override - remove the old method from workingMethods and declared
+        // This is an override - find the existing method and validate signature
+        const existingMethodObj = workingMethods.find((m) => m.name.value === methodName) ||
+          (structStmt?.methods ?? []).find((m) => m.name.value === methodName);
+        if (existingMethodObj && !this.areMethodSignaturesEqual(existingMethodObj, method, structStmt)) {
+          this.errors.push(Errors.overrideSignatureMismatch(
+            methodName,
+            this.methodSignatureToString(existingMethodObj),
+            this.methodSignatureToString(method),
+            method.name
+          ));
+          continue;
+        }
+        // Remove the old method from workingMethods and declared
         const overrideIndex = workingMethods.findIndex((m) => m.name.value === methodName);
         if (overrideIndex !== -1) {
           workingMethods.splice(overrideIndex, 1);
@@ -1119,6 +1131,52 @@ const workingMethods = [...(symbol.methods ?? [])];
     if (stmt.typeParameters) {
       this.currentEnv = prevEnv;
     }
+  }
+
+  private areMethodSignaturesEqual(
+    existing: StructMethod,
+    override: StructMethod,
+    structStmt: Extract<Stmt, { kind: "StructStmt" }>
+  ): boolean {
+    if (existing.params.length !== override.params.length) {
+      return false;
+    }
+    if (existing.mutable !== override.mutable) {
+      return false;
+    }
+    const existingReturn = existing.returnType
+      ? this.resolveAlias(existing.returnType)
+      : ({ kind: "PrimitiveType", name: "void" } as TypeNode);
+    const overrideReturn = override.returnType
+      ? this.resolveAlias(override.returnType)
+      : ({ kind: "PrimitiveType", name: "void" } as TypeNode);
+    if (!this.areTypesCompatible(existingReturn, overrideReturn)) {
+      return false;
+    }
+    for (let i = 0; i < existing.params.length; i++) {
+      const existingParam = existing.params[i];
+      const overrideParam = override.params[i];
+      const existingParamType = existingParam.type
+        ? this.resolveAlias(existingParam.type)
+        : ({ kind: "PrimitiveType", name: "unknown" } as TypeNode);
+      const overrideParamType = overrideParam.type
+        ? this.resolveAlias(overrideParam.type)
+        : ({ kind: "PrimitiveType", name: "unknown" } as TypeNode);
+      if (!this.areTypesCompatible(existingParamType, overrideParamType)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private methodSignatureToString(method: StructMethod): string {
+    const params = method.params.map(p => {
+      const typeStr = p.type ? this.typeToString(p.type) : "unknown";
+      return `${p.name.value}: ${typeStr}`;
+    }).join(", ");
+    const returnType = method.returnType ? this.typeToString(method.returnType) : "void";
+    const mutPrefix = method.mutable ? "mut " : "";
+    return `${mutPrefix}(${params}) => ${returnType}`;
   }
 
   // ── 7.3–7.7 Check struct method body ──────────────────────

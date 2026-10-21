@@ -1,0 +1,8 @@
+extend String {
+  override func toString(): int {
+    return 42
+  }
+}
+
+val s = "hello"
+print(s.toString())

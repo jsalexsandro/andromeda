@@ -1,0 +1,10 @@
+// Teste: Override sem target (deve dar erro)
+struct MeuBool {
+  valor: bool
+}
+
+extend MeuBool {
+  override func naoExiste(): string {
+    return "VAZIO"
+  }
+}

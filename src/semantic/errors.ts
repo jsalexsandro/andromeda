@@ -42,7 +42,8 @@ export type ErrorCode =
   | "PROTOCOL_METHOD_MISMATCH"
   | "DUPLICATE_PROTOCOL_METHOD"
   | "EXTEND_TARGET_INVALID"
-  | "EXTENSION_CONFLICT";
+  | "EXTENSION_CONFLICT"
+  | "OVERRIDE_SIGNATURE_MISMATCH";
 
 export class SemanticError {
   constructor(
@@ -139,6 +140,21 @@ export const Errors = {
   extensionConflict: (name: string, target: string, token: Token, kind: "method" | "field" = "method") =>
     createError("EXTENSION_CONFLICT",
       `${kind} '${name}' already exists in '${target}'`,
+      token, "typecheck"),
+
+  overrideTargetNotFound: (name: string, target: string, token: Token) =>
+    createError("OVERRIDE_TARGET_NOT_FOUND",
+      `override target method '${name}' not found in '${target}'`,
+      token, "typecheck"),
+
+  cannotMutateInImmutableMethod: (fieldName: string, token: Token) =>
+    createError("CANNOT_MUTATE_IN_IMMUTABLE_METHOD",
+      `cannot mutate field '${fieldName}' in non-mut method`,
+      token, "typecheck"),
+
+  cannotCallMutInImmutableMethod: (methodName: string, token: Token) =>
+    createError("CANNOT_CALL_MUT_IN_IMMUTABLE_METHOD",
+      `cannot call mut method '${methodName}' from non-mut method`,
       token, "typecheck"),
 
   extendFieldWithoutDefault: (target: string, field: string, token: Token) =>
@@ -239,4 +255,9 @@ export const Errors = {
 
   duplicateProtocolMethod: (method: string, token: Token) =>
     createError("DUPLICATE_PROTOCOL_METHOD", `duplicate method '${method}' in protocol`, token, "typecheck"),
+
+  overrideSignatureMismatch: (name: string, expected: string, got: string, token: Token) =>
+    createError("OVERRIDE_SIGNATURE_MISMATCH",
+      `override method '${name}' signature does not match the original:\n  expected: ${expected}\n  got:      ${got}`,
+      token, "typecheck"),
 };

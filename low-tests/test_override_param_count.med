@@ -1,0 +1,16 @@
+struct MeuBool {
+  valor: bool
+  func toString(): string {
+    return self.valor ? "YAE" : "NAE"
+  }
+  func getValor(): bool {
+    return self.valor
+  }
+}
+
+extend MeuBool {
+  // Erro: número de parâmetros diferente
+  override func getValor(extra: int): bool {
+    return self.valor
+  }
+}

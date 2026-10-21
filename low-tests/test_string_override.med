@@ -1,0 +1,8 @@
+extend String {
+  override func toString(): string {
+    return "OVERRIDDEN: " + self
+  }
+}
+
+val s = "hello"
+print(s.toString())
