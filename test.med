@@ -1,25 +1,15 @@
-struct Name {
-  mut name: string
-
-  init(n: string){
-    name = n
-  }
-
-  mut func setName(n: string){
-    name = n // isso deveria ser erro pois uma função so permite muder valor se ela tivesse o 'mut' dentro dela
-  }
+struct Pointer {
+    mut x: int = 0
+    init(x: int){
+      x = x 
+    }
 }
 
-extend Name {
-  override mut func setName(n: string){
-    
-  }
-
-  override init(n: string) {
-
-  }
+struct Size {
+  x: Pointer    
 }
 
-const name = Name("John")
-name.setName("Jonny")
 
+const s = Size {
+  Pointer(10)
+}

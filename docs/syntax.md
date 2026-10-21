@@ -53,7 +53,10 @@
     - [implements Protocol](#185-implements-protocol)
     - [Campos no extend](#186-campos-no-extend)
     - [Campos em struct com init custom](#187-campos-em-struct-com-init-custom)
-    - [extend em primitivos](#188-extend-em-primitivoses-conhecidas)
+    - [init no extend](#188-init-no-extend)
+    - [override init no extend](#189-override-init-no-extend)
+    - [extend em primitivos](#1810-extend-em-primitivoses-conhecidas)
+    - [Limitações conhecidas](#1811-limitações-conhecidas)
 19. [Builtins](#19-builtins)
 
 ---
@@ -2196,7 +2199,7 @@ Reatribuir `self = ...` direto é proibido — inclusive em primitivos — com
 | primitivo não extensível (`Void`, `Null`, `Any`, `Unknown`) | `[EXTEND_TARGET_INVALID] ... is not an extendable type` |
 
 Um nome de campo e um nome de método iguais **não** são detectados como conflito
-(veja [Limitações](#188-limitações-conhecidas)).
+(veja [Limitações](#1811-limitações-conhecidas)).
 
 Método adicionado por `extend` **não** conta para `implements` — a conformância
 é verificada quando o `struct` é declarado.
@@ -2327,7 +2330,160 @@ print(t2)            // Token { hash: "z", value: "hello" }
 - As atribuições dos campos rodam **antes** do corpo do `init`, então em
   `print()` o campo do extend aparece **antes** dos campos do struct.
 
-### 18.8 extend em primitivos
+### 18.8 init no `extend`
+
+O `extend` pode declarar um **construtor customizado** via `init`. Isso é
+útil quando o struct original **não tem `init`** (auto-init), pois permite
+transformar um construtor com argumentos nomeados em um com argumentos
+posicionais:
+
+```typescript
+struct Point {
+  mut x: int = 0
+  mut y: int = 0
+}
+
+extend Point {
+  init(z: int) {
+    self.x = z
+    self.y = z
+  }
+}
+
+val p = Point(5)          // ✅ positional: z=5
+print("(" + p.x + ", " + p.y + ")")  // (5, 5)
+```
+
+O `init` no `extend` funciona exatamente como no struct: aceita parâmetros,
+default values, e o corpo pode acessar `self`. Campos declarados no mesmo
+`extend` (com default) são inicializados **antes** do corpo do `init`.
+
+```typescript
+extend Point {
+  z: int = 10            // campo com default do mesmo extend
+  init(w: int) {
+    self.x = w
+    self.y = w
+    self.z = w           // inicializa o campo do mesmo extend
+  }
+}
+
+val p = Point(7)          // w=7
+print("(" + p.x + ", " + p.y + ", " + p.z + ")")  // (7, 7, 7)
+```
+
+#### Regras
+
+1. **O struct original não pode ter `init` custom** — se já tiver, use
+   `override init` (veja próxima seção).
+2. **Campos no mesmo `extend`** devem ter **default value** (são opcionais no
+   construtor).
+3. **Campos sem default** no `extend` são proibidos se o struct não tem
+   `init` (auto-init) — erro `[EXTEND_TARGET_INVALID]`.
+4. **`init` com rest param** não aceita campos no `extend` (limitação do JS:
+   não pode ter default depois de `...rest`).
+
+#### Exemplo completo
+
+```typescript
+struct Point {
+  mut x: int = 0
+  mut y: int = 0
+}
+
+extend Point {
+  z: int = 10
+  init(w: int) {
+    self.x = w
+    self.y = w
+    self.z = w
+  }
+}
+
+val p = Point(7)
+print("(" + p.x + ", " + p.y + ", " + p.z + ")")  // (7, 7, 7)
+```
+
+---
+
+### 18.9 override init no `extend`
+
+Quando o struct original **já tem `init`**, o `extend` pode **sobrescrever**
+o construtor usando `override init`:
+
+```typescript
+struct Point {
+  mut x: int = 0
+  mut y: int = 0
+
+  init(a: int, b: int) {
+    self.x = a
+    self.y = b
+  }
+}
+
+extend Point {
+  override init(z: int) {
+    self.x = z
+    self.y = z
+  }
+}
+
+val p = Point(5)          // x=5, y=5
+print("(" + p.x + ", " + p.y + ")")  // (5, 5)
+```
+
+O `override init` **substitui completamente** o construtor original — a
+assinatura, parâmetros e corpo são os do novo `init`.
+
+#### Regras
+
+1. **`override init` só é permitido se o struct original já tem `init`**.
+   Caso contrário, erro: `[OVERRIDE_INIT_TARGET_NOT_FOUND]`.
+2. **Sem `override`** quando o struct já tem `init` → erro:
+   `[EXTEND_INIT_CONFLICT]`.
+3. **Assinatura do `override init`** pode ser **diferente** da original
+   (parâmetros diferentes, tipos diferentes) — é uma substituição total.
+3. Campos do mesmo `extend` (com default) são inicializados **antes** do corpo
+   do `override init`, e ficam disponíveis em `self`.
+
+#### Exemplo com campos
+
+```typescript
+struct Point {
+  mut x: int = 0
+  mut y: int = 0
+
+  init(a: int, b: int) {
+    self.x = a
+    self.y = b
+  }
+}
+
+extend Point {
+  z: int = 10
+  override init(w: int) {
+    self.x = w
+    self.y = w
+    self.z = w
+  }
+}
+
+val p = Point(7)
+print("(" + p.x + ", " + p.y + ", " + p.z + ")")  // (7, 7, 7)
+```
+
+#### Erros
+
+| Situação | Erro |
+|----------|------|
+| `override init` mas struct não tem `init` | `[OVERRIDE_INIT_TARGET_NOT_FOUND]` |
+| `init` sem `override` e struct já tem `init` | `[EXTEND_INIT_CONFLICT]` |
+| `init` em struct com `init` custom + `rest param` | `[EXTEND_TARGET_INVALID]` (não aceita campos extras) |
+
+---
+
+### 18.10 extend em primitivos
 
 Primitivo se escreve **pelo alias capitalizado** — o `string` minúsculo é
 token de tipo, não identificador:
@@ -2373,7 +2529,7 @@ print("  x  ".trim().shout())            // string → string (builtin) → exte
 print(42.toFloat().toString().shout())   // int → float → string → extend
 ```
 
-### 18.9 Limitações conhecidas
+### 18.11 Limitações conhecidas
 
 **Cravos que ainda não existem, e pegadinhas honestas:**
 
