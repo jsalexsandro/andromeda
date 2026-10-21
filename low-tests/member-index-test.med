@@ -1,0 +1,42 @@
+// MemberExpression & IndexExpression tests
+
+// Array .length (if supported)
+val arr: int[] = [1, 2, 3]
+// val len = arr.length
+
+// Struct field access
+struct User {
+  name: string
+  age: int
+  address: Address
+}
+
+struct Address {
+  city: string
+  zip: string?
+}
+
+val user = User { name: "Alice", age: 30, address: Address { city: "NYC", zip: null } }
+val name = user.name
+val age = user.age
+val city = user.address.city
+val zip = user.address.zip
+
+// Chained
+val fullAddress = user.address.city
+
+// Index on array result
+val firstName = "hello".length  // if string has length
+
+// Nested array access
+val matrix: int[][] = [[1,2], [3,4]]
+val row = matrix[0]
+val elem = matrix[0][1]
+
+// Ternary with member/index
+val idx: int = 1
+val valOrDefault = idx < 2 ? arr[idx] : 0
+
+// Nullish with member
+val maybeArr: int[]? = null
+val safeLen = maybeArr ?? [0].length

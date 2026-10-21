@@ -1,0 +1,17 @@
+struct Counter {
+  mut value: int = 0
+  
+  func getValue(): int {
+    return self.value
+  }
+  
+  func setValue(v: int) {
+    self.value = v
+  }
+}
+
+func test() {
+  val c = Counter()
+  // This should fail - mutating field from non-mut function
+  c.setValue(42)
+}

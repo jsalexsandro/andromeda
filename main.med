@@ -1,0 +1,44 @@
+struct User {
+    email: string
+    password: string 
+
+    init(e: string = "admin", p: string = "123"){
+      email = e
+      password = p
+    }
+
+
+    func toString(): string {
+      return "Email: " + email + "\n" + "Password: " + password
+    }
+}
+
+
+
+const e = User()
+const e_content = e.toString()
+
+print(e_content)
+
+struct MeuBool {
+  valor: bool
+  func toString(): string {
+    return self.valor ? "YAE" : "NAE"
+  }
+}
+
+extend MeuBool {
+  override func toString(): string {
+    return "VAZIO"
+  }
+}
+
+
+// ver como funciona o comportamendo dos override no tipos primitivos
+
+// se um struct ja implementar um protocol, ai no decorrer do codigo algum extend tentar implementar: isso deve ser informado.
+
+init no extend
+
+
+// pra melhorá o override impor que dados do override devem ser iquais, ou seja a sobrescrita pode mudar o comportamentod dentro do method, mas o retorne e parametros devem se manter iquais'

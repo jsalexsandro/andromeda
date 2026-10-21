@@ -1,6 +1,25 @@
-struct Person {
-    mut name: string = ''
-    func getName(): string {
-        return name
-    }   
+struct Name {
+  mut name: string
+
+  init(n: string){
+    name = n
+  }
+
+  mut func setName(n: string){
+    name = n // isso deveria ser erro pois uma função so permite muder valor se ela tivesse o 'mut' dentro dela
+  }
 }
+
+extend Name {
+  override mut func setName(n: string){
+    
+  }
+
+  init(n: string) {
+
+  }
+}
+
+const name = Name("John")
+name.setName("Jonny")
+

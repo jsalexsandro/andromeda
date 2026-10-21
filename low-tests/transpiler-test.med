@@ -1,0 +1,27 @@
+val x = 42
+val y = 3.14
+val name = "hello"
+val flag = true
+val nothing = null
+
+val a = -x
+val b = +y
+val c = !flag
+
+val sum = x + 10
+val diff = x - 5
+val prod = x * 2
+val quot = x / 2
+val rem = x % 3
+
+val eq = x == 42
+val ne = x != 10
+val lt = x < 50
+val gt = x > 10
+val le = x <= 42
+val ge = x >= 42
+
+val and = true && false
+val or = true || false
+
+val grouped = (x + 5) * 2

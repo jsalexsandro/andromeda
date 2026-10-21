@@ -70,6 +70,7 @@ FASE 6.5 — CONTROL TYPES
 │      4.6 Validar ordem semântica dos campos
 │      4.7 Validar o Generic na declaração do literal
        4.8: Member access com generic substitution ──
+       
 // val b1: int = Box<int> { value: 5 }.value    // 5, type int
 // val b2: string = Box<string> { value: "x" }.value  // "x", type string
 
@@ -101,11 +102,7 @@ FASE 6.5 — CONTROL TYPES
           }
         }
 
-      
-
-
-        
-│
+      │
 ├── 6. Struct Generic
 │      6.1 Parser generic params
 │             struct Box<T>
@@ -120,7 +117,7 @@ FASE 6.5 — CONTROL TYPES
 │      6.6 Detectar duplicate generic params
 
 
-│
+│'
 ├── 7. Struct Methods
 │      7.1 Parser methods dentro do struct
 │          func greet(): string {}
@@ -128,7 +125,7 @@ FASE 6.5 — CONTROL TYPES
            mut func greet(): string {}
            
 │      > Semantic
-│      7.3 Resolver `self`
+│      7.3 Resolver `self` e campos nu (ex: self.name e name (ambos funcionam, name shortand para self.name))
 │      7.4 Resolver tipos de retorno
 │      7.5 Resolver generics nos methods
 │      7.6 Detectar métodos duplicados
@@ -165,7 +162,7 @@ FASE 6.5 — CONTROL TYPES
        }
 
        Todos as propriedades devems ser iniciadas, sejam elas dentro do init ou no momento de declaração
-       para as regras completas (structs-rules.md)
+       para as regras completas (../structs-rules.md)
   
   ---     
 │
@@ -174,10 +171,23 @@ FASE 6.5 — CONTROL TYPES
 │      11.2 Comparação de fields
 │      11.3 Nullable comparison
 
-       
+
+├── 8. Extension Methods
+│      8.1 Parser `extend`
+│
+│             extend Array<T> {}
+│
+│      8.2 Resolver tipo extendido
+│      8.3 Registrar métodos externos
+│      8.4 Detectar conflitos
+│      8.5 Permitir builtin extensions
+│      8.6 Override Methods
+           override func getName(): string { return this.name() }
+           override permite apenas modficação do corpo. Retorno, Quantidade de parametros e seus tipos devem ser iquais o da primeira definição.
+      8.7 Init Extend
 
 
-###[ATE AQUI FEITO]
+###[ATE AQUI FEITO] Em ambas partes.
 
     Custom Equality
         # Ate aqui feito!
@@ -190,15 +200,7 @@ FASE 6.5 — CONTROL TYPES
       ---
 
 │
-├── 8. Extension Methods
-│      8.1 Parser `extend`
-│
-│             extend Array<T> {}
-│
-│      8.2 Resolver tipo extendido
-│      8.3 Registrar métodos externos
-│      8.4 Detectar conflitos
-│      8.5 Permitir builtin extensions
+
 │
 ├── 9. Builtin Struct Types
 │      9.1 Registrar Array<T> builtin

@@ -1,0 +1,7 @@
+// Fase 3 - ++/-- postfix
+
+var x: int = 0
+x++
+x--
+val y = x++
+val z = x--

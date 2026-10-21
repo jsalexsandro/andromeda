@@ -1,0 +1,118 @@
+// ExpressionStatement - casos do syntax.md (apenas o que o transpiler suporta)
+
+// Section 9: Function calls
+func add(a: int, b: int): int { return a + b }
+func identity<T>(x: T): T { return x }
+func greet(name: string): string { return "Hello, " + name }
+func compose<A, B, C>(f: (B) => C, g: (A) => B, x: A): C { return f(g(x)) }
+
+// Function calls as statements
+add(1, 2)
+identity<int>(42)
+identity("hello")
+greet("world")
+
+// Multi-line call
+compose(
+  (n: int) => n + 1,
+  (s: string) => 42,
+  "hello"
+)
+
+// Section 10: Arrow function calls
+val triple: (int) => int = (x) => x * 3
+val greetArrow: (string) => string = (name) => "Hello, " + name
+val identityArrow = <T>(x: T): T => x
+
+triple(10)
+greetArrow("Andromeda")
+identityArrow<int>(42)
+identityArrow<string>("hi")
+
+// Section 11: while
+var count: int = 0
+while (count < 3) {
+  count = count + 1
+}
+
+// Section 13: Spread operator in array literals
+val arr1: int[] = [1, 2, 3]
+val arr2: int[] = [4, 5, 6]
+val combined: int[] = [...arr1, ...arr2, 7, 8]
+combined
+
+// Section 15: Type aliases and generics
+typealias ID = int
+typealias UserData = ID | string
+
+val userId: ID = 123
+var count2: int = 0
+
+val inferred = identity(42)
+val explicit = identity<string>("hello")
+
+val numbers: int[] = [1, 2, 3]
+val allNumbers: int[] = [...numbers, 4, 5, 6]
+
+val value: int | string = "test"
+
+// Section 16: Struct literals
+struct User {
+  name: string
+  age: int
+
+  func isAdult(): bool {
+    return self.age >= 18
+  }
+}
+
+val user = User { name: "Alice", age: 30 }
+user.isAdult()
+
+struct Config {
+  host: string = "localhost"
+  port: int = 8080
+}
+
+val cfg = Config { host: "server" }
+
+// Assignment operators (Section 12)
+var a: int = 10
+a += 5
+a -= 3
+a *= 2
+a /= 4
+a %= 3
+
+// Increment/decrement via assignment
+var b: int = 10
+b = b + 1
+b = b - 1
+
+// Logical expressions
+val flag: bool = true
+flag && false
+flag || true
+!flag
+
+// Comparison expressions
+val n: int = 42
+n == 42
+n != 10
+n < 50
+n > 10
+n <= 42
+n >= 42
+
+// Arithmetic expressions
+val x: int = 10
+x + 5
+x - 3
+x * 2
+x / 4
+x % 3
+-x
++x
+
+// Grouped
+(x + 5) * 2

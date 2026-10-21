@@ -1,0 +1,58 @@
+// Fase 2 - VariableDeclaration com todos os tipos do syntax.md
+
+// Section 2: Variables (val, var, const) com type annotations
+val name: string = "Andromeda"
+var count: int = 0
+const PI: float = 3.14
+
+// Section 3: Primitive Types
+val intVal: int = 42
+val floatVal: float = 3.14
+val strVal: string = "hello world"
+val boolVal: bool = true
+val nullVal: null = null
+
+// Section 4: Arrays
+val nums: int[] = [1, 2, 3]
+val names: string[] = ["Alice", "Bob"]
+val matrix: int[][] = [[1, 2], [3, 4]]
+val nested: (int | string)[][] = [[1, "a"], [2, "b"]]
+
+// Section 7: Union and Nullable Types
+val union1: int | string = 42
+val union2: int | string = "hello"
+val unionArr: (int | string)[] = [1, "a", 2, "b"]
+
+// Nullable Types
+val nullable1: int? = null
+val nullable2: int? = 42
+val nameNullable: string? = null
+val nestedNullable: (int | string)? = null
+
+// Section 8: Generic Types
+val list: Array<int> = [1, 2, 3]
+val map: Array<string> = ["a", "b"]
+
+// Type inference (sem annotation)
+val inferred = 42
+val inferredStr = "hello"
+val inferredArr = [1, 2, 3]
+
+// Mutável reassignment
+count = count + 1
+
+// Expressions (Phase 1)
+val sum = intVal + 10
+val diff = intVal - 5
+val prod = intVal * 2
+val quot = intVal / 2
+val rem = intVal % 3
+val eq = intVal == 42
+val lt = intVal < 50
+val and = true && false
+val grouped = (intVal + 5) * 2
+
+// Unary
+val neg = -intVal
+val pos = +floatVal
+val not = !boolVal

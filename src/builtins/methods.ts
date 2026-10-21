@@ -109,6 +109,7 @@ export const STRING_METHODS: PrimitiveMethodDecl[] = [
   },
   { name: "toInt", params: [], returnType: nullable("int"), js: "AndromedaAPI.toInt($self)" },
   { name: "toFloat", params: [], returnType: nullable("float"), js: "AndromedaAPI.toFloat($self)" },
+  { name: "toString", params: [], returnType: primitive("string"), js: "$self" },
 ];
 
 // ============================================================

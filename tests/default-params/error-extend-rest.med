@@ -1,0 +1,10 @@
+// Test: rest parameter with default in extend - should fail
+struct S {
+  mut x: int = 0
+}
+
+extend S {
+  func rest(...rest: int = [1]): int {
+    return rest
+  }
+}

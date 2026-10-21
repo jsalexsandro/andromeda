@@ -1,20 +1,40 @@
-protocol Container<T> {
+struct User {
+  mut email: string
+  mut password: string
 
-  func get(): T
+  init(e: string, p: string){
+    self.email = e
+    if (p.length < 8){
+        print("Error")
+    } 
 
+    self.password = p
+  } 
 }
 
-
-
-struct Box<T> implements Container<T> {
-
-  mut value: T
-
-  func get(): T { return self.value }
-
+extend User {
+    mut func getEmail(): string {
+        return self.email
+    }
+    
+    mut func getPassword(): string {
+        return self.password
+    }
 }
 
+const People = User("", "3rtryry5y")
 
 
-val box = Box<int, string> { value: 42 }
+// o compiler bloqueia extends de proprieda se o struct tiver init
+// no futuro poemos criar algo como o validate que valida a atribuição dos campos dos struct ex:
 
+// struct User2 {
+//    mut password: string
+ //   validate {
+   //     if (self.password.length <= 10) {
+   //       error!
+  //      }
+    //}
+//}
+
+// ai teriamos que ver como ficaria a cor relação entre o init e validate, pois o init é algo complexo.

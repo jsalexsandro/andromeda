@@ -2877,6 +2877,18 @@ export class Parser {
         continue;
       }
 
+      // init (custom init in extend)
+      if (next.type === TokenType.KEYWORD && next.value === "init") {
+        let init = this.parseStructConstructor();
+        if (init) {
+          init = init as any;
+          init.kind = "StructConstructor";
+        }
+        // Store init to be returned at the end
+        (this as any)._extendInit = init;
+        continue;
+      }
+
       // func
       if (next.type === TokenType.KEYWORD && next.value === "func") {
         methods.push(this.parseStructMethod(false, false));
@@ -2900,7 +2912,9 @@ export class Parser {
       this.error("Expected '}' to close extend block", this.peek());
     }
 
-    return { kind: "ExtendStmt", targetName: nameToken, implements: implementsTokens, fields, methods };
+    const init = (this as any)._extendInit;
+    delete (this as any)._extendInit;
+    return { kind: "ExtendStmt", targetName: nameToken, implements: implementsTokens, fields, methods, init };
   }
 
   /** `nome: Tipo = default` dentro do corpo de um extend */

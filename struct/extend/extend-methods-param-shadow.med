@@ -1,0 +1,42 @@
+// Test: parameter shadowing field (not method)
+struct ParamShadowField {
+  mut value: int = 10
+
+  func getValue(): int {
+    return value  // bare field access
+  }
+
+  // Parameter 'value' shadows field 'value'
+  func setAndGet(value: int): int {
+    value = value + 5  // assigns to PARAMETER, not field
+    return getValue()  // returns original field (10), not parameter
+  }
+
+  // Test bare field assignment with parameter shadowing
+  func setFieldDirect(newValue: int) {
+    value = newValue  // should this assign to field or parameter?
+  }
+}
+
+val p = ParamShadowField()
+print("Initial getValue: " + p.getValue())      // 10
+print("setAndGet(100): " + p.setAndGet(100))   // should be 10 (field unchanged)
+print("After setAndGet getValue: " + p.getValue()) // 10
+
+// Test assignment to field when parameter has same name
+p.setFieldDirect(999)
+print("After setFieldDirect(999) getValue: " + p.getValue()) // should be 999 if field assigned
+
+// Test method parameter shadowing method
+struct ParamShadowMethod {
+  func compute(): int {
+    return 42
+  }
+
+  func testShadow(compute: int): int {
+    return compute() + compute  // first: parameter (call error?), second: method
+  }
+}
+
+val m = ParamShadowMethod()
+print("Method shadow test: " + m.testShadow(5)) // Should error or be 47?

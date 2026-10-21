@@ -1,0 +1,51 @@
+// Fase 2 - BlockStatement e IfStatement
+
+// BlockStatement
+{
+  val x: int = 10
+  val y: int = 20
+  val sum = x + y
+}
+
+// IfStatement
+val a: int = 42
+val b: int = 10
+
+if (a > b) {
+  val msg: string = "maior"
+} else {
+  val msg: string = "menor ou igual"
+}
+
+// If-else if chain
+val score: int = 85
+if (score >= 90) {
+  val grade: string = "A"
+} else if (score >= 80) {
+  val grade: string = "B"
+} else if (score >= 70) {
+  val grade: string = "C"
+} else {
+  val grade: string = "F"
+}
+
+// Nested blocks
+val x: int = 5
+if (x > 0) {
+  val y: int = 10
+  {
+    val z: int = y + 5
+  }
+}
+
+// If without else
+val flag: bool = true
+if (flag) {
+  val done: string = "ok"
+}
+
+// If com expressão complexa
+val n: int = 7
+if (n % 2 == 0 && n > 0) {
+  val par: string = "par positivo"
+}

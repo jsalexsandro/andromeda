@@ -1,0 +1,14 @@
+struct Name {
+  mut name: string
+
+  init(n: string){
+    name = n
+  }
+
+  func setName(n: string){
+    name = n
+  }
+}
+
+const name = Name("John")
+name.setName("Jonny")

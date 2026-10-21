@@ -19,3 +19,120 @@
 │
 └── 8. Precedence Table + Pratt Parser
         montar o loop de precedência
+
+FASE 2 — STATEMENTS SIMPLES
+│
+├── 9.  VariableDeclaration     val x = expr
+        9.1  suporte a tipagem (any, null, [int, string, float, bool], ou qualuqer_tipo -> o semantic verifica se é valido)
+        9.2 Criar o ParserTypeAnotation (dependendo o contexto após ":" é um tipagem )
+        9.3 Suporte a objetos types e arrays types { name: string, values: string[] } ou string[] int[][]
+        9.4 Adicionar suporte a union types (string | null)
+        9.5 adicionar supoerte a uninion multiples types string | null | bool
+      
+      (isso já está muito bom)
+
+├── 10. BlockStatement          { ... }
+├── 11. IfStatement             if/else
+├── 12. WhileStatement          while
+└── 13. ExpressionStatement     expr como statement
+FASE 3 — EXPRESSÕES COMPOSTAS
+│       (precisam de expr e statement prontos)
+│
+├── 14. Assignment              x = 10
+|       Atribuição composta: (x += 1, x -= 1, *=, /= , %=)
+        Atibuição ++ --
+        Concantenação de strings "" + "" | var_str + var_2_str
+        var_str += ""
+        
+        
+├── 15. CallExpression          fn(a, b) 
+        CallNamed: 
+          fn(x: 1, y: 2)
+
+├── 16. MemberExpression        obj.prop    - Requer OBJECTS
+├── 17. IndexExpression         arr[0] - Requer ARRAYS
+├── 18. TernaryExpression       a ? b : c
+└── 19. NullishCoalescing       a ?? b
+
+FASE 4 — FUNÇÕES
+│   -> suporte a tipagem reaproveitar o ParserTypeAnotation, tanto para tipagem de parametos e funções
+    funções sem nomeação que usam o nome da varivel
+    const pow = func(x: int): int = { return x * x } // [fututo]
+    
+├── 20. ArgumentList            (a: int, b: string)
+    Default values  (a: int = 10)
+ 
+├── 21. FunctionStatement       func foo() {}
+        Anotação func foo(): int {} [OK]
+        Funções anominas, permitir essa sintaxe
+ 
+├── 22. ReturnStatement         return expr
+└── 23. ArrowFunction           x => x  /  (x) => x + 1
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FASE 5 — ESTRUTURAS DE DADOS
+│
+├── 24. ArrayLiteral            [1, 2, 3]
+├── 25. ObjectLiteral           {a: 1, b: 2}
+└── 26. SpreadExpression        ...expr
+- o spread operator em uma função deve ser feito sempre no ultimo do parametros
+
+
+FASE 6 — CONTROLE AVANÇADO
+│
+├── 
+├── 28. BreakStatement          break
+└── 29. ContinueStatement       continue
+├── 27. ForStatement            for (val i = 0; ...)
+        'For in'  (futuro)
+        'in' keyword
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FASE TYPEALIAS
+ TypeAliasStatement
+ typealias <keyword> = <annotation-type>
+            ^^^^^^^     ^
+            |           |> reutilizar o parser annotation
+            |
+            |> espera uma keyword
+
+
+Fase 6.3 GenericSystem
+  GenericDecl:
+    Function/ArrowFunction
+    func add<T>(n1: T, n2: T): T {
+      return n1 + n2
+    }
+
+  GenericCall: // para funções
+    add<int>(1, 2)
+
+  - Criar a função ParseGeneric, para reutilizar em outras estruturas
+
+Fase 6.3.1 TypeAliasGeneric
+  TypeAliasGeneric Decl:
+    typealias Nullable<T> =  T? 
+
+  Call: 
+    val s: Nullable<int> = 1
+
+  Conflito com Lexer:
+  * Verificar se o lexer não confude isso com uma tag Androx
+
+// desempacotadores de opicionais
+Fase 6.4 IfBindingExpr
+-  IfValExpr
+-  IfVarExpr
+-  IfContExpr
+-  Reutilizar as apis internas de declaração de variaveis do parser
+-  Permtir multiplas declarações [talvez, futuro]
+  no Ast IfVariableStmt
+
+
+
+FASE 6.5 — CONTROL TYPES
+│
+├── StructStatement
+    Estrutura Grande e Complexa veja @structs.md 
+    No transpiler devemo materalizar os structs com Classes.

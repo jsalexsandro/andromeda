@@ -1246,6 +1246,54 @@ val eq = a.equals(b)  // Self resolvido para UserId
 | `ALREADY_DECLARED` | Type param duplicado | `'T' is already declared` |
 | `UNKNOWN_PROPERTY` | Método não existe no protocolo | `property 'foo' does not exist` (acessando método inexistente em variável tipada como protocolo) |
 
+### 17.9 Mutabilidade em Protocolos
+
+**Protocolos não suportam `mut func` na declaração.** Métodos de protocolo são sempre declarados apenas com `func`:
+
+```typescript
+protocol Stringable {
+  func toString(): string   // apenas 'func'
+  // mut func toString(): string  // erro de parse: 'mut' não permitido em protocolo
+}
+```
+
+A mutabilidade (`mut`) é um detalhe de **implementação**, não de contrato. O protocolo define **o que** o método faz (assinatura), não **como** ele implementa.
+
+#### Regras
+
+1. **Declaração de protocolo:** apenas `func` — `mut func` gera erro de parse
+2. **Implementação no struct:** o struct decide se o método é `mut` ou não-mut
+3. **Não há validação de mutabilidade** entre protocolo e struct — o type checker valida apenas parâmetros e tipo de retorno
+
+#### Exemplo
+
+```typescript
+protocol Stringable {
+  func toString(): string
+}
+
+struct User implements Stringable {
+  name: string
+  
+  // OK: struct implementa como método mutável
+  mut func toString(): string {
+    return "User(" + self.name + ")"
+  }
+}
+
+struct Logger implements Stringable {
+  func toString(): string {  // OK: struct implementa como não-mutável
+    return "Logger"
+  }
+}
+```
+
+#### Por que protocolos não têm `mut func`?
+
+A mutabilidade (`mut`) é um detalhe de **como** o método acessa `self` (pode mutar campos `mut` ou não). Protocolos definem contratos de **comportamento** (quais métodos existem, quais parâmetros e retorno), não detalhes de implementação como mutabilidade de campos.
+
+Isso permite flexibilidade: o mesmo protocolo pode ser implementado por structs que precisam mutar estado e por structs que só leem estado.
+
 ---
 
 ## 16. Structs
@@ -2028,6 +2076,62 @@ print(c.increment())  // 10 (sobrescrito)
 ```
 
 **Regras:**
+- A keyword `override` deve preceder `func` (ou `mut func`)
+- O método deve já existir no struct original ou em um `extend` anterior
+- Métodos marcados com `override` substituem a implementação anterior
+- Métodos de `extend` anteriores também podem ser sobrescritos por `extend`s posteriores
+
+**Validação de assinatura (Signature Validation):**
+- A assinatura do override **deve ser idêntica** à do método original:
+  - Mesmo número de parâmetros
+  - Mesmos tipos de parâmetros (ordem e tipos)
+  - Mesmo tipo de retorno
+  - Mesma mutabilidade (`mut` ↔ não-`mut`)
+
+```typescript
+struct Counter {
+  mut value: int = 0
+  func getValue(): int {
+    return value
+  }
+  mut func setValue(v: int): int {
+    value = v
+    return value
+  }
+}
+
+extend Counter {
+  // ✅ OK — assinatura idêntica
+  override func getValue(): int {
+    return value * 2
+  }
+
+  // ✅ OK — assinatura idêntica (mut preservado)
+  override mut func setValue(v: int): int {
+    value = v + 1
+    return value
+  }
+
+  // ❌ ERRO — tipo de retorno diferente
+  override func getValue(): string {
+    return "oops"
+  }
+
+  // ❌ ERRO — parâmetro extra
+  override func setValue(v: int, extra: int): int {
+    value = v
+    return value
+  }
+
+  // ❌ ERRO — mutability diferente
+  override func setValue(v: int): int {
+    value = v
+    return value
+  }
+}
+```
+
+**Regras adicionais:**
 - `override` só pode ser usado em `extend`, não na declaração original da `struct`
 - O método alvo deve existir no struct original ou em um `extend` anterior
 - `override` não pode ser usado em primitivos (`extend Integer { override func toString() }` → erro)
@@ -2041,6 +2145,11 @@ print(c.increment())  // 10 (sobrescrito)
 | Override on primitive | `extend Integer { override func toString() }` | `cannot extend 'Integer': expected a struct, but it is a built-in type` |
 | Override with rest param | `extend S { override func f(...rest: int) }` | `Rest parameter cannot have override` |
 | Override without target | `extend S { override func f() }` (where `f` doesn't exist) | `override target method 'f' not found in 'S'` |
+| **Primitive `toString()` override not supported at runtime** | `extend String { override func toString(): string { ... } }` | Compiles but runtime uses native `toString()` — see **Limitações** |
+| Override signature mismatch | `extend S { override func f(): string }` (original: `(): int`) | `override method 'f' signature does not match the original: expected '() => int', got '() => string'` |
+| Override param count mismatch | `extend S { override func f(x: int) }` (original: `()`) | `override method 'f' signature does not match the original: expected '() => int', got '(x: int) => int'` |
+| Override param type mismatch | `extend S { override func f(x: string) }` (original: `x: int`) | `override method 'f' signature does not match the original: expected '(x: int) => int', got '(x: string) => int'` |
+| Override mutability mismatch | `extend S { override func f() }` (original: `mut func f()`) | `override method 'f' signature does not match the original: expected 'mut () => int', got '() => int'` |
 
 ### Error Cases (Extend Methods com Default Parameters)
 
@@ -2289,6 +2398,12 @@ print(42.toFloat().toString().shout())   // int → float → string → extend
   hoje: o campo prevalece no acesso (`x.name`), a chamada dá `INVALID_CALL`, e
   o método do prototype vira código morto. Evite até virar
   `[EXTENSION_CONFLICT]`.
+
+- **`override` em primitivos não substitui métodos nativos em runtime** —
+  `extend String { override func toString() { ... } }` compila, mas em runtime
+  o `toString()` nativo do JavaScript é usado (o runtime chama `value.toString()`
+  diretamente no primitivo, não via `$ext`). Use wrapper struct se precisar
+  customizar `toString()`.
 
 - **Não há narrowing** depois de `if (x == null)` — use `if val` (ver
   [Optional Binding](#optional-binding-if-val--if-var)).

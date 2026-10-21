@@ -36,6 +36,7 @@ export class TypeChecker {
   /** Campos do struct (e de `extend`) visíveis por nome nu dentro de métodos/init */
   private currentStructFields: Map<string, { type: TypeNode; mutable: boolean }> | null = null;
   private currentStructSelfMutable: boolean = false;
+  private currentMethodMutable: boolean = false;
   /** Métodos do struct (incluindo extend) visíveis por nome nu dentro de métodos/init */
   private currentStructMethods: Map<string, StructMethod> | null = null;
   private currentStructSelfType: TypeNode | null = null;
@@ -918,6 +919,21 @@ const workingMethods = [...(symbol.methods ?? [])];
       // substituicao de Self, params, retorno e corpo
       this.checkStructMethodBody(structStmt, method);
     }
+
+    // Handle init in extend
+    if (stmt.init) {
+      // If struct already has an init, extending with another init is not allowed
+      if (structStmt.init) {
+        this.errors.push(Errors.extendInitConflict(target, stmt.init.body[0] ?? stmt.targetName));
+      } else {
+        // Add the init to the struct statement for codegen
+        structStmt.init = stmt.init;
+        // Also update the symbol so constructor calls work correctly
+        symbol.init = stmt.init;
+        // Validate the init body
+        this.checkStructConstructor(structStmt, stmt.init);
+      }
+    }
   }
 
   /**
@@ -1232,6 +1248,10 @@ const workingMethods = [...(symbol.methods ?? [])];
     const prevEnv = this.currentEnv;
     this.currentEnv = fnEnv;
 
+    // Track method mutability for mutation checks
+    const prevMethodMutable = this.currentMethodMutable;
+    this.currentMethodMutable = method.mutable;
+
     // ── self (7.3) ────────────────────────────────────────────
     this.defineStructSelf(fnEnv, structStmt, method.mutable, method.name);
 
@@ -1352,6 +1372,9 @@ const workingMethods = [...(symbol.methods ?? [])];
         this.errors.push(Errors.missingReturn(method.name));
       }
     }
+
+    // Restore method mutability
+    this.currentMethodMutable = prevMethodMutable;
 
     // Restaurar escopo
     this.currentEnv = prevEnv;
@@ -3254,6 +3277,13 @@ const workingMethods = [...(symbol.methods ?? [])];
     selfMutable: boolean,
   ): void {
     const writable = field.mutable || selfMutable;
+
+    // Check if we're trying to mutate a mut field from a non-mut method
+    if (field.mutable && !this.currentMethodMutable && !selfMutable) {
+      this.errors.push(Errors.cannotMutateInImmutableMethod(name, targetToken));
+      return;
+    }
+
     const op = operator?.value as string;
     if (op && ['+=', '-=', '*=', '/=', '%='].includes(op)) {
       if (op === '+=') {
@@ -3668,6 +3698,11 @@ const workingMethods = [...(symbol.methods ?? [])];
             return;
           }
         }
+      }
+      // Check if we're trying to mutate a mut field from a non-mut method
+      if (fieldMutable && !this.currentMethodMutable && !objectMutable) {
+        this.errors.push(Errors.cannotMutateInImmutableMethod(propName, propToken));
+        return;
       }
       if (!fieldMutable && !objectMutable) {
         this.errors.push(Errors.cannotAssignToField(propName, propToken));

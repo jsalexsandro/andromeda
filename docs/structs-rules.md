@@ -281,7 +281,88 @@ Isso elimina a inconsistência entre `Config(host: "server")` (auto-init constru
 
 ---
 
-## 11. Struct Equality
+## 12. Override Validation in Extend
+
+Quando se usa `override func` em um `extend`, o type checker valida que a assinatura do método sobrescrito é **idêntica** à do método original no struct.
+
+### Regras de Validação
+
+A assinatura do override deve ser exatamente igual à do método original em:
+
+1. **Número de parâmetros** — mesmo count
+2. **Tipos dos parâmetros** — mesmos tipos, mesma ordem
+3. **Tipo de retorno** — mesmo tipo
+4. **Mutabilidade** — `mut func` ↔ `mut func`, `func` ↔ `func`
+
+### Exemplos
+
+```medandromeda
+struct Counter {
+  mut value: int = 0
+  func getValue(): int {
+    return value
+  }
+  mut func setValue(v: int): int {
+    value = v
+    return value
+  }
+}
+
+extend Counter {
+  // ✅ OK — assinatura idêntica
+  override func getValue(): int {
+    return value * 2
+  }
+
+  // ✅ OK — assinatura idêntica (mut preservado)
+  override mut func setValue(v: int): int {
+    value = v + 1
+    return value
+  }
+
+  // ❌ ERRO — tipo de retorno diferente
+  override func getValue(): string {
+    return "oops"
+  }
+
+  // ❌ ERRO — parâmetro extra
+  override func setValue(v: int, extra: int): int {
+    value = v
+    return value
+  }
+
+  // ❌ ERRO — mutability diferente
+  override func setValue(v: int): int {
+    value = v
+    return value
+  }
+}
+```
+
+### Erros Detectados
+
+| Error | Descrição |
+|-------|-----------|
+| `OVERRIDE_TARGET_NOT_FOUND` | `override` usado mas método não existe no struct original nem em `extend` anterior |
+| `OVERRIDE_SIGNATURE_MISMATCH` | Assinatura do override difere da original (params, retorno, ou mutability) |
+
+### Formato do Erro
+
+```
+[OVERRIDE_SIGNATURE_MISMATCH] Line 14, Col 16: override method 'setValue' signature does not match the original:
+  expected: mut (v: int) => int
+  got:      (v: int) => int
+```
+
+O erro mostra `expected` (assinatura original) e `got` (assinatura do override) alinhados para facilitar a comparação.
+
+### Restrições Adicionais
+
+- `override` só pode ser usado em `extend`, não na declaração original da `struct`
+- O método alvo deve existir no struct original ou em um `extend` anterior
+- `override` não pode ser usado em primitivos (`extend Integer { override func toString() }` → erro `EXTENSION_CONFLICT`/`EXTEND_TARGET_INVALID`)
+- `override` não pode ser usado com `...rest` parameters
+- **Limitação runtime**: `override func toString()` em `String` e `Boolean` compila mas **não substitui em runtime** (limitação do JS — runtime chama `value.toString()` direto no primitivo)
 
 Structs suportam comparação com `==` e `!=` seguindo as mesmas regras de **tipagem nominal** do resto da linguagem.
 

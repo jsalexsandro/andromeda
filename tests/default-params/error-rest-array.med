@@ -1,0 +1,4 @@
+// Test: rest parameter with default - should fail
+func restWithDefault(...rest: int = [1,2]): int {
+  return rest
+}

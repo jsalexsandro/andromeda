@@ -507,6 +507,7 @@ export interface ExtendStmt {
   implements: Token[]  // protocols that this extend implements
   fields: StructField[]
   methods: StructMethod[]
+  init?: StructConstructor  // optional custom init added by extend
 }
 
 // 10.0 — custom init inside a struct

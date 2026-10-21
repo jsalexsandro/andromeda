@@ -1,0 +1,31 @@
+struct HtmlElement {
+    tag: string
+    text: string?
+}
+
+extend HtmlElement {
+    func show(): void {
+        print("<" + self.tag + ">")
+        print(self.text)
+        print("</" + self.tag + ">")
+    }
+}
+
+const title = HtmlElement(
+    tag: "h1",
+    text: "Olá, Andromeda!"
+)
+
+const page = HTML.div(
+    class: "container",
+    children: [
+        HTML.h1("Minha primeira página"),
+        HTML.p("Construída com Andromeda"),
+        HTML.button(
+            text: "Clique aqui",
+            id: "submit"
+        )
+    ]
+)
+
+print(page)

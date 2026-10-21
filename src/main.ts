@@ -39,6 +39,7 @@ export function main() {
   }
 
   let filename = args[1]
+  let ev       = args[2] == "-e"
   let isRun = command === 'run'
   let isCompile = command === 'compile'
   let isTranspile = command === 'transpile'
@@ -117,6 +118,12 @@ export function main() {
 
     console.log(`\n--- Generated JavaScript ---\n`)
     console.log(js)
+
+    if (ev) { // eval js
+      console.log("")
+      eval(js)
+      
+    } 
 
   } else if (isCompile) {
     console.log(`[Andromeda] Compiling ${filename}...`)

@@ -286,6 +286,44 @@ pi.toInt().isEven()       // false — 3 é ímpar
 2.toFloat().toString()    // "2"
 ```
 
+### Override de métodos em primitivos
+
+Primitivos (`int`, `float`, `string`, `bool`) suportam `override` em `extend`
+para sobrescrever métodos nativos:
+
+```typescript
+extend Boolean {
+  override func toString(): string {
+    return "YAE"
+  }
+}
+
+extend String {
+  override func toString(): string {
+    return "CUSTOM: " + self
+  }
+}
+
+val b = true
+print(b.toString())        // "YAE"
+
+val s = "hello"
+print(s.toString())        // "CUSTOM: hello"
+```
+
+**Regras:**
+- Use `override func` no `extend` do primitivo
+- O método deve já existir como builtin no primitivo
+- Funciona para `int`, `float`, `string`, `bool`
+- Em runtime, o método sobrescrito é chamado via `$ext["tipo"].metodo()`
+
+**Limitação:** O `toString()` de `string` e `bool` **não é substituído em runtime**
+devido a limitações do JavaScript (o runtime chama `value.toString()` diretamente
+no primitivo, não via `$ext`). Funciona para métodos novos ou outros métodos
+como `toString()` de `bool`/`int`/`float`.
+
+---
+
 ### bool
 
 | Método | Retorno | Nota |

@@ -1,0 +1,435 @@
+// ============================================================
+// Andromeda — MASTER TEST (todas as seções do docs/syntax.md)
+// ============================================================
+
+// ── 1. Basic Syntax ──
+// comentário de linha única
+
+// ── 2. Variables & Constants ──
+var count: int = 0
+val name: string = "Andromeda"
+const pi: float = 3.14159
+val flag: bool = true
+val nothing: null = null
+val inferred = 42
+count = count + 1
+
+// ── 3. Primitive Types ──
+val intVal: int = 42
+val floatVal: float = 3.14
+val strVal: string = "hello world"
+val boolVal: bool = true
+val nullVal: null = null
+val anyVal: any = 100
+val unknownVal: unknown = "x"
+
+// ── 4. Arrays ──
+val nums: int[] = [1, 2, 3]
+val names: string[] = ["Alice", "Bob"]
+val matrix: int[][] = [[1, 2], [3, 4]]
+val nested: (int | string)[][] = [[1, "a"], [2, "b"]]
+val list: Array<int> = [10, 20, 30]
+val strList: Array<string> = ["a", "b"]
+val firstElem: int = nums[0]
+val combined: int[] = [...nums, 7, 8]
+
+// ── 6. Type Aliases ──
+typealias ID = int
+typealias Name = string
+typealias IntArray = int[]
+typealias StringOrNum = int | string
+typealias NullableString = string?
+val userId: ID = 123
+val userName: Name = "Alice"
+val nums2: IntArray = [1, 2, 3]
+val unionVal: StringOrNum = 42
+val unionVal2: StringOrNum = "hello"
+val nullableStr: NullableString = null
+val nullableStr2: NullableString = "text"
+
+// ── 7. Union & Nullable ──
+val union1: int | string = 42
+val union2: int | string = "hello"
+val unionArr: (int | string)[] = [1, "a", 2, "b"]
+val nullable1: int? = null
+val nullable2: int? = 42
+val nameOpt: string? = null
+
+// ── 8. Generic Functions ──
+func identity<T>(x: T): T {
+  return x
+}
+func pair<A, B>(a: A, b: B): B {
+  return b
+}
+func add<T>(n1: T, n2: T): T {
+  return n1
+}
+val r1: int = identity<int>(42)
+val r2: string = identity<string>("hello")
+val r3: int = add(1, 2)
+val r5 = identity(99)
+val r6 = identity("inferido")
+val r7 = add(10, 20)
+
+// ── 9. Functions ──
+func addFunc(a: int, b: int): int {
+  return a + b
+}
+func greet(name: string): string {
+  return "Hello, " + name
+}
+func process(x: int): int | string {
+  if (x > 0) {
+    return x
+  }
+  return "negative"
+}
+val resAdd = addFunc(10, 20)
+val resGreet = greet("world")
+val resProc = process(5)
+
+// ── 10. Arrow Functions ──
+val triple: (int) => int = (x) => x * 3
+val resultArrow = triple(10)
+val greetArrow: (string) => string = (name) => "Hello, " + name
+val double: (int) => int = (x) => {
+  return x * 2
+}
+val doubleResult = double(5)
+val identityArrow = <T>(x: T): T => x
+val idResult: int = identityArrow<int>(42)
+val idResult2: string = identityArrow<string>("hi")
+val firstArrow = <T>(arr: T[]): T => arr[0]
+val firstResult: int = firstArrow<int>([1, 2, 3])
+func apply<T>(x: T, fn: (T) => T): T {
+  return fn(x)
+}
+val ctxResult = apply(10, <T>(x: T): T => x)
+val immediate = (<T>(x: T): T => x)(42)
+
+// ── 11. Control Flow ──
+val x: int = 10
+if (x > 5) {
+  val msg: string = "big"
+} else if (x > 0) {
+  val msg: string = "smaller"
+} else {
+  val msg: string = "zero"
+}
+
+// if val / if var
+func maybe(): int? {
+  return 42
+}
+val optX: int? = maybe()
+if val y = optX {
+  val z: int = y
+}
+if (val w = optX) {
+  val zz: int = w
+}
+if var zv = optX {
+  zv = 10
+}
+
+// while
+var i: int = 0
+while (i < 5) {
+  i = i + 1
+}
+while (true) {
+  if (i > 10) {
+    break
+  }
+  i = i + 1
+}
+var j: int = 0
+while (j < 10) {
+  j = j + 1
+  if (j == 5) {
+    continue
+  }
+  val xw = j
+}
+
+// for (C-style)
+for (var k: int = 0; k < 5; k = k + 1) {
+  val xk: int = k
+}
+for (var j2: int = 0; j2 < 3; j2 = j2 + 1) {
+  val y2: int = j2
+}
+for (var ii: int = 0; ii < 3; ii = ii + 1) {
+  for (var kk: int = 0; kk < 3; kk = kk + 1) {
+    val zz: int = ii + kk
+  }
+}
+for (var m: int = 0; m < 10; m = m + 1) {
+  if (m == 5) break
+  val wm: int = m
+}
+for (var n: int = 0; n < 5; n = n + 1) {
+  if (n == 2) continue
+  val vn: int = n
+}
+var ext: int = 0
+for (; ext < 3; ext = ext + 1) {
+  val t: int = ext
+}
+for (var inf: int = 0;; inf = inf + 1) {
+  if (inf > 5) break
+}
+for (var p: int = 0; p < 3;) {
+  val q: int = p
+  p = p + 1
+}
+
+// ── 12. Operators ──
+val arSum: int = 10 + 5
+val arDiff: int = 10 - 5
+val arProd: int = 10 * 5
+val arDiv: int = 10 / 5
+val arMod: int = 10 % 3
+val arNeg: int = -10
+val cmpEq: bool = 10 == 10
+val cmpNe: bool = 10 != 5
+val cmpLt: bool = 5 < 10
+val cmpGt: bool = 10 > 5
+val cmpLe: bool = 5 <= 5
+val cmpGe: bool = 10 >= 5
+val logAnd: bool = true && false
+val logOr: bool = true || false
+val logNot: bool = !true
+var asg: int = 0
+asg = 10
+asg += 5
+asg -= 3
+asg *= 2
+asg /= 2
+asg %= 3
+var msg: string = "Result: "
+msg = msg + " " + "ok"
+msg += " appended"
+
+// ── 13. Spread ──
+val arr1: int[] = [1, 2, 3]
+val arr2: int[] = [4, 5, 6]
+val spreadCombined: int[] = [...arr1, ...arr2, 7, 8]
+
+// ── 16. Structs ──
+struct UserS {
+  name: string
+  age: int
+}
+struct CounterS {
+  mut value: int
+}
+struct ConfigS {
+  host: string = "localhost"
+  port: int = 8080
+}
+struct EmptyS {}
+struct WithArrays {
+  ids: int[]
+  matrix: int[][]
+  entries: Array<string>
+}
+struct Status {
+  code: int | string
+  message: string?
+}
+
+val uS = UserS { name: "Alice", age: 30 }
+val cfgS = ConfigS { host: "server" }
+val cS = CounterS { value: 0 }
+val eS = EmptyS {}
+val wA = WithArrays { ids: [1, 2], matrix: [[1]], entries: ["a"] }
+val st = Status { code: 200, message: null }
+
+val nameS: string = uS.name
+cS.value = 42
+val cVal = cS.value
+
+struct PointS {
+  x: float
+  y: float
+  func magnitude(): float {
+    return self.x * self.x + self.y * self.y
+  }
+  mut func scale(factor: float) {
+    self.x = self.x * factor
+    self.y = self.y * factor
+  }
+}
+val pS = PointS { x: 3.0, y: 4.0 }
+val magS = pS.magnitude()
+pS.scale(2.0)
+val magS2 = pS.magnitude()
+
+struct Box<T> {
+  value: T
+}
+val bInt = Box<int> { value: 42 }
+val bStr = Box<string> { value: "hello" }
+val bInf = Box { value: 99 }
+val boxVal = bInt.value
+
+struct Result<T, E> {
+  value: T
+  error: E?
+  func isOk(): bool {
+    return self.error == null
+  }
+  func unwrap(): T {
+    return self.value
+  }
+}
+val ok = Result<int, string> { value: 42, error: null }
+val okCheck = ok.isOk()
+val okUnwrap = ok.unwrap()
+
+// ── 16. Type Alias com Structs ──
+struct UserId { value: int }
+typealias UID = UserId
+val uid: UID = UserId { value: 1 }
+val uid2: UserId = uid
+
+// ── 16. Equality ──
+struct PersonEq { name: string; age: int }
+val a = PersonEq { name: "Alice", age: 30 }
+val b = PersonEq { name: "Bob", age: 25 }
+val eq: bool = a == b
+val ne: bool = a != b
+val same: bool = a == a
+
+// ── 16.11 Complete Example ──
+typealias Email = string
+struct Address {
+  street: string
+  city: string
+  zip: string?
+}
+struct PersonD {
+  name: string
+  email: Email
+  address: Address
+  mut age: int = 0
+  func isAdult(): bool {
+    return self.age >= 18
+  }
+  mut func birthday() {
+    self.age = self.age + 1
+  }
+}
+val addr = Address { street: "123 Main", city: "NYC", zip: null }
+val pD = PersonD { name: "Alice", email: "a@b.com", address: addr }
+val adult: bool = pD.isAdult()
+pD.birthday()
+
+// ── 17. Protocols ──
+protocol Printable {
+  func print(): void
+}
+protocol Equatable {
+  func equals(other: Self): bool
+}
+struct Logger implements Printable {
+  func print(): void {
+    // body
+  }
+}
+struct UserId2 implements Equatable {
+  value: int
+  func equals(other: Self): bool {
+    return self.value == other.value
+  }
+}
+val l = Logger {}
+val eq2 = UserId2 { value: 1 }.equals(UserId2 { value: 1 })
+
+// ── Expressões finais ──
+inferred
+count
+name
+pi
+flag
+nothing
+intVal
+floatVal
+strVal
+boolVal
+nullVal
+anyVal
+unknownVal
+nums
+names
+matrix
+nested
+list
+strList
+firstElem
+combined
+userId
+userName
+nums2
+unionVal
+unionVal2
+nullableStr
+nullableStr2
+union1
+union2
+unionArr
+nullable1
+nullable2
+nameOpt
+r1
+r2
+r3
+r5
+r6
+r7
+resAdd
+resGreet
+resProc
+triple
+resultArrow
+greetArrow
+doubleResult
+idResult
+idResult2
+firstResult
+ctxResult
+immediate
+msg
+spreadCombined
+uS
+cfgS
+cS
+eS
+wA
+st
+nameS
+cVal
+pS
+magS
+magS2
+bInt
+bStr
+bInf
+boxVal
+ok
+okCheck
+okUnwrap
+uid
+uid2
+a
+b
+eq
+ne
+same
+addr
+pD
+adult
+l
+eq2

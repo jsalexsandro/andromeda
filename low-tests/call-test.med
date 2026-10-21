@@ -1,0 +1,29 @@
+// Fase 3 - CallExpression
+
+// Funções básicas
+func add(a: int, b: int): int { return a + b }
+func greet(name: string): string { return name }
+func noArgs(): int { return 42 }
+
+// CallExpression básicos
+add(1, 2)
+greet("Alice")
+noArgs()
+
+// CallNamed - argumentos nomeados
+add(x: 1, y: 2)
+greet(name: "Bob")
+
+// Misturado
+greet(name: "Charlie")
+
+// Aninhados
+add(add(1, 2), 3)
+
+// Com expressões
+add(1 + 2, 3 * 4)
+
+// Generic call
+func identity<T>(x: T): T { return x }
+identity<int>(42)
+identity("hello")

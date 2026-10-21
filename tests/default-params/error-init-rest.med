@@ -1,0 +1,6 @@
+// Test: rest parameter with default in struct init - should fail
+struct Test {
+  init(...rest: int = [1]): int {
+    return rest
+  }
+}

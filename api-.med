@@ -1,0 +1,76 @@
+// struct member validation
+// andromeda poc 1.1
+
+struct User {
+  email: string
+  InvalidEmail: Error = Error { message: "Email Invalido" }
+  
+  validate email {
+    if (!email.has("@")){
+        reject InvalidEmail 
+    }
+  }
+}
+
+
+const user = User {
+  email: "" /
+}
+
+
+// validate é recrutado em toda atribuição para "email"
+// questõe da POC:
+1. Ao definir email com um valor valor Default no corpo do struct se ele não cumpri os requisitos la cima?
+  a. definir regra: "email não é validado na definição"
+  b. ja lançar error também
+
+  
+2. Caso seja invalido? interrompemos o fluxo? causando um error?
+  a. Causar um error pra ser tratato com Try e Catch? |
+  b. Ao usar a keyword validate a runtime insere o campo: emailValidate.Ok == false || true
+                                                          emailValidate.Error = Error || null
+     Caso essa abordagem ser considerada precisaremso definir um valor pra Email, email ficara vazio?
+     
+
+
+// Array .length (if supported)
+val arr: int[] = [1, 2, 3]
+// val len = arr.length
+
+struct Address {
+  city: string
+  zip: string?
+}
+
+// Struct field access
+struct User {
+  name: string
+  age: int
+  address: Address
+}
+
+'
+
+val user = User { name: "Alice", age: 30, address: Address { city: "NYC", zip: null } }
+val name = user.name
+val age = user.age
+val city = user.address.city
+val zip = user.address.zip
+
+// Chained
+val fullAddress = user.address.city
+
+// Index on array result
+val firstName = "hello".length  // if string has length
+
+// Nested array access
+val matrix: int[][] = [[1,2], [3,4]]
+val row = matrix[0]
+val elem = matrix[0][1]
+
+// Ternary with member/index
+val idx: int = 1
+val valOrDefault = idx < 2 ? arr[idx] : 0
+
+// Nullish with member
+val maybeArr: int[]? = null

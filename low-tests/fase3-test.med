@@ -1,0 +1,38 @@
+// Fase 3 - Expressões Compostas
+
+// Assignment básico
+var x: int = 10
+x = 20
+
+// Compound assignment
+var a: int = 10
+a += 5
+a -= 3
+a *= 2
+a /= 4
+a %= 3
+
+// Increment/Decrement
+var b: int = 0
+b = b + 1  // prefix-style via assignment
+b = b - 1
+
+// String concatenation
+val s1: string = "hello"
+val s2: string = "world"
+val concat1 = s1 + s2
+val concat2 = "foo" + "bar"
+val concat3 = s1 + " " + s2
+
+// String compound assignment
+var str: string = "hello"
+str += " world"
+str += "!"
+
+// Nested expressions
+var c: int = 10
+c += 5 * 2
+c -= 3 + 1
+c *= 2 - 1
+c /= 4 / 2
+c %= 3 % 2

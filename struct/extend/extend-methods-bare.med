@@ -20,7 +20,7 @@ extend Counter {
     return self.value * 3
   }
 
-  func incAndShow(step: int): string {
+  mut func incAndShow(step: int): string {
     self.value = self.value + step
     return show()  // bare method call in extend method
   }

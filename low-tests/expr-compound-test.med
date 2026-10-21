@@ -1,0 +1,57 @@
+// Fase 3 - Expressões Compostas
+
+// TernaryExpression
+val x: int = 10
+val y: int = 20
+val max = x > y ? x : y
+val min = x < y ? x : y
+
+// Nested ternary
+val a: int = 5
+val b: int = 10
+val c: int = 15
+val middle = a > b ? (a < c ? a : c) : (b < c ? b : c)
+
+// NullishCoalescing
+val nullable: int? = null
+val fallback = nullable ?? 42
+val hasValue: int? = 100
+val result = hasValue ?? 0
+
+// Chaining
+val deep: int? = null
+val chained = deep ?? nullable ?? 999
+
+// MemberExpression (struct field access)
+struct Point {
+  x: float
+  y: float
+}
+
+val p = Point { x: 3.0, y: 4.0 }
+val px = p.x
+val py = p.y
+
+// IndexExpression (array access)
+val arr: int[] = [10, 20, 30, 40, 50]
+val first = arr[0]
+val second = arr[1]
+val last = arr[4]
+
+// Index with expression
+val i: int = 2
+val dynamic = arr[i]
+
+// Nested
+val matrix: int[][] = [[1, 2], [3, 4], [5, 6]]
+val row = matrix[1]
+val elem = matrix[1][0]
+
+// Mixed with ternary
+val idx: int = 1
+val valOrDefault = idx < 3 ? arr[idx] : 0
+
+// Mixed with nullish
+val maybeIdx: int? = null
+val safeIdx = maybeIdx ?? 0
+val safeAccess = arr[safeIdx]

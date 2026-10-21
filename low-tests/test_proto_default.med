@@ -1,0 +1,3 @@
+protocol TestProto {
+  func method(a: int = 1): int
+}

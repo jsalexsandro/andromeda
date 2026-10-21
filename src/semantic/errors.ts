@@ -43,7 +43,8 @@ export type ErrorCode =
   | "DUPLICATE_PROTOCOL_METHOD"
   | "EXTEND_TARGET_INVALID"
   | "EXTENSION_CONFLICT"
-  | "OVERRIDE_SIGNATURE_MISMATCH";
+  | "OVERRIDE_SIGNATURE_MISMATCH"
+  | "EXTEND_INIT_CONFLICT";
 
 export class SemanticError {
   constructor(
@@ -165,6 +166,11 @@ export const Errors = {
   extendFieldRestInit: (target: string, field: string, token: Token) =>
     createError("EXTEND_TARGET_INVALID",
       `cannot add field '${field}' to '${target}' — its init uses a rest parameter and cannot accept extra fields`,
+      token, "typecheck"),
+
+  extendInitConflict: (target: string, token: Token) =>
+    createError("EXTEND_INIT_CONFLICT",
+      `cannot add 'init' to '${target}' — it already has a custom init`,
       token, "typecheck"),
 
   divisionByZero: (operator: string, token: Token) =>

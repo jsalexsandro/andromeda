@@ -60,6 +60,8 @@ FASE 4 — FUNÇÕES
     const pow = func(x: int): int = { return x * x } // [fututo]
     
 ├── 20. ArgumentList            (a: int, b: string)
+        Default values  (a: int = 10)
+        
 ├── 21. FunctionStatement       func foo() {}
         Anotação func foo(): int {} [OK]
         Funções anominas, permitir essa sintaxe
@@ -86,7 +88,7 @@ FASE 6 — CONTROLE AVANÇADO
 ├── 28. BreakStatement          break
 └── 29. ContinueStatement       continue
 ├── 27. ForStatement            for (val i = 0; ...)
-        'For in' 
+        'For in'  (futuro)
         'in' keyword
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -138,14 +140,16 @@ FASE 6.5 — CONTROL TYPES
     Estrutura Grande e Complexa veja @structs.md 
     Totalmente implementado
 
-# ATE AQUI IMPLEMENTADO
 
 Fase 6.6 Protocols
 │
 ├── Protocols Statement
     Estrutura Grande e Complexa veja @protocols.md 
-   
 
+  # ATE AQUI IMPLEMENTADO
+
+
+FOR IN
 
 FASE 7 — CLASSES
 ├── 30. ClassStatement          class Foo {}

@@ -1,0 +1,12 @@
+struct Counter {
+  mut value: int = 0
+  
+  func setValue(v: int) {
+    self.value = v
+  }
+}
+
+func test() {
+  val c = Counter()
+  c.setValue(42)
+}

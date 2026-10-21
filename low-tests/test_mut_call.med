@@ -1,0 +1,18 @@
+struct Counter {
+  mut value: int = 0
+  
+  func getValue(): int {
+    return self.value
+  }
+  
+  mut func increment(step: int = 1): int {
+    self.value = self.value + step
+    return self.value
+  }
+}
+
+func test() {
+  val c = Counter()
+  // This should fail - calling mut method from non-mut function
+  c.increment()
+}

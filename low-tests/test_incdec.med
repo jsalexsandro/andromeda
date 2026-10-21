@@ -1,0 +1,14 @@
+// Teste: ++/-- pós-fixo verdadeiro + prefixo
+var x: int = 0
+x++           // pós-fixo: retorna 0, depois x = 1
+x--           // pós-fixo: retorna 1, depois x = 0
+++x           // prefixo: x = 1, retorna 1
+--x           // prefixo: x = 0, retorna 0
+
+var y: int = 10
+y++           // y = 11
+y--           // y = 10
+
+// Expressões finais
+x
+y

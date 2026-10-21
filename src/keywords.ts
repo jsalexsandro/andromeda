@@ -28,6 +28,7 @@ export const KEYWORDS = [
   'continue',
   'protocol',
   'implements',
+  'override',
   'Self',
   'typealias',  // Tipos nomeados - nominal type aliases
   'struct',

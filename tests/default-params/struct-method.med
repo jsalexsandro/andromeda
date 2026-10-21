@@ -2,12 +2,12 @@
 struct Counter {
   mut value: int = 0
 
-  func increment(step: int = 1): int {
+  mut func increment(step: int = 1): int {
     value = value + step
     return value
   }
 
-  func setValue(v: int = 10): int {
+  mut func setValue(v: int = 10): int {
     value = v
     return value
   }
