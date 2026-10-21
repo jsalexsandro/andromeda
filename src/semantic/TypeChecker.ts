@@ -2189,16 +2189,23 @@ const workingMethods = [...(symbol.methods ?? [])];
       }
     }
 
-    // (10.2) Erro se positional
-    if (positionalArgs.length > 0) {
-      this.errors.push(Errors.typeMismatch(
-        `positional arguments not allowed in struct constructor. Use named arguments: ${callName}(${structFields ? structFields.map(f => `${f.name.value}: value`).join(", ") : "field: value"})`,
-        token,
-      ));
-      // Still check expressions to avoid cascade
-      for (const a of positionalArgs) this.checkExpression(a);
-      for (const na of namedArgs) this.checkExpression(na.value);
-      return { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: callName } } as TypeNode;
+    // Allow positional arguments in auto-init mode
+    // Map positional args to fields in declaration order
+    const positionalArgCount = positionalArgs.length;
+    const fieldNames = structFields ? structFields.map(f => f.name.value as string) : [];
+
+    // Check for duplicate: field provided both by position and by name
+    const providedByPosition = new Set<string>();
+    for (let i = 0; i < positionalArgCount && i < fieldNames.length; i++) {
+      providedByPosition.add(fieldNames[i]);
+    }
+    for (const na of namedArgs) {
+      if (providedByPosition.has(na.key)) {
+        this.errors.push(Errors.typeMismatch(
+          `field '${na.key}' provided both by position and by name`,
+          na.keyToken ?? token,
+        ));
+      }
     }
 
     if (!structFields) {
@@ -2271,10 +2278,43 @@ const workingMethods = [...(symbol.methods ?? [])];
       fieldTypeMap.set(fieldName, { type: fieldType, hasDefault: !!f.defaultValue });
     }
 
+    // ── Validate positional args (auto-init mode) ──────────────
+    // Map positional args to fields in declaration order
+    // const fieldNames = structFields.map(f => f.name.value as string);
+    for (let i = 0; i < positionalArgs.length && i < fieldNames.length; i++) {
+      const fieldName = fieldNames[i];
+      const fieldInfo = fieldTypeMap.get(fieldName);
+      if (!fieldInfo) continue;
+
+      // Check if already provided by name (duplicate check done above)
+      const providedKeys = new Set<string>();
+      // We'll build providedKeys after both positional and named validation
+
+      this.contextualType = fieldInfo.type;
+      const actualType = this.checkExpression(positionalArgs[i]);
+      this.contextualType = null;
+
+      if (!this.areTypesCompatible(fieldInfo.type, actualType)) {
+        this.errors.push(Errors.typeMismatch(
+          `cannot assign '${this.typeToString(actualType)}' to field '${fieldName}' of type '${this.typeToString(fieldInfo.type)}'`,
+          this.getExprToken(positionalArgs[i]) ?? token,
+        ));
+      }
+    }
+
+    // Track fields provided by position for the missing field check
+    // const providedByPosition = new Set<string>();
+    for (let i = 0; i < positionalArgs.length && i < fieldNames.length; i++) {
+      providedByPosition.add(fieldNames[i]);
+    }
+
     // ── Validate named args (10.4) ─────────────────────────
     // 1. Duplicates
     const seenKeys = new Set<string>();
     const providedKeys = new Set<string>();
+
+    // Include positional args in providedKeys
+    for (const k of providedByPosition) providedKeys.add(k);
 
     for (const na of namedArgs) {
       if (seenKeys.has(na.key)) {
@@ -2358,17 +2398,6 @@ const workingMethods = [...(symbol.methods ?? [])];
       }
     }
 
-    // (10.6) Erro se named args em custom init
-    if (namedArgs.length > 0) {
-      this.errors.push(Errors.typeMismatch(
-        `named arguments not allowed in custom init call. Use positional arguments.`,
-        namedArgs[0].keyToken ?? token,
-      ));
-      for (const na of namedArgs) this.checkExpression(na.value);
-      for (const a of positionalArgs) this.checkExpression(a);
-      return { kind: "NamedType", name: { type: TokenType.IDENTIFIER, value: callName } } as TypeNode;
-    }
-
     // ── Handle generic type args ──────────────────────────
     let typeArgs: TypeNode[] | undefined = preResolvedTypeArgs ?? expr.typeArgs;
     let typeArgMap = new Map<string, TypeNode>();
@@ -2413,6 +2442,20 @@ const workingMethods = [...(symbol.methods ?? [])];
       defaultValue: p.defaultValue,
     }));
 
+    // Check for duplicate: param provided both by position and by name
+    const providedByPosition = new Set<string>();
+    for (let i = 0; i < positionalArgs.length && i < initParams.length; i++) {
+      providedByPosition.add(initParams[i].name.value as string);
+    }
+    for (const na of namedArgs) {
+      if (providedByPosition.has(na.key)) {
+        this.errors.push(Errors.typeMismatch(
+          `parameter '${na.key}' provided both by position and by name`,
+          na.keyToken ?? token,
+        ));
+      }
+    }
+
     // ── Check positional args against init params ─────────
     const hasRest = initParams.length > 0 && initParams[initParams.length - 1].isRest === true;
     const restIndex = hasRest ? initParams.length - 1 : -1;
@@ -2430,27 +2473,84 @@ const workingMethods = [...(symbol.methods ?? [])];
       }
     }
 
-    // Check arity
+    // Check arity (considering both positional and named args)
     // Calculate minimum required args (init params without default values)
     const minRequiredInitArgs = initParams.filter(p => !(p as any).defaultValue).length;
 
+    // Total provided args = positional + named (each named arg fills one param)
+    const totalProvidedArgs = positionalArgs.length + namedArgs.length;
+
     if (hasRest) {
-      if (positionalArgs.length < restIndex) {
+      if (totalProvidedArgs < restIndex) {
         this.errors.push(Errors.argumentCountMismatch(
-          restIndex, positionalArgs.length, token,
+          restIndex, totalProvidedArgs, token,
         ));
       }
     } else {
       const maxArgs = initParams.length + extendDefaults.length;
-      const belowMin = positionalArgs.length < minRequiredInitArgs;
-      if (belowMin || positionalArgs.length > maxArgs) {
+      const belowMin = totalProvidedArgs < minRequiredInitArgs;
+      if (belowMin || totalProvidedArgs > maxArgs) {
         this.errors.push(Errors.argumentCountMismatch(
-          belowMin ? `${minRequiredInitArgs}..${initParams.length}` : maxArgs, positionalArgs.length, token,
+          belowMin ? `${minRequiredInitArgs}..${initParams.length}` : maxArgs, totalProvidedArgs, token,
         ));
       }
     }
 
-    // Check each arg
+    // ── Validate named args against init params ─────────────────
+    const providedByName = new Set<string>();
+    for (const na of namedArgs) {
+      // Find matching parameter by name
+      const paramIndex = initParams.findIndex(p => p.name.value === na.key);
+      if (paramIndex === -1) {
+        this.errors.push(Errors.typeMismatch(
+          `unknown argument '${na.key}' in call to '${callName}'`,
+          na.keyToken ?? token,
+        ));
+        this.checkExpression(na.value);
+        continue;
+      }
+      if (providedByPosition.has(initParams[paramIndex].name.value as string)) {
+        this.errors.push(Errors.typeMismatch(
+          `parameter '${na.key}' provided both by position and by name`,
+          na.keyToken ?? token,
+        ));
+        continue;
+      }
+      providedByName.add(initParams[paramIndex].name.value as string);
+
+      const param = initParams[paramIndex];
+      const expectedType = param.type ?? null;
+      this.contextualType = expectedType;
+      const actualType = this.checkExpression(na.value);
+      this.contextualType = null;
+
+      if (expectedType && !this.areTypesCompatible(expectedType, actualType)) {
+        this.errors.push(Errors.typeMismatch(
+          `argument '${na.key}': expected '${this.typeToString(expectedType)}', got '${this.typeToString(actualType)}'`,
+          na.keyToken ?? token,
+        ));
+      }
+    }
+
+    // Combine provided params for arity check
+    const providedParams = new Set<string>();
+    for (const k of providedByPosition) providedParams.add(k);
+    for (const k of providedByName) providedParams.add(k);
+
+    // Check for missing required params (only if no rest param)
+    if (!hasRest) {
+      for (const param of initParams) {
+        const paramName = param.name.value as string;
+        if (!providedParams.has(paramName) && !(param as any).defaultValue) {
+          this.errors.push(Errors.typeMismatch(
+            `missing argument '${paramName}' in call to '${callName}'`,
+            token,
+          ));
+        }
+      }
+    }
+
+    // Check each positional arg
     for (let i = 0; i < positionalArgs.length; i++) {
       let expectedType: TypeNode | null = null;
 

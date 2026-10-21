@@ -200,19 +200,31 @@ export class ExprVisitor {
     // Construtor de struct: sem `new` o JS chama a classe sem instanciar.
     // Auto-init usa argumento nomeado e o construtor destructura; init
     // custom e posicional. O literal `Nome { }` ja e outro no de AST.
-    if (expr.callee.kind === "Identifier") {
+if (expr.callee.kind === "Identifier") {
       const structName = expr.callee.name.value;
       const struct = this.structs.get(structName);
       if (struct) {
         if (struct.hasInit) {
           return `new ${structName}(${args})`;
         }
+        // Auto-init: convert positional args to named args based on field order
         const named = expr.args
-          .filter((a: any) => a.kind === "NamedArgument")
-          .map((a: any) => `${a.key}: ${this.visit(a.value)}`);
-        return `new ${structName}({ ${named.join(", ")} })`;
+          .map((a: any, i: number) => {
+            if (a.kind === "NamedArgument") {
+              return `${a.key}: ${this.visit(a.value)}`;
+            }
+            // Positional arg: map to field by index
+            const fieldName = struct.fields[i];
+            if (fieldName) {
+              return `${fieldName}: ${this.visit(a)}`;
+            }
+            return this.visit(a);
+          })
+          .filter(Boolean)
+          .join(", ");
+        return `new ${structName}({ ${named} })`;
       }
-    }
+      }
 
     // Builtins: print(...) -> $print(...)
     if (expr.callee.kind === "Identifier") {
