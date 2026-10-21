@@ -922,9 +922,20 @@ const workingMethods = [...(symbol.methods ?? [])];
 
     // Handle init in extend
     if (stmt.init) {
-      // If struct already has an init, extending with another init is not allowed
+      const isOverride = stmt.init.override === true;
+      // If struct already has an init, check override flag
       if (structStmt.init) {
-        this.errors.push(Errors.extendInitConflict(target, stmt.init.body[0] ?? stmt.targetName));
+        if (!isOverride) {
+          this.errors.push(Errors.extendInitConflict(target, stmt.init.body[0] ?? stmt.targetName));
+        } else {
+          // Override is allowed - replace the init
+          structStmt.init = stmt.init;
+          symbol.init = stmt.init;
+          this.checkStructConstructor(structStmt, stmt.init);
+        }
+      } else if (isOverride) {
+        // Override specified but no existing init to override
+        this.errors.push(Errors.overrideInitTargetNotFound(target, stmt.init.body[0] ?? stmt.targetName));
       } else {
         // Add the init to the struct statement for codegen
         structStmt.init = stmt.init;

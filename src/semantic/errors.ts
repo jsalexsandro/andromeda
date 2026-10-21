@@ -44,7 +44,8 @@ export type ErrorCode =
   | "EXTEND_TARGET_INVALID"
   | "EXTENSION_CONFLICT"
   | "OVERRIDE_SIGNATURE_MISMATCH"
-  | "EXTEND_INIT_CONFLICT";
+  | "EXTEND_INIT_CONFLICT"
+  | "OVERRIDE_INIT_TARGET_NOT_FOUND";
 
 export class SemanticError {
   constructor(
@@ -171,6 +172,11 @@ export const Errors = {
   extendInitConflict: (target: string, token: Token) =>
     createError("EXTEND_INIT_CONFLICT",
       `cannot add 'init' to '${target}' — it already has a custom init`,
+      token, "typecheck"),
+
+  overrideInitTargetNotFound: (target: string, token: Token) =>
+    createError("OVERRIDE_INIT_TARGET_NOT_FOUND",
+      `override init specified but '${target}' has no init to override`,
       token, "typecheck"),
 
   divisionByZero: (operator: string, token: Token) =>

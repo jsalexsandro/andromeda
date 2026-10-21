@@ -15,7 +15,7 @@ extend Name {
     
   }
 
-  init(n: string) {
+  override init(n: string) {
 
   }
 }

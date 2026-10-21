@@ -2869,12 +2869,27 @@ export class Parser {
       // override func
       if (next.type === TokenType.KEYWORD && next.value === "override") {
         this.advance(); // consume 'override'
-        if (!this.check(TokenType.KEYWORD) || this.peek().value !== "func") {
-          this.error("Expected 'func' after 'override'", this.peek());
+        if (!this.check(TokenType.KEYWORD)) {
+          this.error("Expected 'func' or 'init' after 'override'", this.peek());
         }
-        this.advance(); // consume 'func'
-        methods.push(this.parseStructMethod(false, true));
-        continue;
+        const nextAfterOverride = this.peek().value;
+        if (nextAfterOverride === "func") {
+          this.advance(); // consume 'func'
+          methods.push(this.parseStructMethod(false, true));
+          continue;
+        }
+        if (nextAfterOverride === "init") {
+          this.advance(); // consume 'init'
+          let init = this.parseStructConstructorNoInit();
+          if (init) {
+            init = init as any;
+            init.kind = "StructConstructor";
+            init.override = true;
+          }
+          (this as any)._extendInit = init;
+          continue;
+        }
+        this.error("Expected 'func' or 'init' after 'override'", this.peek());
       }
 
       // init (custom init in extend)
@@ -3199,6 +3214,29 @@ export class Parser {
   private parseStructConstructor(): StructConstructor {
     this.advance(); // consume 'init'
 
+    // Optional type parameters: init<T> (reservado para futuro)
+    let typeParameters: TypeParameterNode[] | undefined;
+
+    if (!this.check(TokenType.LPAREN)) {
+      this.error("Expected '(' after 'init'", this.peek());
+    }
+    this.advance(); // consume '('
+    const params = this.parseFunctionParams();
+
+    // Body
+    let body: any;
+    if (this.check(TokenType.LBRACE)) {
+      body = this.parseBlockStatement();
+    } else {
+      this.error("Expected '{' before init body", this.peek());
+      body = { kind: "BlockStmt", statements: [] };
+    }
+
+    return { kind: "StructConstructor", params, body, typeParameters };
+  }
+
+  // parseStructConstructor without consuming 'init' token (for override init)
+  private parseStructConstructorNoInit(): StructConstructor {
     // Optional type parameters: init<T> (reservado para futuro)
     let typeParameters: TypeParameterNode[] | undefined;
 

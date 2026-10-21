@@ -517,6 +517,7 @@ export interface StructConstructor {
   params: FunctionStmtParam[]
   body: BlockStmt
   typeParameters?: TypeParameterNode[]
+  override?: boolean
 }
 
 export interface StructField {
